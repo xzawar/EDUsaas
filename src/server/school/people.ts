@@ -29,16 +29,18 @@ const phone = z
 const optional = <T extends z.ZodTypeAny>(s: T) => s.nullable().optional();
 export const RESTORE_WINDOW_DAYS = 30;
 
-async function tenantPrefix(tx: TenantTx) {
+export async function tenantPrefix(tx: TenantTx) {
   return (await tx.tenant.findFirstOrThrow({ select: { prefix: true } })).prefix;
 }
 
 /** Creates a login with a one-time temporary password (forced change at first sign-in, spec §9.3). */
-async function createLogin(
+export async function createLogin(
   tx: TenantTx,
   data: { tenantId: string; role: UserRole; displayName: string; username?: string; email?: string },
+  /** Pre-generated credential (bulk import hashes in parallel before the transaction). */
+  pre?: { temporaryPassword: string; passwordHash: string },
 ) {
-  const temporaryPassword = generateTemporaryPassword();
+  const temporaryPassword = pre?.temporaryPassword ?? generateTemporaryPassword();
   const user = await tx.user.create({
     data: {
       tenantId: data.tenantId,
@@ -47,7 +49,7 @@ async function createLogin(
       username: data.username ?? null,
       usernameNormalized: data.username ? normalizeUsername(data.username) : null,
       email: data.email?.toLowerCase() ?? null,
-      passwordHash: await hashPassword(temporaryPassword),
+      passwordHash: pre?.passwordHash ?? (await hashPassword(temporaryPassword)),
       mustChangePassword: true,
     },
   });
@@ -563,7 +565,7 @@ export const createStudentSchema = z.object({
 
 export const updateStudentSchema = createStudentSchema.omit({ sectionId: true }).partial().strict();
 
-async function placeInSection(tx: TenantTx, sectionId: string) {
+export async function placeInSection(tx: TenantTx, sectionId: string) {
   const section = await tx.section.findUnique({
     where: { id: sectionId },
     include: { class: { include: { academicYear: { select: { status: true } } } } },
