@@ -484,6 +484,16 @@ Follows spec §13, with a Phase 0 for setup. Each phase ends with a demo against
 - Full IDOR test sweep, load test with a 1,000-student school, backup plan (deferred in spec, **required before real school data**), privacy policy/ToS placeholder.
 - **Acceptance:** spec §15 checklist fully ticked.
 
+### Delivery status (Nov 2026)
+
+| Phase | State       | Notes                                                                                                                                                                                                                             |
+| ----- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0–2   | Done        | Foundation, portals, school administration.                                                                                                                                                                                       |
+| 3     | Done        | Attendance (offline queue + sync), check-in, leave routing/escalation, marks windows + publishing, versioned grading, remarks moderation, timetable with clash prevention.                                                        |
+| 4     | Done        | Reports + CSV (formula-neutralised), hardened .xlsx/.csv import with preview + idempotent chunked commit, pg_trgm search with role scopes, announcements, notification bell, audit-log viewer.                                    |
+| 5     | Done (core) | Break-glass support grants (request → school approves → time-boxed → audited), emergency School Admin reset, report-card PDF, D7 anonymisation, leave-escalation and weekly at-risk notices, per-IP rate limits.                  |
+| 5     | **Open**    | Monthly audit archival needs object storage (D14 — job reports "skipped" until a bucket is set). Sentry wiring, load test with a 1,000-student school, backup/restore plan, privacy policy/ToS. Required before real school data. |
+
 **Rough total:** 15–20 weeks for one full-time developer. Phases 3 and 4 can partly overlap.
 
 ---

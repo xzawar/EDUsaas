@@ -46,8 +46,15 @@ export const ACTION_LABELS: Record<string, string> = {
   'import.commit': 'Students imported',
   'announcement.create': 'Announcement posted',
   'announcement.delete': 'Announcement removed',
-  'support.grant': 'Support access granted',
-  'support.revoke': 'Support access ended',
+  'support.request': 'Support access requested',
+  'support.grant': 'Support access allowed',
+  'support.deny': 'Support access denied',
+  'support.revoke': 'Support access ended by school',
+  'support.end': 'Support access ended by EDUsaas',
+  'support.withdraw': 'Support request withdrawn',
+  'support.view': 'EDUsaas support viewed the school',
+  'support.admin_reset': 'School Admin password reset by EDUsaas',
+  'retention.anonymize': 'Old student records anonymised',
 };
 
 export function actionLabel(action: string): string {

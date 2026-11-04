@@ -6,15 +6,18 @@ import { requirePortal } from '@/server/auth/page';
 import { getRolePermissions, getSchoolSettings } from '@/server/school/settings';
 import { currentScheme } from '@/server/school/assessments';
 import { GradingEditor } from '@/components/academics/GradingEditor';
+import { SchoolSupportCard } from '@/components/support/SupportPanels';
+import { listSupportGrants } from '@/server/school/support';
 
 export const metadata: Metadata = { title: 'Settings' };
 
 export default async function SettingsPage() {
   const ctx = await requirePortal('STAFF', 'settings.manage');
-  const [{ tenant, settings }, roles, scheme] = await Promise.all([
+  const [{ tenant, settings }, roles, scheme, grants] = await Promise.all([
     getSchoolSettings(ctx),
     getRolePermissions(ctx),
     currentScheme(ctx),
+    listSupportGrants(ctx),
   ]);
   return (
     <>
@@ -45,6 +48,14 @@ export default async function SettingsPage() {
             description="Choose what the Principal and Admissions Officer can do. Teacher and student access is fixed by the system."
           >
             <PermissionsMatrix initial={roles} />
+          </Card>
+        </div>
+        <div id="support">
+          <Card
+            title="EDUsaas support access"
+            description="You decide if and when our support team can look at your school."
+          >
+            <SchoolSupportCard grants={grants} />
           </Card>
         </div>
       </div>

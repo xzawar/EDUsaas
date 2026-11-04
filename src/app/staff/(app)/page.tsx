@@ -2,6 +2,7 @@ import { ArrowRight, BookOpen, CheckCircle2, Circle, GraduationCap, Layers, User
 import type { Metadata } from 'next';
 import { actionLabel } from '@/lib/audit-labels';
 import { LatestAnnouncements } from '@/components/comms/LatestAnnouncements';
+import { listSupportGrants } from '@/server/school/support';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { BarList, Meter, TrendColumns } from '@/components/charts';
@@ -32,6 +33,8 @@ export default async function StaffDashboard() {
 }
 
 async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
+  const supportPending =
+    ctx.can('settings.manage') && (await listSupportGrants(ctx)).some((g) => g.status === 'PENDING');
   const [d, att, board, approvals, toPublish] = await Promise.all([
     schoolOverview(ctx),
     ctx.can('attendance.oversee') ? attendanceOverview(ctx) : Promise.resolve(null),
@@ -87,8 +90,16 @@ async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
         />
       </div>
 
-      {(approvals > 0 || toPublish > 0 || (att?.atRiskCount ?? 0) > 0) && (
+      {(approvals > 0 || toPublish > 0 || (att?.atRiskCount ?? 0) > 0 || supportPending) && (
         <div className="mt-4 flex flex-wrap gap-2">
+          {supportPending && (
+            <Link
+              href="/staff/settings#support"
+              className="rounded-full bg-violet-100 px-3 py-1.5 text-sm font-medium text-violet-900 ring-1 ring-violet-200 hover:bg-violet-200"
+            >
+              EDUsaas support asks for access →
+            </Link>
+          )}
           {approvals > 0 && (
             <Link
               href="/staff/leave?tab=approve"
