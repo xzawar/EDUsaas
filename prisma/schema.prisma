@@ -144,6 +144,7 @@ model Tenant {
   remarks            Remark[]
   timetableSlots     TimetableSlot[]
   timetableEntries   TimetableEntry[]
+  notifications      Notification[]
 
   @@map("tenants")
 }
@@ -210,6 +211,7 @@ model User {
   student        Student?
   leaveRequests  LeaveRequest[]       @relation("LeaveApplicant")
   remarks        Remark[]             @relation("RemarkAuthor")
+  notifications  Notification[]
 
   @@index([tenantId, role])
   @@map("users")
@@ -747,4 +749,25 @@ model TimetableEntry {
   @@index([subjectId])
   @@index([tenantId])
   @@map("timetable_entries")
+}
+
+// ───────────── In-app notifications (spec §1.3; channels beyond in-app deferred) ─────────────
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  kind      String
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([tenantId, createdAt])
+  @@map("notifications")
 }
