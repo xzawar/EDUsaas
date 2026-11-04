@@ -29,7 +29,7 @@ jobs:
       APP_URL: http://localhost:3000
       CRON_SECRET: ci-only-cron-secret-0000000000000000000000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -61,6 +61,6 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build production image
         run: docker build -t edusaas:ci .
