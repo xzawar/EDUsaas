@@ -4,12 +4,14 @@ import { Card } from '@/components/ui';
 import { PermissionsMatrix, SettingsForm } from '@/components/SchoolSettings';
 import { requirePortal } from '@/server/auth/page';
 import { getRolePermissions, getSchoolSettings } from '@/server/school/settings';
+import { currentScheme } from '@/server/school/assessments';
+import { GradingEditor } from '@/components/academics/GradingEditor';
 
 export const metadata: Metadata = { title: 'Settings' };
 
 export default async function SettingsPage() {
   const ctx = await requirePortal('STAFF', 'settings.manage');
-  const [{ tenant, settings }, roles] = await Promise.all([getSchoolSettings(ctx), getRolePermissions(ctx)]);
+  const [{ tenant, settings }, roles, scheme] = await Promise.all([getSchoolSettings(ctx), getRolePermissions(ctx), currentScheme(ctx)]);
   return (
     <>
       <PageHeader title="School settings" description={`${tenant.name} · username prefix "${tenant.prefix}"`} />
@@ -25,6 +27,11 @@ export default async function SettingsPage() {
             }}
           />
         </Card>
+        {scheme && (
+          <Card title="Grading scale" description={`${scheme.yearName} · version ${scheme.version}. Grades are based on the percentage scored.`}>
+            <GradingEditor yearName={scheme.yearName} bands={scheme.bands} inUse={scheme.inUse} />
+          </Card>
+        )}
         <div id="permissions">
           <Card
             title="Role permissions"
