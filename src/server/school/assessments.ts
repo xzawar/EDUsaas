@@ -406,3 +406,21 @@ export async function unpublishedCount(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => tx.assessment.count({ where: { status: 'SUBMITTED' } }));
 }
 
+
+/** (section, subject) pairs the caller can create tests for. */
+export async function teachOptions(ctx: AuthedContext) {
+  return inTenant(ctx, async (tx) => {
+    const where: Prisma.TeacherAssignmentWhereInput = { section: { class: { academicYear: { status: 'CURRENT' } } } };
+    if (!ctx.can('marks.manage')) {
+      const t = await tx.teacher.findUnique({ where: { userId: ctx.user.id } });
+      if (!t || !ctx.can('marks.enter')) return [];
+      where.teacherId = t.id;
+    }
+    const rows = await tx.teacherAssignment.findMany({ where, include: { section: { include: { class: true } }, subject: true } });
+    const seen = new Set<string>();
+    return rows
+      .filter((r) => !seen.has(`${r.sectionId}:${r.subjectId}`) && seen.add(`${r.sectionId}:${r.subjectId}`))
+      .sort((a, b) => a.section.class.gradeLevel - b.section.class.gradeLevel || a.section.name.localeCompare(b.section.name) || a.subject.name.localeCompare(b.subject.name))
+      .map((r) => ({ sectionId: r.sectionId, section: sectionLabel(r.section), subjectId: r.subjectId, subject: r.subject.name }));
+  });
+}
