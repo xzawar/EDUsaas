@@ -19,11 +19,13 @@ import {
 } from '@/server/school/common';
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-04-01');
+/** Phones are stored digits-only (leading + kept) so search works however they were typed; formatted for display. */
 const phone = z
   .string()
   .trim()
   .max(20)
-  .regex(/^[+0-9][0-9 -]{6,19}$/, 'Enter a valid phone number');
+  .regex(/^[+0-9][0-9 -]{6,19}$/, 'Enter a valid phone number')
+  .transform((v) => v.replace(/[^\d+]/g, ''));
 const optional = <T extends z.ZodTypeAny>(s: T) => s.nullable().optional();
 export const RESTORE_WINDOW_DAYS = 30;
 
@@ -771,11 +773,14 @@ export async function resetStudentPassword(ctx: AuthedContext, id: string) {
 async function renumberPlan(tx: TenantTx, sectionId: string) {
   const section = await tx.section.findUnique({ where: { id: sectionId }, include: { class: true } });
   if (!section) throw notFound('Section');
-  const students = await tx.student.findMany({
-    where: { sectionId, status: 'ACTIVE' },
+  // Active students first (1..n in current order); students who left but still hold a roll in this section
+  // (withdrawn, restorable) follow, so no new number collides with a roll they still hold.
+  const all = await tx.student.findMany({
+    where: { sectionId },
     include: { user: { select: { id: true, displayName: true, username: true } } },
     orderBy: [{ rollNumber: 'asc' }],
   });
+  const students = [...all.filter((s) => s.status === 'ACTIVE'), ...all.filter((s) => s.status !== 'ACTIVE')];
   const prefix = await tenantPrefix(tx);
   const rows = students.map((s, i) => {
     const newRoll = i + 1;
@@ -809,7 +814,11 @@ export async function previewRenumber(ctx: AuthedContext, sectionId: string) {
   return inTenant(ctx, async (tx) => {
     await assertCanRenumber(ctx, tx, sectionId);
     const { section, changes, rows } = await renumberPlan(tx, sectionId);
-    return { section: sectionLabel(section), total: rows.length, changes: changes.map(({ userId: _u, ...r }) => r) };
+    return {
+      section: sectionLabel(section),
+      total: rows.length,
+      changes: changes.map(({ userId: _u, ...r }) => r),
+    };
   });
 }
 

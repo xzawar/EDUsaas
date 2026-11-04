@@ -12,6 +12,32 @@ import * as permissions from '@/app/api/v1/settings/permissions/route';
 import * as tenants from '@/app/api/v1/platform/tenants/route';
 import * as tenantById from '@/app/api/v1/platform/tenants/[id]/route';
 import * as health from '@/app/api/v1/platform/health/route';
+import * as years from '@/app/api/v1/academic-years/route';
+import * as yearById from '@/app/api/v1/academic-years/[id]/route';
+import * as yearStructure from '@/app/api/v1/academic-years/[id]/structure/route';
+import * as yearCopy from '@/app/api/v1/academic-years/[id]/copy-structure/route';
+import * as classes from '@/app/api/v1/classes/route';
+import * as classById from '@/app/api/v1/classes/[id]/route';
+import * as classSubjects from '@/app/api/v1/classes/[id]/subjects/route';
+import * as sections from '@/app/api/v1/sections/route';
+import * as sectionById from '@/app/api/v1/sections/[id]/route';
+import * as renumber from '@/app/api/v1/sections/[id]/renumber/route';
+import * as subjects from '@/app/api/v1/subjects/route';
+import * as subjectById from '@/app/api/v1/subjects/[id]/route';
+import * as teachers from '@/app/api/v1/teachers/route';
+import * as teacherById from '@/app/api/v1/teachers/[id]/route';
+import * as teacherAssignments from '@/app/api/v1/teachers/[id]/assignments/route';
+import * as staff from '@/app/api/v1/staff/route';
+import * as userReset from '@/app/api/v1/users/[id]/reset-password/route';
+import * as userStatus from '@/app/api/v1/users/[id]/status/route';
+import * as students from '@/app/api/v1/students/route';
+import * as studentById from '@/app/api/v1/students/[id]/route';
+import * as studentTransfer from '@/app/api/v1/students/[id]/transfer/route';
+import * as studentWithdraw from '@/app/api/v1/students/[id]/withdraw/route';
+import * as studentRestore from '@/app/api/v1/students/[id]/restore/route';
+import * as studentReset from '@/app/api/v1/students/[id]/reset-password/route';
+import * as promotions from '@/app/api/v1/promotions/route';
+import * as promotionPreview from '@/app/api/v1/promotions/preview/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -43,7 +69,10 @@ const only = (allowed: Partial<Record<UserRole, Expect>>, otherwise: number = 40
   Object.fromEntries(ROLES.map((r) => [r, allowed[r] ?? otherwise])) as Record<UserRole, Expect>;
 const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect>;
 
+const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 });
 let prefixCounter = 0;
+let n = 0;
+const MISSING = '00000000-0000-4000-8000-000000000000';
 
 const MATRIX: Row[] = [
   { key: 'GET /api/v1/auth/me', handler: me.GET, request: () => ({}), expect: everyone(200) },
@@ -122,6 +151,226 @@ const MATRIX: Row[] = [
     request: () => ({}),
     expect: only({ PLATFORM_OWNER: 200, PLATFORM_ADMIN: 200 }),
   },
+  // ── Phase 2: structure ────────────────────────────────────────────────────
+  { key: 'GET /api/v1/academic-years', handler: years.GET, request: () => ({}), expect: STAFF_ANY },
+  {
+    key: 'POST /api/v1/academic-years',
+    handler: years.POST,
+    request: () => ({ body: { name: `Y-${++n}`, startsOn: '2030-04-01', endsOn: '2031-03-31' } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'PATCH /api/v1/academic-years/[id]',
+    handler: yearById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.s.yearA }, body: { name: '2026-27' } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/academic-years/[id]/structure',
+    handler: yearStructure.GET,
+    request: (f) => ({ params: { id: f.s.yearA } }),
+    expect: STAFF_ANY,
+  },
+  {
+    key: 'POST /api/v1/academic-years/[id]/copy-structure',
+    handler: yearCopy.POST,
+    request: (f) => ({ params: { id: f.s.yearA2 }, body: { fromYearId: f.s.yearA } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/classes',
+    handler: classes.POST,
+    request: (f) => ({ body: { academicYearId: f.s.yearA, name: `C${++n}`, gradeLevel: 5, sections: ['A'] } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'PATCH /api/v1/classes/[id]',
+    handler: classById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.s.classA8 }, body: { gradeLevel: 8 } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'DELETE /api/v1/classes/[id]',
+    handler: classById.DELETE,
+    // Class 8 has students, so an authorised caller gets 409 and nothing is deleted.
+    request: (f) => ({ method: 'DELETE', params: { id: f.s.classA8 } }),
+    expect: only({ SCHOOL_ADMIN: 409 }),
+  },
+  {
+    key: 'PUT /api/v1/classes/[id]/subjects',
+    handler: classSubjects.PUT,
+    request: (f) => ({ method: 'PUT', params: { id: f.s.classA8 }, body: { subjectIds: [f.s.subjMath, f.s.subjEng] } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  { key: 'GET /api/v1/sections', handler: sections.GET, request: () => ({}), expect: STAFF_ANY },
+  {
+    key: 'POST /api/v1/sections',
+    handler: sections.POST,
+    request: (f) => ({ body: { classId: f.s.classA8, name: `S${++n}` } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'PATCH /api/v1/sections/[id]',
+    handler: sectionById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.s.sectionA8A }, body: { capacity: 30 } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'DELETE /api/v1/sections/[id]',
+    handler: sectionById.DELETE,
+    request: (f) => ({ method: 'DELETE', params: { id: f.s.sectionA8A } }),
+    expect: only({ SCHOOL_ADMIN: 409 }),
+  },
+  {
+    key: 'GET /api/v1/sections/[id]/renumber',
+    handler: renumber.GET,
+    // School Admin, or the section's own Class Incharge (the fixture teacher is 8-A's incharge).
+    request: (f) => ({ params: { id: f.s.sectionA8A } }),
+    expect: only({ SCHOOL_ADMIN: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/sections/[id]/renumber',
+    handler: renumber.POST,
+    request: (f) => ({ params: { id: f.s.sectionA8A }, body: { confirm: true, expectedChanges: 999 } }),
+    expect: only({ SCHOOL_ADMIN: 409, TEACHER: 409 }),
+  },
+  { key: 'GET /api/v1/subjects', handler: subjects.GET, request: () => ({}), expect: STAFF_ANY },
+  {
+    key: 'POST /api/v1/subjects',
+    handler: subjects.POST,
+    request: () => ({ body: { name: `Subject ${++n}` } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'PATCH /api/v1/subjects/[id]',
+    handler: subjectById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.s.subjMath }, body: { code: 'MATH' } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  // ── Phase 2: people ───────────────────────────────────────────────────────
+  {
+    key: 'GET /api/v1/teachers',
+    handler: teachers.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'POST /api/v1/teachers',
+    handler: teachers.POST,
+    request: () => ({ body: { displayName: `Teacher ${++n}` } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'GET /api/v1/teachers/[id]',
+    handler: teacherById.GET,
+    request: (f) => ({ params: { id: f.s.teacherA } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'PATCH /api/v1/teachers/[id]',
+    handler: teacherById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.s.teacherA }, body: { phone: '0300 1234567' } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'PUT /api/v1/teachers/[id]/assignments',
+    handler: teacherAssignments.PUT,
+    request: (f) => ({
+      method: 'PUT',
+      params: { id: f.s.teacherA },
+      body: { academicYearId: f.s.yearA, assignments: [{ sectionId: f.s.sectionA8A, subjectId: f.s.subjMath }] },
+    }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/staff',
+    handler: staff.POST,
+    request: () => ({ body: { role: 'PRINCIPAL', displayName: 'Deputy', email: `deputy${++n}@a.test` } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'POST /api/v1/users/[id]/reset-password',
+    handler: userReset.POST,
+    // Target the student: resetting forces a password change, which would block that user's later matrix rows.
+    request: (f) => ({ method: 'POST', params: { id: f.a.STUDENT.id } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'PATCH /api/v1/users/[id]/status',
+    handler: userStatus.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.a.PRINCIPAL.id }, body: { status: 'ACTIVE' } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/students',
+    handler: students.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/students',
+    handler: students.POST,
+    request: (f) => ({ body: { displayName: `Pupil ${++n}`, sectionId: f.s.sectionA8B } }),
+    // Principal can't add students unless the School Admin enables it (default off).
+    expect: only({ SCHOOL_ADMIN: 201, ADMISSIONS_OFFICER: 201 }),
+  },
+  {
+    key: 'GET /api/v1/students/[id]',
+    handler: studentById.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'PATCH /api/v1/students/[id]',
+    handler: studentById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.s.studentA }, body: { address: 'Street 1' } }),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/students/[id]/transfer',
+    handler: studentTransfer.POST,
+    // Same section → 422 for authorised callers; nothing moves.
+    request: (f) => ({ params: { id: f.s.studentA }, body: { sectionId: f.s.sectionA8A } }),
+    expect: only({ SCHOOL_ADMIN: 422, ADMISSIONS_OFFICER: 422 }),
+  },
+  {
+    key: 'POST /api/v1/students/[id]/withdraw',
+    handler: studentWithdraw.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/students/[id]/restore',
+    handler: studentRestore.POST,
+    request: (f) => ({ method: 'POST', params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 422, ADMISSIONS_OFFICER: 422 }),
+  },
+  {
+    key: 'POST /api/v1/students/[id]/reset-password',
+    handler: studentReset.POST,
+    request: (f) => ({ method: 'POST', params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  // ── Phase 2: promotion ────────────────────────────────────────────────────
+  { key: 'GET /api/v1/promotions', handler: promotions.GET, request: () => ({}), expect: only({ SCHOOL_ADMIN: 200 }) },
+  {
+    key: 'POST /api/v1/promotions',
+    handler: promotions.POST,
+    request: (f) => ({ body: { fromYearId: f.s.yearA, toYearId: f.s.yearA2, moves: [] } }),
+    expect: only({ SCHOOL_ADMIN: 422 }),
+  },
+  {
+    key: 'POST /api/v1/promotions/preview',
+    handler: promotionPreview.POST,
+    request: (f) => ({
+      body: {
+        fromYearId: f.s.yearA,
+        toYearId: f.s.yearA2,
+        moves: [{ studentId: f.s.studentA, action: 'PROMOTE', toSectionId: f.s.sectionA2_9A }],
+      },
+    }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */
@@ -171,7 +420,8 @@ describe('cross-tenant access is rejected and logged (Phase 1 acceptance)', () =
     const r = await call(users.GET, { cookie: await cookieFor(f.a.SCHOOL_ADMIN) });
     const ids = (r.json.items as { id: string }[]).map((u) => u.id);
     expect(ids).not.toContain(f.b.SCHOOL_ADMIN.id);
-    expect(ids).toHaveLength(5);
+    const tenants = await systemDb().user.findMany({ where: { id: { in: ids } }, select: { tenantId: true } });
+    expect(new Set(tenants.map((t) => t.tenantId))).toEqual(new Set([f.tenantA.id]));
   });
 
   it('settings changes only affect the caller’s school', async () => {

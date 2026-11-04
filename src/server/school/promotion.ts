@@ -51,7 +51,11 @@ async function buildPlan(tx: TenantTx, input: PromotionInput) {
   const targetIds = [...new Set(input.moves.map((m) => m.toSectionId).filter((x): x is string => !!x))];
   const targets = await tx.section.findMany({
     where: { id: { in: targetIds } },
-    include: { class: true, students: { where: { status: 'ACTIVE' }, select: { id: true, rollNumber: true } } },
+    include: {
+      class: true,
+      // Every student holding a roll here (incl. withdrawn) counts, or a carried-over roll could collide.
+      students: { select: { id: true, rollNumber: true } },
+    },
   });
   const targetById = new Map(targets.map((t) => [t.id, t]));
   const prefix = (await tx.tenant.findFirstOrThrow({ select: { prefix: true } })).prefix;

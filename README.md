@@ -10,14 +10,14 @@ Multi-tenant school management SaaS: one school = one tenant. Students, teachers
 
 ## Status
 
-| Phase                                                                                       | State   |
-| ------------------------------------------------------------------------------------------- | ------- |
-| 0 — Project setup, CI, Docker                                                               | ✅ Done |
-| 1 — Foundation: RLS, roles, separate login portals, sessions, permissions, platform console | ✅ Done |
-| 2 — School administration (years, classes, sections, teachers, students, promotion)         | Next    |
-| 3 — Academic operations (attendance + offline PWA, leave, marks, timetable)                 | Planned |
-| 4 — Management operations (reports, import, search, announcements)                          | Planned |
-| 5 — Production hardening (break-glass, archival, monitoring)                                | Planned |
+| Phase                                                                                                                                                              | State   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| 0 — Project setup, CI, Docker                                                                                                                                      | ✅ Done |
+| 1 — Foundation: RLS, roles, separate login portals, sessions, permissions, platform console                                                                        | ✅ Done |
+| 2 — School administration: sidebar app, role dashboards, years/classes/sections/subjects, teachers + assignments, staff accounts, students, renumbering, promotion | ✅ Done |
+| 3 — Academic operations (attendance + offline PWA, leave, marks, timetable)                                                                                        | Next    |
+| 4 — Management operations (reports, import, search, announcements)                                                                                                 | Planned |
+| 5 — Production hardening (break-glass, archival, monitoring)                                                                                                       | Planned |
 
 ## Sign-in portals
 
@@ -68,7 +68,9 @@ Password for every demo account: `Demo-pass-2026`
 | Platform | `owner@edusaas.test`  | Platform Owner                                    |
 | Platform | `ops@edusaas.test`    | Platform Admin                                    |
 
-The seed refuses to run when `NODE_ENV=production`.
+The seed refuses to run when `NODE_ENV=production` unless `DEMO_SEED=true`. Bright Star School is a full demo school: 2026-27 with Prep + classes 1–10 (21 sections), 22 teachers (each signs in as `bss-t-<name>-1`, e.g. `bss-t-saimaakhtar-1`), and 444 students; 2027-28 is empty so you can try **Copy structure** and **Promotion**.
+
+New database migrations are created with `npm run db:new-migration -- <name>` (a schema diff against the dev database), then reviewed for RLS/grants before `npx prisma migrate deploy`.
 
 ## Commands
 

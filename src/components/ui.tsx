@@ -390,3 +390,11 @@ export function KeyValue({ items }: { items: [string, ReactNode][] }) {
     </dl>
   );
 }
+
+/** Formats a digits-only phone for display, e.g. 03001234567 → 0300 1234567. */
+export function formatPhone(p: string | null | undefined): string | null {
+  if (!p) return null;
+  if (/^03\d{9}$/.test(p)) return `${p.slice(0, 4)} ${p.slice(4)}`;
+  if (/^\+923\d{9}$/.test(p)) return `+92 ${p.slice(3, 6)} ${p.slice(6)}`;
+  return p;
+}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/AppShell';
 import { AccountActions, AssignmentsEditor, EditTeacherButton } from '@/components/people/TeacherForms';
-import { Avatar, Badge, Card, KeyValue } from '@/components/ui';
+import { Avatar, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { AppError } from '@/server/http/errors';
 import { getTeacher } from '@/server/school/people';
@@ -55,7 +55,7 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
                 initial={{
                   displayName: teacher.name,
                   employeeNo: teacher.employeeNo ?? '',
-                  phone: teacher.phone ?? '',
+                  phone: formatPhone(teacher.phone) ?? '',
                   qualification: teacher.qualification ?? '',
                   joinedOn: teacher.joinedOn ?? '',
                 }}
@@ -84,7 +84,7 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
               <KeyValue
                 items={[
                   ['Employee no.', teacher.employeeNo],
-                  ['Phone', teacher.phone],
+                  ['Phone', formatPhone(teacher.phone)],
                   ['Joined', fmt(teacher.joinedOn)],
                   ['Last sign-in', fmt(teacher.lastLoginAt) ?? 'Never'],
                 ]}

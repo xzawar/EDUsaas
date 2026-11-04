@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { NewStudentButton } from '@/components/people/StudentForm';
 import { StudentFilters } from '@/components/people/StudentFilters';
-import { Avatar, Badge, Card, EmptyState, Pager, TabLinks, Table, Td, Th } from '@/components/ui';
+import { Avatar, Badge, Card, EmptyState, Pager, TabLinks, Table, Td, Th, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { listStudents, listStudentsQuery } from '@/server/school/people';
 import { listSections } from '@/server/school/structure';
@@ -113,7 +113,7 @@ export default async function StudentsPage({
                     {s.guardianName ? (
                       <>
                         <span className="block">{s.guardianName}</span>
-                        <span className="block text-xs text-slate-500">{s.guardianPhone}</span>
+                        <span className="block text-xs text-slate-500">{formatPhone(s.guardianPhone)}</span>
                       </>
                     ) : (
                       <span className="text-slate-400">—</span>

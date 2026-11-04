@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/AppShell';
 import { StudentActions } from '@/components/people/StudentActions';
 import { EditStudentButton } from '@/components/people/StudentForm';
-import { Alert, Avatar, Badge, Card, KeyValue } from '@/components/ui';
+import { Alert, Avatar, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { AppError } from '@/server/http/errors';
 import { getStudent } from '@/server/school/people';
@@ -60,7 +60,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                   dateOfBirth: student.dateOfBirth ?? '',
                   admittedOn: student.admittedOn ?? '',
                   guardianName: student.guardianName ?? '',
-                  guardianPhone: student.guardianPhone ?? '',
+                  guardianPhone: formatPhone(student.guardianPhone) ?? '',
                   address: student.address ?? '',
                 }}
               />
@@ -137,7 +137,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                       href={`tel:${student.guardianPhone.replace(/\s/g, '')}`}
                       className="text-[var(--accent)] hover:underline"
                     >
-                      {student.guardianPhone}
+                      {formatPhone(student.guardianPhone)}
                     </a>
                   ) : null,
                 ],
