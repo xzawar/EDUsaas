@@ -16,11 +16,15 @@ type Grid = {
 };
 
 export function MonthGrid({ grid, threshold }: { grid: Grid; threshold: number }) {
-  const [edit, setEdit] = useState<{ studentId: string; name: string; date: string; status: string | null } | null>(null);
+  const [edit, setEdit] = useState<{ studentId: string; name: string; date: string; status: string | null } | null>(
+    null,
+  );
   const { run, busy } = useAction();
-  const editable = (d: string) => d <= grid.today && (grid.canEditAll || (grid.editableFrom !== null && d >= grid.editableFrom));
+  const editable = (d: string) =>
+    d <= grid.today && (grid.canEditAll || (grid.editableFrom !== null && d >= grid.editableFrom));
 
-  if (!grid.days.length) return <p className="py-8 text-center text-sm text-slate-500">No attendance recorded this month yet.</p>;
+  if (!grid.days.length)
+    return <p className="py-8 text-center text-sm text-slate-500">No attendance recorded this month yet.</p>;
   return (
     <>
       <div className="-mx-5 overflow-x-auto px-5">
@@ -60,13 +64,25 @@ export function MonthGrid({ grid, threshold }: { grid: Grid; threshold: number }
                     </td>
                   );
                 })}
-                <td className={cx('pl-3 text-right font-medium tabular-nums', r.pct !== null && r.pct < threshold ? 'text-red-700' : 'text-slate-900')}>{r.pct ?? '—'}</td>
+                <td
+                  className={cx(
+                    'pl-3 text-right font-medium tabular-nums',
+                    r.pct !== null && r.pct < threshold ? 'text-red-700' : 'text-slate-900',
+                  )}
+                >
+                  {r.pct ?? '—'}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit ? `${edit.name} · ${edit.date}` : ''} description="Every change is recorded in the audit log.">
+      <Modal
+        open={!!edit}
+        onClose={() => setEdit(null)}
+        title={edit ? `${edit.name} · ${edit.date}` : ''}
+        description="Every change is recorded in the audit log."
+      >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {Object.entries(STATUS_STYLE).map(([k, v]) => (
             <Button
@@ -76,7 +92,14 @@ export function MonthGrid({ grid, threshold }: { grid: Grid; threshold: number }
               className={cx(edit?.status === k && 'ring-2 ring-[var(--accent)]')}
               onClick={async () => {
                 if (!edit) return;
-                if (await run('/attendance/records', { body: { sectionId: grid.section.id, date: edit.date, studentId: edit.studentId, status: k } }, 'Attendance corrected')) setEdit(null);
+                if (
+                  await run(
+                    '/attendance/records',
+                    { body: { sectionId: grid.section.id, date: edit.date, studentId: edit.studentId, status: k } },
+                    'Attendance corrected',
+                  )
+                )
+                  setEdit(null);
               }}
             >
               {v.label}

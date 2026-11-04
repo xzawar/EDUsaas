@@ -4,7 +4,17 @@ import { z } from 'zod';
 import type { TenantTx } from '@/server/db/client';
 import { AppError, forbidden, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
-import { DAY_MS, MARKS_CORRECTION_DAYS, audit, inTenant, isoDate, schoolClock, sectionLabel, teacherScope, toDate } from '@/server/school/common';
+import {
+  DAY_MS,
+  MARKS_CORRECTION_DAYS,
+  audit,
+  inTenant,
+  isoDate,
+  schoolClock,
+  sectionLabel,
+  teacherScope,
+  toDate,
+} from '@/server/school/common';
 import { notify } from '@/server/school/notifications';
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-09-03');
@@ -28,6 +38,13 @@ async function canEnter(ctx: AuthedContext, tx: TenantTx, sectionId: string, sub
   return scope.assignments.some((a) => a.sectionId === sectionId && a.subjectId === subjectId);
 }
 
+/** Who may look at marks at all: enterers (scoped), managers, report readers (read-only) and the School Admin. */
+export function canViewMarks(ctx: AuthedContext) {
+  return (
+    ctx.user.role === 'SCHOOL_ADMIN' || ctx.can('marks.manage') || ctx.can('marks.enter') || ctx.can('reports.read')
+  );
+}
+
 function canPublish(ctx: AuthedContext, publisher: string) {
   return ctx.user.role === 'SCHOOL_ADMIN' || (ctx.user.role === 'PRINCIPAL' && publisher === 'PRINCIPAL');
 }
@@ -38,6 +55,7 @@ export const listAssessmentsQuery = z.object({
 });
 
 export async function listAssessments(ctx: AuthedContext, query: z.infer<typeof listAssessmentsQuery>) {
+  if (!canViewMarks(ctx)) throw forbidden('You don’t have access to marks');
   return inTenant(ctx, async (tx) => {
     const year = await tx.academicYear.findFirst({ where: { status: 'CURRENT' } });
     if (!year) return [];
@@ -48,8 +66,17 @@ export async function listAssessments(ctx: AuthedContext, query: z.infer<typeof 
       if (!scope.assignments.length) return [];
     }
     const rows = await tx.assessment.findMany({
-      where: { academicYearId: year.id, ...scopeFilter, ...(query.sectionId ? { sectionId: query.sectionId } : {}), ...(query.status ? { status: query.status } : {}) },
-      include: { section: { include: { class: true } }, subject: { select: { name: true } }, _count: { select: { marks: true } } },
+      where: {
+        academicYearId: year.id,
+        ...scopeFilter,
+        ...(query.sectionId ? { sectionId: query.sectionId } : {}),
+        ...(query.status ? { status: query.status } : {}),
+      },
+      include: {
+        section: { include: { class: true } },
+        subject: { select: { name: true } },
+        _count: { select: { marks: true } },
+      },
       orderBy: [{ heldOn: 'desc' }, { createdAt: 'desc' }],
       take: 200,
     });
@@ -77,11 +104,19 @@ export const createAssessmentSchema = z.object({
 
 export async function createAssessment(ctx: AuthedContext, input: z.infer<typeof createAssessmentSchema>) {
   return inTenant(ctx, async (tx) => {
-    if (!(await canEnter(ctx, tx, input.sectionId, input.subjectId))) throw forbidden('You don’t teach this subject in this section');
-    const section = await tx.section.findUnique({ where: { id: input.sectionId }, include: { class: { include: { subjects: true } } } });
+    if (!(await canEnter(ctx, tx, input.sectionId, input.subjectId)))
+      throw forbidden('You don’t teach this subject in this section');
+    const section = await tx.section.findUnique({
+      where: { id: input.sectionId },
+      include: { class: { include: { subjects: true } } },
+    });
     if (!section) throw notFound('Section');
-    if (!section.class.subjects.some((s) => s.subjectId === input.subjectId)) throw new AppError('VALIDATION_FAILED', 'That subject isn’t taught in this class');
-    const scheme = await tx.gradingScheme.findFirst({ where: { academicYearId: section.class.academicYearId }, orderBy: { version: 'desc' } });
+    if (!section.class.subjects.some((s) => s.subjectId === input.subjectId))
+      throw new AppError('VALIDATION_FAILED', 'That subject isn’t taught in this class');
+    const scheme = await tx.gradingScheme.findFirst({
+      where: { academicYearId: section.class.academicYearId },
+      orderBy: { version: 'desc' },
+    });
     if (!scheme) throw new AppError('VALIDATION_FAILED', 'This academic year has no grading scale');
     const a = await tx.assessment.create({
       data: {
@@ -106,14 +141,25 @@ export async function getAssessment(ctx: AuthedContext, id: string) {
   return inTenant(ctx, async (tx) => {
     const a = await tx.assessment.findUnique({
       where: { id },
-      include: { section: { include: { class: true } }, subject: { select: { name: true } }, gradingScheme: true, marks: true },
+      include: {
+        section: { include: { class: true } },
+        subject: { select: { name: true } },
+        gradingScheme: true,
+        marks: true,
+      },
     });
-    if (!a || !(await canEnter(ctx, tx, a.sectionId, a.subjectId)) && !canPublish(ctx, (await schoolClock(tx)).marksPublisher)) throw notFound('Assessment');
     const clock = await schoolClock(tx);
-    const students = await tx.student.findMany({ where: { sectionId: a.sectionId, status: 'ACTIVE' }, include: { user: { select: { displayName: true } } }, orderBy: { rollNumber: 'asc' } });
+    if (!a || !canViewMarks(ctx)) throw notFound('Assessment');
+    const enterer = await canEnter(ctx, tx, a.sectionId, a.subjectId);
+    // Teachers see only their own (section, subject); readers with reports.read see everything read-only.
+    if (!enterer && !canPublish(ctx, clock.marksPublisher) && !ctx.can('reports.read')) throw notFound('Assessment');
+    const students = await tx.student.findMany({
+      where: { sectionId: a.sectionId, status: 'ACTIVE' },
+      include: { user: { select: { displayName: true } } },
+      orderBy: { rollNumber: 'asc' },
+    });
     const byStudent = new Map(a.marks.map((m) => [m.studentId, m]));
     const bands = a.gradingScheme.bands as Band[];
-    const enterer = await canEnter(ctx, tx, a.sectionId, a.subjectId);
     const windowEnds = a.submittedAt ? new Date(a.submittedAt.getTime() + MARKS_CORRECTION_DAYS * DAY_MS) : null;
     const inWindow = !windowEnds || windowEnds.getTime() > clock.now.getTime();
     const canEdit = ctx.can('marks.manage') || (enterer && (a.status === 'DRAFT' || inWindow));
@@ -134,21 +180,44 @@ export async function getAssessment(ctx: AuthedContext, id: string) {
       canSubmit: enterer && a.status === 'DRAFT',
       canPublish: canPublish(ctx, clock.marksPublisher) && a.status === 'SUBMITTED',
       editableUntil: a.status !== 'DRAFT' && !ctx.can('marks.manage') ? windowEnds : null,
-      lockedReason: canEdit ? null : `The ${MARKS_CORRECTION_DAYS}-day correction window has closed. Ask the School Admin.`,
+      lockedReason: canEdit
+        ? null
+        : `The ${MARKS_CORRECTION_DAYS}-day correction window has closed. Ask the School Admin.`,
       stats: scores.length
-        ? { count: scores.length, average: Math.round((scores.reduce((x, y) => x + y, 0) / scores.length) * 10) / 10, highest: Math.max(...scores), lowest: Math.min(...scores) }
+        ? {
+            count: scores.length,
+            average: Math.round((scores.reduce((x, y) => x + y, 0) / scores.length) * 10) / 10,
+            highest: Math.max(...scores),
+            lowest: Math.min(...scores),
+          }
         : null,
       students: students.map((s) => {
         const m = byStudent.get(s.id);
         const pct = m ? pctOf(m.score, a.maxMarks) : null;
-        return { id: s.id, name: s.user.displayName, rollNumber: s.rollNumber, score: m?.score === null || m?.score === undefined ? null : Number(m.score), absent: m?.absent ?? false, pct, grade: gradeFor(bands, pct) };
+        return {
+          id: s.id,
+          name: s.user.displayName,
+          rollNumber: s.rollNumber,
+          score: m?.score === null || m?.score === undefined ? null : Number(m.score),
+          absent: m?.absent ?? false,
+          pct,
+          grade: gradeFor(bands, pct),
+        };
       }),
     };
   });
 }
 
 export const saveMarksSchema = z.object({
-  marks: z.array(z.object({ studentId: z.string().uuid(), score: z.number().min(0).nullable(), absent: z.boolean().default(false) })).max(200),
+  marks: z
+    .array(
+      z.object({
+        studentId: z.string().uuid(),
+        score: z.number().min(0).nullable(),
+        absent: z.boolean().default(false),
+      }),
+    )
+    .max(200),
   submit: z.boolean().default(false),
 });
 
@@ -159,16 +228,28 @@ export async function saveMarks(ctx: AuthedContext, id: string, input: z.infer<t
     const clock = await schoolClock(tx);
     if (!(await canEnter(ctx, tx, sheet.sectionId, sheet.subjectId))) throw notFound('Assessment');
     const windowEnds = sheet.submittedAt ? sheet.submittedAt.getTime() + MARKS_CORRECTION_DAYS * DAY_MS : null;
-    if (sheet.status !== 'DRAFT' && !ctx.can('marks.manage') && windowEnds !== null && clock.now.getTime() > windowEnds) {
-      throw new AppError('FORBIDDEN', `The ${MARKS_CORRECTION_DAYS}-day correction window has closed. Ask the School Admin.`);
+    if (
+      sheet.status !== 'DRAFT' &&
+      !ctx.can('marks.manage') &&
+      windowEnds !== null &&
+      clock.now.getTime() > windowEnds
+    ) {
+      throw new AppError(
+        'FORBIDDEN',
+        `The ${MARKS_CORRECTION_DAYS}-day correction window has closed. Ask the School Admin.`,
+      );
     }
     const max = Number(sheet.maxMarks);
     for (const m of input.marks) {
       if (m.score !== null && m.score > max) throw new AppError('VALIDATION_FAILED', `Marks can’t be more than ${max}`);
-      if (m.absent && m.score !== null) throw new AppError('VALIDATION_FAILED', 'A student marked absent can’t have a score');
+      if (m.absent && m.score !== null)
+        throw new AppError('VALIDATION_FAILED', 'A student marked absent can’t have a score');
     }
-    const valid = await tx.student.count({ where: { id: { in: input.marks.map((m) => m.studentId) }, sectionId: sheet.sectionId } });
-    if (valid !== new Set(input.marks.map((m) => m.studentId)).size) throw new AppError('VALIDATION_FAILED', 'Some students are not in this section');
+    const valid = await tx.student.count({
+      where: { id: { in: input.marks.map((m) => m.studentId) }, sectionId: sheet.sectionId },
+    });
+    if (valid !== new Set(input.marks.map((m) => m.studentId)).size)
+      throw new AppError('VALIDATION_FAILED', 'Some students are not in this section');
 
     const existing = new Map(sheet.marks.map((m) => [m.studentId, m]));
     const changes: { student: string; from: unknown; to: unknown }[] = [];
@@ -178,18 +259,50 @@ export async function saveMarks(ctx: AuthedContext, id: string, input: z.infer<t
       if (before && beforeScore === m.score && before.absent === m.absent) continue;
       await tx.mark.upsert({
         where: { assessmentId_studentId: { assessmentId: id, studentId: m.studentId } },
-        create: { tenantId: ctx.tenantId!, assessmentId: id, studentId: m.studentId, score: m.score, absent: m.absent, updatedBy: ctx.user.id },
+        create: {
+          tenantId: ctx.tenantId!,
+          assessmentId: id,
+          studentId: m.studentId,
+          score: m.score,
+          absent: m.absent,
+          updatedBy: ctx.user.id,
+        },
         update: { score: m.score, absent: m.absent, updatedBy: ctx.user.id },
       });
-      changes.push({ student: m.studentId, from: before ? (before.absent ? 'absent' : beforeScore) : null, to: m.absent ? 'absent' : m.score });
+      changes.push({
+        student: m.studentId,
+        from: before ? (before.absent ? 'absent' : beforeScore) : null,
+        to: m.absent ? 'absent' : m.score,
+      });
     }
     let status = sheet.status;
     if (input.submit && sheet.status === 'DRAFT') {
-      await tx.assessment.update({ where: { id }, data: { status: 'SUBMITTED', submittedBy: ctx.user.id, submittedAt: clock.now } });
+      await tx.assessment.update({
+        where: { id },
+        data: { status: 'SUBMITTED', submittedBy: ctx.user.id, submittedAt: clock.now },
+      });
       status = 'SUBMITTED';
-      await audit(ctx, tx, { action: 'marks.submit', entity: 'Assessment', entityId: id, metadata: { count: input.marks.length } });
-      const publishers = await tx.user.findMany({ where: { role: clock.marksPublisher === 'PRINCIPAL' ? 'PRINCIPAL' : 'SCHOOL_ADMIN', status: 'ACTIVE' }, select: { id: true } });
-      await notify(tx, ctx.tenantId!, publishers.map((p) => p.id), { kind: 'marks', title: 'Marks ready to publish', body: `${sheet.name} has been submitted.`, link: `/staff/assessments/${id}` });
+      await audit(ctx, tx, {
+        action: 'marks.submit',
+        entity: 'Assessment',
+        entityId: id,
+        metadata: { count: input.marks.length },
+      });
+      const publishers = await tx.user.findMany({
+        where: { role: clock.marksPublisher === 'PRINCIPAL' ? 'PRINCIPAL' : 'SCHOOL_ADMIN', status: 'ACTIVE' },
+        select: { id: true },
+      });
+      await notify(
+        tx,
+        ctx.tenantId!,
+        publishers.map((p) => p.id),
+        {
+          kind: 'marks',
+          title: 'Marks ready to publish',
+          body: `${sheet.name} has been submitted.`,
+          link: `/staff/assessments/${id}`,
+        },
+      );
     } else if (sheet.status !== 'DRAFT' && changes.length) {
       await audit(ctx, tx, { action: 'marks.correct', entity: 'Assessment', entityId: id, metadata: { changes } });
     }
@@ -206,13 +319,29 @@ async function getAssessmentRow(tx: TenantTx, id: string) {
 export async function publishAssessment(ctx: AuthedContext, id: string) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
-    if (!canPublish(ctx, clock.marksPublisher)) throw forbidden('Only the School Admin (or Principal, if your school allows it) can publish marks');
+    if (!canPublish(ctx, clock.marksPublisher))
+      throw forbidden('Only the School Admin (or Principal, if your school allows it) can publish marks');
     const a = await getAssessmentRow(tx, id);
-    if (a.status !== 'SUBMITTED') throw new AppError('CONFLICT', a.status === 'PUBLISHED' ? 'Already published' : 'The teacher hasn’t submitted these marks yet');
-    await tx.assessment.update({ where: { id }, data: { status: 'PUBLISHED', publishedBy: ctx.user.id, publishedAt: clock.now } });
+    if (a.status !== 'SUBMITTED')
+      throw new AppError(
+        'CONFLICT',
+        a.status === 'PUBLISHED' ? 'Already published' : 'The teacher hasn’t submitted these marks yet',
+      );
+    await tx.assessment.update({
+      where: { id },
+      data: { status: 'PUBLISHED', publishedBy: ctx.user.id, publishedAt: clock.now },
+    });
     await audit(ctx, tx, { action: 'marks.publish', entity: 'Assessment', entityId: id });
-    const students = await tx.student.findMany({ where: { sectionId: a.sectionId, status: 'ACTIVE' }, select: { userId: true } });
-    await notify(tx, ctx.tenantId!, students.map((s) => s.userId), { kind: 'marks', title: 'New marks published', body: a.name, link: '/student/marks' });
+    const students = await tx.student.findMany({
+      where: { sectionId: a.sectionId, status: 'ACTIVE' },
+      select: { userId: true },
+    });
+    await notify(
+      tx,
+      ctx.tenantId!,
+      students.map((s) => s.userId),
+      { kind: 'marks', title: 'New marks published', body: a.name, link: '/student/marks' },
+    );
     return { ok: true };
   });
 }
@@ -223,7 +352,12 @@ export async function deleteAssessment(ctx: AuthedContext, id: string) {
     if (!(await canEnter(ctx, tx, a.sectionId, a.subjectId))) throw notFound('Assessment');
     if (a.status !== 'DRAFT' && !ctx.can('marks.manage')) throw new AppError('CONFLICT', 'Only drafts can be deleted');
     await tx.assessment.delete({ where: { id } });
-    await audit(ctx, tx, { action: 'assessment.delete', entity: 'Assessment', entityId: id, before: { name: a.name, status: a.status } });
+    await audit(ctx, tx, {
+      action: 'assessment.delete',
+      entity: 'Assessment',
+      entityId: id,
+      before: { name: a.name, status: a.status },
+    });
     return { ok: true };
   });
 }
@@ -231,7 +365,9 @@ export async function deleteAssessment(ctx: AuthedContext, id: string) {
 /** Published results for a student (spec §2.6), grouped by subject with averages. */
 export async function studentResults(ctx: AuthedContext, studentId?: string) {
   return inTenant(ctx, async (tx) => {
-    const s = studentId ? await tx.student.findUnique({ where: { id: studentId } }) : await tx.student.findUnique({ where: { userId: ctx.user.id } });
+    const s = studentId
+      ? await tx.student.findUnique({ where: { id: studentId } })
+      : await tx.student.findUnique({ where: { userId: ctx.user.id } });
     if (!s) throw notFound('Student');
     const marks = await tx.mark.findMany({
       where: { studentId: s.id, assessment: { status: 'PUBLISHED', academicYear: { status: 'CURRENT' } } },
@@ -277,8 +413,19 @@ export async function currentScheme(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => {
     const year = await tx.academicYear.findFirst({ where: { status: 'CURRENT' } });
     if (!year) return null;
-    const scheme = await tx.gradingScheme.findFirst({ where: { academicYearId: year.id }, orderBy: { version: 'desc' }, include: { _count: { select: { assessments: true } } } });
-    return scheme ? { yearName: year.name, version: scheme.version, bands: scheme.bands as Band[], inUse: scheme._count.assessments > 0 } : null;
+    const scheme = await tx.gradingScheme.findFirst({
+      where: { academicYearId: year.id },
+      orderBy: { version: 'desc' },
+      include: { _count: { select: { assessments: true } } },
+    });
+    return scheme
+      ? {
+          yearName: year.name,
+          version: scheme.version,
+          bands: scheme.bands as Band[],
+          inUse: scheme._count.assessments > 0,
+        }
+      : null;
   });
 }
 
@@ -296,22 +443,38 @@ export async function saveScheme(ctx: AuthedContext, input: z.infer<typeof schem
   return inTenant(ctx, async (tx) => {
     const year = await tx.academicYear.findFirst({ where: { status: 'CURRENT' } });
     if (!year) throw new AppError('VALIDATION_FAILED', 'Set a current academic year first');
-    const latest = await tx.gradingScheme.findFirst({ where: { academicYearId: year.id }, orderBy: { version: 'desc' }, include: { _count: { select: { assessments: true } } } });
+    const latest = await tx.gradingScheme.findFirst({
+      where: { academicYearId: year.id },
+      orderBy: { version: 'desc' },
+      include: { _count: { select: { assessments: true } } },
+    });
     const bands = [...input.bands].sort((a, b) => b.min - a.min);
     if (latest && latest._count.assessments === 0) {
       await tx.gradingScheme.update({ where: { id: latest.id }, data: { bands } });
     } else {
       // In use: create a new version for future tests; existing results keep their scale.
-      await tx.gradingScheme.create({ data: { tenantId: ctx.tenantId!, academicYearId: year.id, version: (latest?.version ?? 0) + 1, bands } });
+      await tx.gradingScheme.create({
+        data: { tenantId: ctx.tenantId!, academicYearId: year.id, version: (latest?.version ?? 0) + 1, bands },
+      });
     }
-    await audit(ctx, tx, { action: 'grading.update', entity: 'GradingScheme', entityId: year.id, before: latest?.bands ?? null, after: bands });
+    await audit(ctx, tx, {
+      action: 'grading.update',
+      entity: 'GradingScheme',
+      entityId: year.id,
+      before: latest?.bands ?? null,
+      after: bands,
+    });
     return { ok: true, newVersion: !!latest && latest._count.assessments > 0 };
   });
 }
 
 // ── Remarks (spec §7.4) ─────────────────────────────────────────────────────
 
-export const remarkSchema = z.object({ studentId: z.string().uuid(), text: z.string().trim().min(2).max(1000), subjectName: z.string().trim().max(60).optional() });
+export const remarkSchema = z.object({
+  studentId: z.string().uuid(),
+  text: z.string().trim().min(2).max(1000),
+  subjectName: z.string().trim().max(60).optional(),
+});
 
 export async function addRemark(ctx: AuthedContext, input: z.infer<typeof remarkSchema>) {
   return inTenant(ctx, async (tx) => {
@@ -350,7 +513,10 @@ export async function remarksQueue(ctx: AuthedContext) {
     if (sections && !sections.length) return [];
     const rows = await tx.remark.findMany({
       where: { status: 'PENDING', ...(sections ? { student: { sectionId: { in: sections } } } : {}) },
-      include: { author: { select: { displayName: true } }, student: { include: { user: { select: { displayName: true } }, section: { include: { class: true } } } } },
+      include: {
+        author: { select: { displayName: true } },
+        student: { include: { user: { select: { displayName: true } }, section: { include: { class: true } } } },
+      },
       orderBy: { createdAt: 'asc' },
       take: 100,
     });
@@ -376,8 +542,15 @@ export async function moderateRemark(ctx: AuthedContext, id: string, input: z.in
     const sections = await moderatableSections(ctx, tx);
     if (sections && (!r.student.sectionId || !sections.includes(r.student.sectionId))) throw notFound('Remark');
     if (r.status !== 'PENDING') throw new AppError('CONFLICT', 'Already moderated');
-    await tx.remark.update({ where: { id }, data: { status: input.decision, moderatedBy: ctx.user.id, moderatedAt: new Date() } });
-    await audit(ctx, tx, { action: input.decision === 'APPROVED' ? 'remark.approve' : 'remark.reject', entity: 'Remark', entityId: id });
+    await tx.remark.update({
+      where: { id },
+      data: { status: input.decision, moderatedBy: ctx.user.id, moderatedAt: new Date() },
+    });
+    await audit(ctx, tx, {
+      action: input.decision === 'APPROVED' ? 'remark.approve' : 'remark.reject',
+      entity: 'Remark',
+      entityId: id,
+    });
     return { ok: true };
   });
 }
@@ -391,21 +564,25 @@ export async function studentRemarks(ctx: AuthedContext, studentId: string, appr
         orderBy: { createdAt: 'desc' },
         take: 50,
       })
-    ).map((r) => ({ id: r.id, text: r.text, subject: r.subjectName, author: r.author.displayName, status: r.status, createdAt: r.createdAt })),
+    ).map((r) => ({
+      id: r.id,
+      text: r.text,
+      subject: r.subjectName,
+      author: r.author.displayName,
+      status: r.status,
+      createdAt: r.createdAt,
+    })),
   );
 }
 
 /** Assessments a teacher still has to finish (drafts) — for the Today page. */
 export async function teacherMarksTodo(ctx: AuthedContext) {
-  return inTenant(ctx, async (tx) =>
-    tx.assessment.count({ where: { createdBy: ctx.user.id, status: 'DRAFT' } }),
-  );
+  return inTenant(ctx, async (tx) => tx.assessment.count({ where: { createdBy: ctx.user.id, status: 'DRAFT' } }));
 }
 
 export async function unpublishedCount(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => tx.assessment.count({ where: { status: 'SUBMITTED' } }));
 }
-
 
 /** (section, subject) pairs the caller can create tests for. */
 export async function teachOptions(ctx: AuthedContext) {
@@ -416,11 +593,24 @@ export async function teachOptions(ctx: AuthedContext) {
       if (!t || !ctx.can('marks.enter')) return [];
       where.teacherId = t.id;
     }
-    const rows = await tx.teacherAssignment.findMany({ where, include: { section: { include: { class: true } }, subject: true } });
+    const rows = await tx.teacherAssignment.findMany({
+      where,
+      include: { section: { include: { class: true } }, subject: true },
+    });
     const seen = new Set<string>();
     return rows
       .filter((r) => !seen.has(`${r.sectionId}:${r.subjectId}`) && seen.add(`${r.sectionId}:${r.subjectId}`))
-      .sort((a, b) => a.section.class.gradeLevel - b.section.class.gradeLevel || a.section.name.localeCompare(b.section.name) || a.subject.name.localeCompare(b.subject.name))
-      .map((r) => ({ sectionId: r.sectionId, section: sectionLabel(r.section), subjectId: r.subjectId, subject: r.subject.name }));
+      .sort(
+        (a, b) =>
+          a.section.class.gradeLevel - b.section.class.gradeLevel ||
+          a.section.name.localeCompare(b.section.name) ||
+          a.subject.name.localeCompare(b.subject.name),
+      )
+      .map((r) => ({
+        sectionId: r.sectionId,
+        section: sectionLabel(r.section),
+        subjectId: r.subjectId,
+        subject: r.subject.name,
+      }));
   });
 }

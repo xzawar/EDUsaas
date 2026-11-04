@@ -98,12 +98,16 @@ export function sectionLabel(s: { name: string; class: { name: string } }) {
 
 /** YYYY-MM-DD for an instant in a timezone. */
 export function dateInTz(instant: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant);
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    instant,
+  );
 }
 
 /** HH:MM for an instant in a timezone. */
 export function timeInTz(instant: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(instant);
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(
+    instant,
+  );
 }
 
 export function addDays(isoDay: string, days: number): string {
@@ -119,7 +123,15 @@ export function weekday(isoDay: string): number {
 }
 
 export async function schoolClock(tx: TenantTx) {
-  const s = await tx.tenantSettings.findFirst({ select: { timezone: true, atRiskThreshold: true, leaveAgeOutHours: true, marksPublisher: true, attendanceMode: true } });
+  const s = await tx.tenantSettings.findFirst({
+    select: {
+      timezone: true,
+      atRiskThreshold: true,
+      leaveAgeOutHours: true,
+      marksPublisher: true,
+      attendanceMode: true,
+    },
+  });
   const timezone = s?.timezone ?? 'Asia/Karachi';
   const now = new Date();
   return {
@@ -135,7 +147,13 @@ export async function schoolClock(tx: TenantTx) {
 }
 
 /** Attendance % rules (shown in the UI): Present + Late count as attended; approved Leave and Excused days don't count against. */
-export function attendancePct(c: { PRESENT: number; LATE: number; ABSENT: number; LEAVE: number; EXCUSED: number }): number | null {
+export function attendancePct(c: {
+  PRESENT: number;
+  LATE: number;
+  ABSENT: number;
+  LEAVE: number;
+  EXCUSED: number;
+}): number | null {
   const considered = c.PRESENT + c.LATE + c.ABSENT;
   if (considered === 0) return null;
   return Math.round(((c.PRESENT + c.LATE) / considered) * 1000) / 10;

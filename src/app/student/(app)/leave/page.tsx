@@ -10,7 +10,11 @@ export const metadata: Metadata = { title: 'Leave' };
 
 export default async function StudentLeavePage() {
   const ctx = await requirePortal('STUDENT');
-  const [types, mine, clock] = await Promise.all([leaveTypes(ctx), myLeave(ctx), inTenant(ctx, (tx) => schoolClock(tx))]);
+  const [types, mine, clock] = await Promise.all([
+    leaveTypes(ctx),
+    myLeave(ctx),
+    inTenant(ctx, (tx) => schoolClock(tx)),
+  ]);
   return (
     <>
       <PageHeader

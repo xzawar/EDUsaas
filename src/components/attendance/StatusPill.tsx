@@ -13,7 +13,14 @@ export function StatusPill({ status, compact }: { status: string | null; compact
   if (!status) return <span className="text-slate-300">·</span>;
   const s = STATUS_STYLE[status]!;
   return (
-    <span title={s.label} className={cx('inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1', s.cls, compact && 'min-w-6')}>
+    <span
+      title={s.label}
+      className={cx(
+        'inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-semibold ring-1',
+        s.cls,
+        compact && 'min-w-6',
+      )}
+    >
       {compact ? s.short : s.label}
     </span>
   );

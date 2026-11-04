@@ -19,7 +19,9 @@ function shift(m: string, by: number) {
 
 export default async function StudentAttendancePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const ctx = await requirePortal('STUDENT');
-  const me = await inTenant(ctx, (tx) => tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }));
+  const me = await inTenant(ctx, (tx) =>
+    tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }),
+  );
   if (!me) return <Alert>Your student record isn’t set up yet. Please contact your school office.</Alert>;
   const a = await studentAttendance(ctx, me.id);
   const { month: m } = await searchParams;
@@ -27,10 +29,15 @@ export default async function StudentAttendancePage({ searchParams }: { searchPa
   const nav = 'rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50';
   return (
     <>
-      <PageHeader title="Attendance" description="Present and Late count as attended. Approved leave and excused days don’t count against you." />
+      <PageHeader
+        title="Attendance"
+        description="Present and Late count as attended. Approved leave and excused days don’t count against you."
+      />
       {a.pct !== null && a.pct < a.threshold && (
         <div className="mb-4">
-          <Alert tone="warning">Your attendance is below your school’s {a.threshold}% target. Please talk to your Class Incharge.</Alert>
+          <Alert tone="warning">
+            Your attendance is below your school’s {a.threshold}% target. Please talk to your Class Incharge.
+          </Alert>
         </div>
       )}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -47,7 +54,11 @@ export default async function StudentAttendancePage({ searchParams }: { searchPa
         </Card>
         <Card
           className="lg:col-span-2"
-          title={new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+          title={new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-GB', {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })}
           actions={
             <div className="flex gap-2">
               <Link className={nav} href={`?month=${shift(month, -1)}`}>

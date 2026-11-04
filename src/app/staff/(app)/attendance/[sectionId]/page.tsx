@@ -9,16 +9,31 @@ import { attendanceSheet } from '@/server/school/attendance';
 
 export const metadata: Metadata = { title: 'Take attendance' };
 
-export default async function RegisterPage({ params, searchParams }: { params: Promise<{ sectionId: string }>; searchParams: Promise<{ date?: string }> }) {
+export default async function RegisterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ sectionId: string }>;
+  searchParams: Promise<{ date?: string }>;
+}) {
   const ctx = await requirePortal('STAFF');
   const { sectionId } = await params;
   const { date } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(sectionId)) notFound();
-  const sheet = await attendanceSheet(ctx, sectionId, date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined).catch((e) => {
+  const sheet = await attendanceSheet(
+    ctx,
+    sectionId,
+    date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+  ).catch((e) => {
     if (e instanceof AppError && e.code === 'NOT_FOUND') notFound();
     throw e;
   });
-  const label = new Date(`${sheet.date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const label = new Date(`${sheet.date}T00:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
   return (
     <>
       <PageHeader

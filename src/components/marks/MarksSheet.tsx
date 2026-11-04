@@ -22,12 +22,19 @@ type Sheet = {
   students: { id: string; name: string; rollNumber: number | null; score: number | null; absent: boolean }[];
 };
 
-const grade = (bands: Band[], pct: number | null) => (pct === null ? null : [...bands].sort((a, b) => b.min - a.min).find((b) => pct >= b.min)?.grade ?? null);
+const grade = (bands: Band[], pct: number | null) =>
+  pct === null ? null : ([...bands].sort((a, b) => b.min - a.min).find((b) => pct >= b.min)?.grade ?? null);
 
 export function MarksSheet({ sheet }: { sheet: Sheet }) {
   const router = useRouter();
   const draftKey = `marks-draft:${sheet.id}`;
-  const fromServer = useMemo(() => Object.fromEntries(sheet.students.map((s) => [s.id, { score: s.score === null ? '' : String(s.score), absent: s.absent }])), [sheet.students]);
+  const fromServer = useMemo(
+    () =>
+      Object.fromEntries(
+        sheet.students.map((s) => [s.id, { score: s.score === null ? '' : String(s.score), absent: s.absent }]),
+      ),
+    [sheet.students],
+  );
   const [rows, setRows] = useState<Record<string, { score: string; absent: boolean }>>(fromServer);
   const [restored, setRestored] = useState(false);
   const { run, busy } = useAction();
@@ -46,7 +53,9 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
   }, [draftKey, fromServer, sheet.canEdit]);
   useEffect(() => {
     try {
-      const changed = Object.keys(rows).some((k) => rows[k]!.score !== fromServer[k]!.score || rows[k]!.absent !== fromServer[k]!.absent);
+      const changed = Object.keys(rows).some(
+        (k) => rows[k]!.score !== fromServer[k]!.score || rows[k]!.absent !== fromServer[k]!.absent,
+      );
       if (changed) localStorage.setItem(draftKey, JSON.stringify(rows));
       else localStorage.removeItem(draftKey);
     } catch {
@@ -54,14 +63,24 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
     }
   }, [rows, draftKey, fromServer]);
 
-  const invalid = Object.values(rows).some((r) => r.score !== '' && (Number.isNaN(Number(r.score)) || Number(r.score) < 0 || Number(r.score) > sheet.maxMarks));
+  const invalid = Object.values(rows).some(
+    (r) => r.score !== '' && (Number.isNaN(Number(r.score)) || Number(r.score) < 0 || Number(r.score) > sheet.maxMarks),
+  );
   const filled = Object.values(rows).filter((r) => r.score !== '' || r.absent).length;
 
   async function save(submit: boolean) {
     const marks = Object.entries(rows)
       .filter(([, r]) => r.score !== '' || r.absent)
-      .map(([studentId, r]) => ({ studentId, score: r.absent || r.score === '' ? null : Number(r.score), absent: r.absent }));
-    const res = await run('/assessments/' + sheet.id + '/marks', { method: 'PUT', body: { marks, submit } }, submit ? 'Marks submitted' : 'Saved');
+      .map(([studentId, r]) => ({
+        studentId,
+        score: r.absent || r.score === '' ? null : Number(r.score),
+        absent: r.absent,
+      }));
+    const res = await run(
+      '/assessments/' + sheet.id + '/marks',
+      { method: 'PUT', body: { marks, submit } },
+      submit ? 'Marks submitted' : 'Saved',
+    );
     if (res) {
       try {
         localStorage.removeItem(draftKey);
@@ -76,8 +95,19 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={statusTone[sheet.status]}>{sheet.status === 'DRAFT' ? 'Draft' : sheet.status === 'SUBMITTED' ? 'Submitted · waiting to publish' : 'Published to students'}</Badge>
-        {sheet.editableUntil && sheet.canEdit && <span className="text-sm text-slate-500">You can correct marks until {new Date(sheet.editableUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+        <Badge tone={statusTone[sheet.status]}>
+          {sheet.status === 'DRAFT'
+            ? 'Draft'
+            : sheet.status === 'SUBMITTED'
+              ? 'Submitted · waiting to publish'
+              : 'Published to students'}
+        </Badge>
+        {sheet.editableUntil && sheet.canEdit && (
+          <span className="text-sm text-slate-500">
+            You can correct marks until{' '}
+            {new Date(sheet.editableUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+          </span>
+        )}
       </div>
       {restored && <Alert tone="info">Restored unsaved marks from this device.</Alert>}
       {!sheet.canEdit && sheet.lockedReason && (
@@ -120,15 +150,21 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
                       aria-label={`Marks for ${s.name}`}
                       value={r.score}
                       disabled={!sheet.canEdit || r.absent}
-                      onChange={(e) => setRows({ ...rows, [s.id]: { ...r, score: e.target.value.replace(/[^\d.]/g, '') } })}
+                      onChange={(e) =>
+                        setRows({ ...rows, [s.id]: { ...r, score: e.target.value.replace(/[^\d.]/g, '') } })
+                      }
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === 'ArrowDown') {
                           e.preventDefault();
-                          (document.querySelectorAll<HTMLInputElement>('input[inputmode=decimal]')[i + 1])?.focus();
+                          document.querySelectorAll<HTMLInputElement>('input[inputmode=decimal]')[i + 1]?.focus();
                         }
-                        if (e.key === 'ArrowUp') (document.querySelectorAll<HTMLInputElement>('input[inputmode=decimal]')[i - 1])?.focus();
+                        if (e.key === 'ArrowUp')
+                          document.querySelectorAll<HTMLInputElement>('input[inputmode=decimal]')[i - 1]?.focus();
                       }}
-                      className={cx('w-20 rounded-md border px-2 py-1 text-right tabular-nums disabled:bg-slate-50', bad ? 'border-red-400 bg-red-50' : 'border-slate-300')}
+                      className={cx(
+                        'w-20 rounded-md border px-2 py-1 text-right tabular-nums disabled:bg-slate-50',
+                        bad ? 'border-red-400 bg-red-50' : 'border-slate-300',
+                      )}
                     />
                   </td>
                   <td className="py-1.5 pr-2">
@@ -137,11 +173,22 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
                       aria-label={`${s.name} was absent`}
                       checked={r.absent}
                       disabled={!sheet.canEdit}
-                      onChange={(e) => setRows({ ...rows, [s.id]: { score: e.target.checked ? '' : r.score, absent: e.target.checked } })}
+                      onChange={(e) =>
+                        setRows({
+                          ...rows,
+                          [s.id]: { score: e.target.checked ? '' : r.score, absent: e.target.checked },
+                        })
+                      }
                       className="size-4 accent-[var(--accent)]"
                     />
                   </td>
-                  <td className="py-1.5 text-right font-semibold">{r.absent ? <span className="text-slate-400">AB</span> : (g ?? <span className="text-slate-300">—</span>)}</td>
+                  <td className="py-1.5 text-right font-semibold">
+                    {r.absent ? (
+                      <span className="text-slate-400">AB</span>
+                    ) : (
+                      (g ?? <span className="text-slate-300">—</span>)
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -149,7 +196,8 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
         </table>
         <div className="sticky bottom-16 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white py-3 lg:bottom-0">
           <span className="text-sm text-slate-600">
-            {filled} of {sheet.students.length} entered{invalid && <span className="ml-2 text-red-700">· Fix marks above {sheet.maxMarks}</span>}
+            {filled} of {sheet.students.length} entered
+            {invalid && <span className="ml-2 text-red-700">· Fix marks above {sheet.maxMarks}</span>}
           </span>
           <div className="flex flex-wrap gap-2">
             {sheet.status === 'DRAFT' && sheet.canEdit && (
@@ -161,7 +209,8 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
                 message={<p>The test and any marks entered are removed.</p>}
                 confirmLabel="Delete test"
                 onConfirm={async () => {
-                  if (await run(`/assessments/${sheet.id}`, { method: 'DELETE' }, 'Test deleted')) router.push('/staff/assessments');
+                  if (await run(`/assessments/${sheet.id}`, { method: 'DELETE' }, 'Test deleted'))
+                    router.push('/staff/assessments');
                 }}
               />
             )}
@@ -179,7 +228,11 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
                   </>
                 }
                 title="Submit marks?"
-                message={<p>After submitting you can still correct marks for 7 days. Students see them once they’re published.</p>}
+                message={
+                  <p>
+                    After submitting you can still correct marks for 7 days. Students see them once they’re published.
+                  </p>
+                }
                 confirmLabel="Submit"
                 tone="primary"
                 onConfirm={() => save(true)}

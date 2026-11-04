@@ -25,7 +25,8 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
     sections = sections.filter((s) => scope.sectionIds.includes(s.id));
   }
   const isTeacher = ctx.user.role === 'TEACHER';
-  const sectionId = section && sections.some((s) => s.id === section) ? section : isTeacher ? null : (sections[0]?.id ?? null);
+  const sectionId =
+    section && sections.some((s) => s.id === section) ? section : isTeacher ? null : (sections[0]?.id ?? null);
 
   const [tt, periods, teachers] = await Promise.all([
     sectionId ? sectionTimetable(ctx, sectionId) : null,
@@ -38,10 +39,20 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader
         title="Timetable"
-        description={mine ? 'Your week. Pick a class to see its timetable.' : manage ? 'Click a period to set the subject and teacher. A teacher can’t be in two classes at once.' : 'Weekly timetable by class.'}
+        description={
+          mine
+            ? 'Your week. Pick a class to see its timetable.'
+            : manage
+              ? 'Click a period to set the subject and teacher. A teacher can’t be in two classes at once.'
+              : 'Weekly timetable by class.'
+        }
         actions={
           <>
-            <SectionSwitcher sections={sections.map((s) => ({ id: s.id, label: s.label }))} value={sectionId} allowMine={isTeacher} />
+            <SectionSwitcher
+              sections={sections.map((s) => ({ id: s.id, label: s.label }))}
+              value={sectionId}
+              allowMine={isTeacher}
+            />
             {manage && <PeriodsEditor days={periods.days} periods={periods.periods} />}
           </>
         }
@@ -53,7 +64,17 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
           <TimetableGrid
             grid={tt}
             today={today}
-            edit={manage ? { sectionId: tt.section.id, subjects: tt.subjects, allTeachers: (teachers?.items ?? []).filter((t) => t.status === 'ACTIVE').map((t) => ({ id: t.id, name: t.name })) } : undefined}
+            edit={
+              manage
+                ? {
+                    sectionId: tt.section.id,
+                    subjects: tt.subjects,
+                    allTeachers: (teachers?.items ?? [])
+                      .filter((t) => t.status === 'ACTIVE')
+                      .map((t) => ({ id: t.id, name: t.name })),
+                  }
+                : undefined
+            }
           />
         ) : (
           <p className="py-8 text-center text-sm text-slate-500">No classes yet.</p>

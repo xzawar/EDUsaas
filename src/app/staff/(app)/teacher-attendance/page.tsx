@@ -13,7 +13,10 @@ export default async function TeacherAttendancePage({ searchParams }: { searchPa
   const b = await teacherBoard(ctx, date);
   return (
     <>
-      <PageHeader title="Teacher check-ins" description="Teachers check in from their Today page. You can correct any day." />
+      <PageHeader
+        title="Teacher check-ins"
+        description="Teachers check in from their Today page. You can correct any day."
+      />
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Present" value={b.summary.present} />
         <Stat label="Late" value={b.summary.late} />

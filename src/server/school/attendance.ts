@@ -34,7 +34,11 @@ async function access(ctx: AuthedContext, tx: TenantTx, sectionId: string) {
   if (ctx.can('attendance.oversee')) return { overseer: true, inScope: true, isIncharge: false };
   if (!ctx.can('attendance.submit')) return { overseer: false, inScope: false, isIncharge: false };
   const scope = await teacherScope(tx, ctx.user.id);
-  return { overseer: false, inScope: scope.sectionIds.includes(sectionId), isIncharge: scope.inchargeSectionIds.includes(sectionId) };
+  return {
+    overseer: false,
+    inScope: scope.sectionIds.includes(sectionId),
+    isIncharge: scope.inchargeSectionIds.includes(sectionId),
+  };
 }
 
 function windowFor(date: string, today: string) {
@@ -69,8 +73,14 @@ export async function attendanceSheet(ctx: AuthedContext, sectionId: string, dat
       where: { tenantId_sectionId_date_period: { tenantId: ctx.tenantId!, sectionId, date: toDate(day), period: 1 } },
       include: { records: true },
     });
-    const submitter = batch ? await tx.user.findUnique({ where: { id: batch.submittedBy }, select: { displayName: true } }) : null;
-    const onLeave = await approvedLeaveFor(tx, students.map((s) => s.id), day);
+    const submitter = batch
+      ? await tx.user.findUnique({ where: { id: batch.submittedBy }, select: { displayName: true } })
+      : null;
+    const onLeave = await approvedLeaveFor(
+      tx,
+      students.map((s) => s.id),
+      day,
+    );
     const byStudent = new Map(batch?.records.map((r) => [r.studentId, r.status]) ?? []);
     const win = windowFor(day, clock.today);
     const future = day > clock.today;
@@ -81,10 +91,20 @@ export async function attendanceSheet(ctx: AuthedContext, sectionId: string, dat
       today: clock.today,
       timezone: clock.timezone,
       submitted: batch
-        ? { at: batch.serverReceivedAt, by: submitter?.displayName ?? 'Unknown', syncedLate: batch.syncedLate, clientRecordedAt: batch.clientRecordedAt, updatedAt: batch.updatedAt }
+        ? {
+            at: batch.serverReceivedAt,
+            by: submitter?.displayName ?? 'Unknown',
+            syncedLate: batch.syncedLate,
+            clientRecordedAt: batch.clientRecordedAt,
+            updatedAt: batch.updatedAt,
+          }
         : null,
       canEdit,
-      lockedReason: future ? 'You can’t take attendance for a future date.' : canEdit ? null : `The ${ATTENDANCE_CORRECTION_DAYS}-day correction window closed on ${win.lastEditable}. Ask the School Admin to make changes.`,
+      lockedReason: future
+        ? 'You can’t take attendance for a future date.'
+        : canEdit
+          ? null
+          : `The ${ATTENDANCE_CORRECTION_DAYS}-day correction window closed on ${win.lastEditable}. Ask the School Admin to make changes.`,
       editableUntil: acc.overseer ? null : win.lastEditable,
       students: students.map((s) => ({
         id: s.id,
@@ -103,7 +123,10 @@ export const submitSchema = z.object({
   /** Client-generated idempotency key: a resent offline batch never creates a duplicate (spec §6.2). */
   clientUuid: z.string().uuid(),
   clientRecordedAt: z.string().datetime().optional(),
-  records: z.array(z.object({ studentId: z.string().uuid(), status: z.enum(STATUSES) })).min(1).max(200),
+  records: z
+    .array(z.object({ studentId: z.string().uuid(), status: z.enum(STATUSES) }))
+    .min(1)
+    .max(200),
 });
 
 /**
@@ -112,16 +135,22 @@ export const submitSchema = z.object({
  */
 export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof submitSchema>) {
   return inTenant(ctx, async (tx) => {
-    const dupe = await tx.attendanceBatch.findUnique({ where: { tenantId_clientUuid: { tenantId: ctx.tenantId!, clientUuid: input.clientUuid } } });
+    const dupe = await tx.attendanceBatch.findUnique({
+      where: { tenantId_clientUuid: { tenantId: ctx.tenantId!, clientUuid: input.clientUuid } },
+    });
     if (dupe) return { batchId: dupe.id, duplicate: true, corrected: false, syncedLate: dupe.syncedLate };
 
     const clock = await schoolClock(tx);
     const acc = await access(ctx, tx, input.sectionId);
     if (!acc.inScope) throw forbidden('You are not assigned to this section');
-    if (input.date > clock.today) throw new AppError('VALIDATION_FAILED', 'You can’t take attendance for a future date');
+    if (input.date > clock.today)
+      throw new AppError('VALIDATION_FAILED', 'You can’t take attendance for a future date');
     const win = windowFor(input.date, clock.today);
     if (!acc.overseer && !win.open) {
-      throw new AppError('FORBIDDEN', `The ${ATTENDANCE_CORRECTION_DAYS}-day correction window for ${input.date} has closed. Ask the School Admin.`);
+      throw new AppError(
+        'FORBIDDEN',
+        `The ${ATTENDANCE_CORRECTION_DAYS}-day correction window for ${input.date} has closed. Ask the School Admin.`,
+      );
     }
 
     const ids = [...new Set(input.records.map((r) => r.studentId))];
@@ -131,7 +160,14 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
 
     const clientAt = input.clientRecordedAt ? new Date(input.clientRecordedAt) : null;
     const syncedLate = !!clientAt && clock.now.getTime() - clientAt.getTime() > 60 * 60 * 1000;
-    const key = { tenantId_sectionId_date_period: { tenantId: ctx.tenantId!, sectionId: input.sectionId, date: toDate(input.date), period: 1 } };
+    const key = {
+      tenantId_sectionId_date_period: {
+        tenantId: ctx.tenantId!,
+        sectionId: input.sectionId,
+        date: toDate(input.date),
+        period: 1,
+      },
+    };
     const existing = await tx.attendanceBatch.findUnique({ where: key, include: { records: true } });
 
     if (!existing) {
@@ -145,12 +181,19 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
           clientUuid: input.clientUuid,
           clientRecordedAt: clientAt,
           syncedLate,
-          records: { create: input.records.map((r) => ({ tenantId: ctx.tenantId!, studentId: r.studentId, status: r.status })) },
+          records: {
+            create: input.records.map((r) => ({ tenantId: ctx.tenantId!, studentId: r.studentId, status: r.status })),
+          },
         },
       });
       const counts = zero();
       for (const r of input.records) counts[r.status]++;
-      await audit(ctx, tx, { action: 'attendance.submit', entity: 'AttendanceBatch', entityId: batch.id, metadata: { date: input.date, sectionId: input.sectionId, counts, syncedLate } });
+      await audit(ctx, tx, {
+        action: 'attendance.submit',
+        entity: 'AttendanceBatch',
+        entityId: batch.id,
+        metadata: { date: input.date, sectionId: input.sectionId, counts, syncedLate },
+      });
       return { batchId: batch.id, duplicate: false, corrected: false, syncedLate };
     }
 
@@ -164,7 +207,10 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
         update: { status: r.status },
       });
     }
-    await tx.attendanceBatch.update({ where: { id: existing.id }, data: { updatedBy: ctx.user.id, clientUuid: input.clientUuid, syncedLate: existing.syncedLate || syncedLate } });
+    await tx.attendanceBatch.update({
+      where: { id: existing.id },
+      data: { updatedBy: ctx.user.id, clientUuid: input.clientUuid, syncedLate: existing.syncedLate || syncedLate },
+    });
     await audit(ctx, tx, {
       action: 'attendance.correct',
       entity: 'AttendanceBatch',
@@ -194,7 +240,11 @@ export async function sectionGrid(ctx: AuthedContext, sectionId: string, month?:
     next.setUTCMonth(next.getUTCMonth() + 1);
     const end = addDays(next.toISOString().slice(0, 10), -1);
     const [students, batches] = await Promise.all([
-      tx.student.findMany({ where: { sectionId, status: 'ACTIVE' }, include: { user: { select: { displayName: true } } }, orderBy: { rollNumber: 'asc' } }),
+      tx.student.findMany({
+        where: { sectionId, status: 'ACTIVE' },
+        include: { user: { select: { displayName: true } } },
+        orderBy: { rollNumber: 'asc' },
+      }),
       tx.attendanceBatch.findMany({
         where: { sectionId, period: 1, date: { gte: toDate(start), lte: toDate(end) } },
         include: { records: { select: { studentId: true, status: true } } },
@@ -224,15 +274,28 @@ export async function sectionGrid(ctx: AuthedContext, sectionId: string, month?:
   });
 }
 
-export const setOneSchema = z.object({ sectionId: z.string().uuid(), date: dateStr, studentId: z.string().uuid(), status: z.enum(STATUSES) });
+export const setOneSchema = z.object({
+  sectionId: z.string().uuid(),
+  date: dateStr,
+  studentId: z.string().uuid(),
+  status: z.enum(STATUSES),
+});
 
 /** Single-cell correction from the grid (same rules as a batch). */
 export async function setOne(ctx: AuthedContext, input: z.infer<typeof setOneSchema>) {
   const sheet = await attendanceSheet(ctx, input.sectionId, input.date);
   if (!sheet.canEdit) throw new AppError('FORBIDDEN', sheet.lockedReason ?? 'You can’t edit this day');
-  const records = sheet.students.map((s) => ({ studentId: s.id, status: (s.id === input.studentId ? input.status : s.status ?? 'PRESENT') as (typeof STATUSES)[number] }));
+  const records = sheet.students.map((s) => ({
+    studentId: s.id,
+    status: (s.id === input.studentId ? input.status : (s.status ?? 'PRESENT')) as (typeof STATUSES)[number],
+  }));
   if (!records.some((r) => r.studentId === input.studentId)) throw notFound('Student');
-  return submitAttendance(ctx, { sectionId: input.sectionId, date: input.date, clientUuid: crypto.randomUUID(), records });
+  return submitAttendance(ctx, {
+    sectionId: input.sectionId,
+    date: input.date,
+    clientUuid: crypto.randomUUID(),
+    records,
+  });
 }
 
 // ── Summaries (computed at read time, spec §6.1) ────────────────────────────
@@ -273,7 +336,11 @@ export async function attendanceOverview(ctx: AuthedContext) {
     if (!year) return null;
     const sections = await tx.section.findMany({
       where: { class: { academicYearId: year.id } },
-      include: { class: true, classTeacher: { include: { user: { select: { displayName: true } } } }, _count: { select: { students: { where: { status: 'ACTIVE' } } } } },
+      include: {
+        class: true,
+        classTeacher: { include: { user: { select: { displayName: true } } } },
+        _count: { select: { students: { where: { status: 'ACTIVE' } } } },
+      },
     });
     const todayBatches = await tx.attendanceBatch.findMany({
       where: { date: toDate(clock.today), period: 1, sectionId: { in: sections.map((s) => s.id) } },
@@ -293,12 +360,18 @@ export async function attendanceOverview(ctx: AuthedContext) {
       WHERE b.period = 1 AND b.date >= ${toDate(since)} AND b.date <= ${toDate(clock.today)}
       GROUP BY b.date ORDER BY b.date`;
     const trend = daily
-      .map((d) => ({ day: isoDate(d.day)!, pct: Number(d.considered) ? Math.round((Number(d.attended) / Number(d.considered)) * 1000) / 10 : null }))
+      .map((d) => ({
+        day: isoDate(d.day)!,
+        pct: Number(d.considered) ? Math.round((Number(d.attended) / Number(d.considered)) * 1000) / 10 : null,
+      }))
       .filter((d) => d.pct !== null)
       .slice(-30) as { day: string; pct: number }[];
 
     // At-risk: below the school threshold this year, with at least 10 recorded days.
-    const counts = await countsByStudent(tx, { batch: { date: { gte: year.startsOn }, period: 1 }, student: { status: 'ACTIVE' } });
+    const counts = await countsByStudent(tx, {
+      batch: { date: { gte: year.startsOn }, period: 1 },
+      student: { status: 'ACTIVE' },
+    });
     const risky = [...counts.entries()]
       .map(([id, c]) => ({ id, pct: attendancePct(c), days: c.PRESENT + c.LATE + c.ABSENT }))
       .filter((r) => r.pct !== null && r.days >= 10 && r.pct < clock.atRiskThreshold)
@@ -324,7 +397,13 @@ export async function attendanceOverview(ctx: AuthedContext) {
       atRiskCount: risky.length,
       atRisk: risky.slice(0, 50).map((r) => {
         const s = info.get(r.id);
-        return { id: r.id, name: s?.user.displayName ?? '—', section: s?.section ? sectionLabel(s.section) : '—', pct: r.pct!, days: r.days };
+        return {
+          id: r.id,
+          name: s?.user.displayName ?? '—',
+          section: s?.section ? sectionLabel(s.section) : '—',
+          pct: r.pct!,
+          days: r.days,
+        };
       }),
     };
   });
@@ -336,8 +415,14 @@ export async function teacherAttendanceTodo(ctx: AuthedContext) {
     const clock = await schoolClock(tx);
     const scope = await teacherScope(tx, ctx.user.id);
     const ids = scope.inchargeSectionIds.length ? scope.inchargeSectionIds : scope.sectionIds;
-    const sections = await tx.section.findMany({ where: { id: { in: ids }, class: { academicYear: { status: 'CURRENT' } } }, include: { class: true } });
-    const done = await tx.attendanceBatch.findMany({ where: { sectionId: { in: ids }, date: toDate(clock.today), period: 1 }, select: { sectionId: true } });
+    const sections = await tx.section.findMany({
+      where: { id: { in: ids }, class: { academicYear: { status: 'CURRENT' } } },
+      include: { class: true },
+    });
+    const done = await tx.attendanceBatch.findMany({
+      where: { sectionId: { in: ids }, date: toDate(clock.today), period: 1 },
+      select: { sectionId: true },
+    });
     const doneSet = new Set(done.map((d) => d.sectionId));
     return sections.map((s) => ({ id: s.id, label: sectionLabel(s), done: doneSet.has(s.id) }));
   });
@@ -352,7 +437,9 @@ export async function myCheckIn(ctx: AuthedContext) {
     const clock = await schoolClock(tx);
     const teacher = await tx.teacher.findUnique({ where: { userId: ctx.user.id } });
     if (!teacher) return null;
-    const row = await tx.teacherAttendance.findUnique({ where: { teacherId_date: { teacherId: teacher.id, date: toDate(clock.today) } } });
+    const row = await tx.teacherAttendance.findUnique({
+      where: { teacherId_date: { teacherId: teacher.id, date: toDate(clock.today) } },
+    });
     return { today: clock.today, status: row?.status ?? null, checkedInAt: row?.checkedInAt ?? null };
   });
 }
@@ -372,12 +459,19 @@ export async function checkIn(ctx: AuthedContext, input: z.infer<typeof checkInS
     const cutoff = h * 60 + m + 15;
     const [ah, am] = timeInTz(at, clock.timezone).split(':').map(Number) as [number, number];
     const status = ah * 60 + am > cutoff ? 'LATE' : 'PRESENT';
-    const existing = await tx.teacherAttendance.findUnique({ where: { teacherId_date: { teacherId: teacher.id, date: toDate(clock.today) } } });
+    const existing = await tx.teacherAttendance.findUnique({
+      where: { teacherId_date: { teacherId: teacher.id, date: toDate(clock.today) } },
+    });
     if (existing) return { status: existing.status, checkedInAt: existing.checkedInAt, alreadyCheckedIn: true };
     const row = await tx.teacherAttendance.create({
       data: { tenantId: ctx.tenantId!, teacherId: teacher.id, date: toDate(clock.today), status, checkedInAt: at },
     });
-    await audit(ctx, tx, { action: 'teacher_attendance.check_in', entity: 'TeacherAttendance', entityId: row.id, metadata: { status } });
+    await audit(ctx, tx, {
+      action: 'teacher_attendance.check_in',
+      entity: 'TeacherAttendance',
+      entityId: row.id,
+      metadata: { status },
+    });
     return { status: row.status, checkedInAt: row.checkedInAt, alreadyCheckedIn: false };
   });
 }
@@ -387,18 +481,41 @@ export async function teacherBoard(ctx: AuthedContext, date?: string) {
     const clock = await schoolClock(tx);
     const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : clock.today;
     const [teachers, rows] = await Promise.all([
-      tx.teacher.findMany({ where: { user: { status: 'ACTIVE' } }, include: { user: { select: { displayName: true } } } }),
+      tx.teacher.findMany({
+        where: { user: { status: 'ACTIVE' } },
+        include: { user: { select: { displayName: true } } },
+      }),
       tx.teacherAttendance.findMany({ where: { date: toDate(day) } }),
     ]);
     const byTeacher = new Map(rows.map((r) => [r.teacherId, r]));
     const list = teachers
       .map((t) => {
         const r = byTeacher.get(t.id);
-        return { teacherId: t.id, name: t.user.displayName, status: r?.status ?? null, checkedInAt: r?.checkedInAt ?? null, corrected: !!r?.correctedBy, note: r?.note ?? null };
+        return {
+          teacherId: t.id,
+          name: t.user.displayName,
+          status: r?.status ?? null,
+          checkedInAt: r?.checkedInAt ?? null,
+          corrected: !!r?.correctedBy,
+          note: r?.note ?? null,
+        };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
     const count = (s: string | null) => list.filter((x) => x.status === s).length;
-    return { date: day, today: clock.today, timezone: clock.timezone, list, summary: { present: count('PRESENT'), late: count('LATE'), absent: count('ABSENT'), leave: count('LEAVE'), missing: count(null), total: list.length } };
+    return {
+      date: day,
+      today: clock.today,
+      timezone: clock.timezone,
+      list,
+      summary: {
+        present: count('PRESENT'),
+        late: count('LATE'),
+        absent: count('ABSENT'),
+        leave: count('LEAVE'),
+        missing: count(null),
+        total: list.length,
+      },
+    };
   });
 }
 
@@ -414,14 +531,28 @@ export async function setTeacherAttendance(ctx: AuthedContext, input: z.infer<ty
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
     if (input.date > clock.today) throw new AppError('VALIDATION_FAILED', 'You can’t set attendance for a future date');
+    if (!(await tx.teacher.findUnique({ where: { id: input.teacherId } }))) throw notFound('Teacher');
     const key = { teacherId_date: { teacherId: input.teacherId, date: toDate(input.date) } };
     const before = await tx.teacherAttendance.findUnique({ where: key });
     const row = await tx.teacherAttendance.upsert({
       where: key,
-      create: { tenantId: ctx.tenantId!, teacherId: input.teacherId, date: toDate(input.date), status: input.status, note: input.note ?? null, correctedBy: ctx.user.id },
+      create: {
+        tenantId: ctx.tenantId!,
+        teacherId: input.teacherId,
+        date: toDate(input.date),
+        status: input.status,
+        note: input.note ?? null,
+        correctedBy: ctx.user.id,
+      },
       update: { status: input.status, note: input.note ?? null, correctedBy: ctx.user.id },
     });
-    await audit(ctx, tx, { action: 'teacher_attendance.correct', entity: 'TeacherAttendance', entityId: row.id, before: { status: before?.status ?? null }, after: { status: input.status, date: input.date } });
+    await audit(ctx, tx, {
+      action: 'teacher_attendance.correct',
+      entity: 'TeacherAttendance',
+      entityId: row.id,
+      before: { status: before?.status ?? null },
+      after: { status: input.status, date: input.date },
+    });
     return { ok: true };
   });
 }

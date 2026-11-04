@@ -16,7 +16,9 @@ export const metadata: Metadata = { title: 'Home' };
 
 export default async function StudentHome() {
   const ctx = await requirePortal('STUDENT');
-  const me = await inTenant(ctx, (tx) => tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }));
+  const me = await inTenant(ctx, (tx) =>
+    tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }),
+  );
   const [d, att, lessons, results] = await Promise.all([
     studentOverview(ctx),
     me ? studentAttendance(ctx, me.id) : Promise.resolve(null),
@@ -26,20 +28,53 @@ export default async function StudentHome() {
   const link = 'text-sm font-medium text-[var(--accent)] hover:underline';
   return (
     <>
-      <PageHeader title={`Hello, ${ctx.user.displayName.split(' ')[0]}`} description={`${d?.section ? `Class ${d.section}` : ctx.session.tenant?.name}${d?.rollNumber ? ` · Roll no. ${d.rollNumber}` : ''}`} />
+      <PageHeader
+        title={`Hello, ${ctx.user.displayName.split(' ')[0]}`}
+        description={`${d?.section ? `Class ${d.section}` : ctx.session.tenant?.name}${d?.rollNumber ? ` · Roll no. ${d.rollNumber}` : ''}`}
+      />
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Attendance" actions={<Link href="/student/attendance" className={link}>Details</Link>}>
+        <Card
+          title="Attendance"
+          actions={
+            <Link href="/student/attendance" className={link}>
+              Details
+            </Link>
+          }
+        >
           <div className="flex flex-col items-center py-2">
             <AttendanceRing pct={att?.pct ?? null} threshold={att?.threshold ?? 75} />
             <p className="mt-3 text-center text-sm text-slate-600">
-              {att?.pct === null || !att ? 'No attendance recorded yet.' : att.pct >= att.threshold ? `On track (target ${att.threshold}%).` : `Below the ${att.threshold}% target.`}
+              {att?.pct === null || !att
+                ? 'No attendance recorded yet.'
+                : att.pct >= att.threshold
+                  ? `On track (target ${att.threshold}%).`
+                  : `Below the ${att.threshold}% target.`}
             </p>
           </div>
         </Card>
-        <Card title="Today" actions={<Link href="/student/timetable" className={link}>Week</Link>}>
-          <TodayLessons lessons={lessons.lessons} now={lessons.now} schoolDay={lessons.schoolDay} dayName={lessons.dayName} />
+        <Card
+          title="Today"
+          actions={
+            <Link href="/student/timetable" className={link}>
+              Week
+            </Link>
+          }
+        >
+          <TodayLessons
+            lessons={lessons.lessons}
+            now={lessons.now}
+            schoolDay={lessons.schoolDay}
+            dayName={lessons.dayName}
+          />
         </Card>
-        <Card title="Latest marks" actions={<Link href="/student/marks" className={link}>All marks</Link>}>
+        <Card
+          title="Latest marks"
+          actions={
+            <Link href="/student/marks" className={link}>
+              All marks
+            </Link>
+          }
+        >
           {results.items.length ? (
             <ul className="divide-y divide-slate-100">
               {results.items.slice(0, 5).map((r) => (
@@ -50,7 +85,9 @@ export default async function StudentHome() {
                   </span>
                   <span className="text-right">
                     <span className="block font-semibold">{r.grade ?? '—'}</span>
-                    <span className="block text-xs text-slate-500 tabular-nums">{r.absent ? 'Absent' : `${r.score}/${r.maxMarks}`}</span>
+                    <span className="block text-xs text-slate-500 tabular-nums">
+                      {r.absent ? 'Absent' : `${r.score}/${r.maxMarks}`}
+                    </span>
                   </span>
                 </li>
               ))}
@@ -78,11 +115,19 @@ export default async function StudentHome() {
         <Card title="My account">
           <KeyValue
             items={[
-              ['Username', <span key="u" className="font-mono">{ctx.user.username}</span>],
+              [
+                'Username',
+                <span key="u" className="font-mono">
+                  {ctx.user.username}
+                </span>,
+              ],
               ['Class Incharge', d?.classTeacher ?? 'Not assigned'],
             ]}
           />
-          <Link href="/student/leave" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)] hover:underline">
+          <Link
+            href="/student/leave"
+            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)] hover:underline"
+          >
             Apply for leave <ArrowRight className="size-4" />
           </Link>
         </Card>

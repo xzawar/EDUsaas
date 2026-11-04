@@ -17,7 +17,13 @@ function shiftMonth(m: string, by: number) {
   return d.toISOString().slice(0, 7);
 }
 
-export default async function MonthPage({ params, searchParams }: { params: Promise<{ sectionId: string }>; searchParams: Promise<{ month?: string }> }) {
+export default async function MonthPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ sectionId: string }>;
+  searchParams: Promise<{ month?: string }>;
+}) {
   const ctx = await requirePortal('STAFF');
   const { sectionId } = await params;
   const { month } = await searchParams;
@@ -27,7 +33,11 @@ export default async function MonthPage({ params, searchParams }: { params: Prom
     throw e;
   });
   const clock = await inTenant(ctx, (tx) => schoolClock(tx));
-  const title = new Date(`${grid.month}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const title = new Date(`${grid.month}-01T00:00:00Z`).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
   const nav = 'rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium hover:bg-slate-50';
   return (
     <>

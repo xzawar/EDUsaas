@@ -12,7 +12,12 @@ export function GradingEditor({ yearName, bands, inUse }: { yearName: string; ba
   const sorted = [...rows].map((r) => ({ grade: r.grade, min: Number(r.min) })).sort((a, b) => b.min - a.min);
   return (
     <div className="space-y-4">
-      {inUse && <Alert tone="info">Tests already use this scale, so saving creates a new version for future tests. Results already issued keep their grades.</Alert>}
+      {inUse && (
+        <Alert tone="info">
+          Tests already use this scale, so saving creates a new version for future tests. Results already issued keep
+          their grades.
+        </Alert>
+      )}
       {error && <Alert>{error.message}</Alert>}
       <table className="text-sm">
         <thead className="text-xs text-slate-500">
@@ -29,10 +34,23 @@ export function GradingEditor({ yearName, bands, inUse }: { yearName: string; ba
             return (
               <tr key={i}>
                 <td className="py-1 pr-3">
-                  <Input value={r.grade} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, grade: e.target.value } : x)))} className="w-20 py-1" aria-label={`Grade ${i + 1} name`} />
+                  <Input
+                    value={r.grade}
+                    onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, grade: e.target.value } : x)))}
+                    className="w-20 py-1"
+                    aria-label={`Grade ${i + 1} name`}
+                  />
                 </td>
                 <td className="py-1 pr-3">
-                  <Input type="number" min={0} max={100} value={r.min} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)))} className="w-24 py-1" aria-label={`Grade ${i + 1} minimum`} />
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={r.min}
+                    onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)))}
+                    className="w-24 py-1"
+                    aria-label={`Grade ${i + 1} minimum`}
+                  />
                 </td>
                 <td className="py-1 text-slate-500 tabular-nums">
                   {r.min}–{Number.isFinite(upper) ? Math.round(upper * 10) / 10 : 100}%
@@ -51,7 +69,17 @@ export function GradingEditor({ yearName, bands, inUse }: { yearName: string; ba
             Remove last
           </Button>
         )}
-        <Button size="sm" disabled={busy} onClick={() => run('/grading-scheme', { method: 'PUT', body: { bands: rows.map((r) => ({ grade: r.grade.trim(), min: Number(r.min) })) } }, `Grading scale for ${yearName} saved`)}>
+        <Button
+          size="sm"
+          disabled={busy}
+          onClick={() =>
+            run(
+              '/grading-scheme',
+              { method: 'PUT', body: { bands: rows.map((r) => ({ grade: r.grade.trim(), min: Number(r.min) })) } },
+              `Grading scale for ${yearName} saved`,
+            )
+          }
+        >
           Save scale
         </Button>
       </div>

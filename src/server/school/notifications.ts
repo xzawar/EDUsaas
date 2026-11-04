@@ -15,7 +15,16 @@ export async function notify(
 ) {
   const ids = [...new Set(userIds)];
   if (!ids.length) return;
-  await tx.notification.createMany({ data: ids.map((userId) => ({ tenantId, userId, kind: n.kind, title: n.title, body: n.body.slice(0, 500), link: n.link ?? null })) });
+  await tx.notification.createMany({
+    data: ids.map((userId) => ({
+      tenantId,
+      userId,
+      kind: n.kind,
+      title: n.title,
+      body: n.body.slice(0, 500),
+      link: n.link ?? null,
+    })),
+  });
 }
 
 export async function myNotifications(ctx: AuthedContext, limit = 20) {
@@ -31,7 +40,10 @@ export async function myNotifications(ctx: AuthedContext, limit = 20) {
 
 export async function markNotificationsRead(ctx: AuthedContext, ids?: string[]) {
   return inTenant(ctx, async (tx) => {
-    const r = await tx.notification.updateMany({ where: { userId: ctx.user.id, readAt: null, ...(ids?.length ? { id: { in: ids } } : {}) }, data: { readAt: new Date() } });
+    const r = await tx.notification.updateMany({
+      where: { userId: ctx.user.id, readAt: null, ...(ids?.length ? { id: { in: ids } } : {}) },
+      data: { readAt: new Date() },
+    });
     return { marked: r.count };
   });
 }

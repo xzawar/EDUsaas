@@ -4,7 +4,16 @@ import { z } from 'zod';
 import type { TenantTx } from '@/server/db/client';
 import { AppError, forbidden, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
-import { audit, friendlyDbError, inTenant, isoDate, schoolClock, sectionLabel, teacherScope, toDate } from '@/server/school/common';
+import {
+  audit,
+  friendlyDbError,
+  inTenant,
+  isoDate,
+  schoolClock,
+  sectionLabel,
+  teacherScope,
+  toDate,
+} from '@/server/school/common';
 import { notify } from '@/server/school/notifications';
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-09-03');
@@ -25,11 +34,18 @@ export async function leaveTypes(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => {
     await ensureTypes(tx, ctx.tenantId!);
     const forStudent = ctx.user.role === 'STUDENT';
-    return tx.leaveType.findMany({ where: { archivedAt: null, ...(forStudent ? { forStudents: true } : { forStaff: true }) }, orderBy: { name: 'asc' } });
+    return tx.leaveType.findMany({
+      where: { archivedAt: null, ...(forStudent ? { forStudents: true } : { forStaff: true }) },
+      orderBy: { name: 'asc' },
+    });
   });
 }
 
-export const leaveTypeSchema = z.object({ name: z.string().trim().min(2).max(60), forStudents: z.boolean().default(true), forStaff: z.boolean().default(true) });
+export const leaveTypeSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  forStudents: z.boolean().default(true),
+  forStaff: z.boolean().default(true),
+});
 
 export async function createLeaveType(ctx: AuthedContext, input: z.infer<typeof leaveTypeSchema>) {
   try {
@@ -44,7 +60,12 @@ export async function createLeaveType(ctx: AuthedContext, input: z.infer<typeof 
 }
 
 export const applySchema = z
-  .object({ typeId: z.string().uuid(), fromDate: dateStr, toDate: dateStr, reason: z.string().trim().min(3, 'Please give a short reason').max(1000) })
+  .object({
+    typeId: z.string().uuid(),
+    fromDate: dateStr,
+    toDate: dateStr,
+    reason: z.string().trim().min(3, 'Please give a short reason').max(1000),
+  })
   .refine((v) => v.toDate >= v.fromDate, { message: 'End date must be on or after the start date', path: ['toDate'] });
 
 /** Spec §2.4 / §2.6: Teachers, Principal and Students apply for their own leave. */
@@ -54,10 +75,16 @@ export async function applyLeave(ctx: AuthedContext, input: z.infer<typeof apply
     if (input.toDate < clock.today) throw new AppError('VALIDATION_FAILED', 'Leave can’t end in the past');
     const type = await tx.leaveType.findUnique({ where: { id: input.typeId } });
     const isStudent = ctx.user.role === 'STUDENT';
-    if (!type || type.archivedAt || (isStudent ? !type.forStudents : !type.forStaff)) throw new AppError('VALIDATION_FAILED', 'Choose a valid leave type');
+    if (!type || type.archivedAt || (isStudent ? !type.forStudents : !type.forStaff))
+      throw new AppError('VALIDATION_FAILED', 'Choose a valid leave type');
     const student = isStudent ? await tx.student.findUnique({ where: { userId: ctx.user.id } }) : null;
     const overlap = await tx.leaveRequest.findFirst({
-      where: { applicantId: ctx.user.id, status: { in: ['PENDING', 'APPROVED'] }, fromDate: { lte: toDate(input.toDate) }, toDate: { gte: toDate(input.fromDate) } },
+      where: {
+        applicantId: ctx.user.id,
+        status: { in: ['PENDING', 'APPROVED'] },
+        fromDate: { lte: toDate(input.toDate) },
+        toDate: { gte: toDate(input.fromDate) },
+      },
     });
     if (overlap) throw new AppError('CONFLICT', 'You already have a leave request for some of these days');
     const req = await tx.leaveRequest.create({
@@ -71,21 +98,41 @@ export async function applyLeave(ctx: AuthedContext, input: z.infer<typeof apply
         reason: input.reason,
       },
     });
-    await audit(ctx, tx, { action: 'leave.apply', entity: 'LeaveRequest', entityId: req.id, after: { ...input, type: type.name } });
+    await audit(ctx, tx, {
+      action: 'leave.apply',
+      entity: 'LeaveRequest',
+      entityId: req.id,
+      after: { ...input, type: type.name },
+    });
     // Tell the first approver.
     const approverIds = await firstApprovers(tx, ctx, student?.sectionId ?? null);
-    await notify(tx, ctx.tenantId!, approverIds, { kind: 'leave', title: 'New leave request', body: `${ctx.user.displayName} asked for ${type.name.toLowerCase()} (${input.fromDate} – ${input.toDate}).`, link: '/staff/leave?tab=approve' });
+    await notify(tx, ctx.tenantId!, approverIds, {
+      kind: 'leave',
+      title: 'New leave request',
+      body: `${ctx.user.displayName} asked for ${type.name.toLowerCase()} (${input.fromDate} – ${input.toDate}).`,
+      link: '/staff/leave?tab=approve',
+    });
     return req;
   });
 }
 
 async function firstApprovers(tx: TenantTx, ctx: AuthedContext, sectionId: string | null): Promise<string[]> {
   if (sectionId) {
-    const s = await tx.section.findUnique({ where: { id: sectionId }, include: { classTeacher: { select: { userId: true } } } });
+    const s = await tx.section.findUnique({
+      where: { id: sectionId },
+      include: { classTeacher: { select: { userId: true } } },
+    });
     if (s?.classTeacher) return [s.classTeacher.userId];
   }
-  const admins = await tx.user.findMany({ where: { role: { in: ctx.user.role === 'STUDENT' ? ['SCHOOL_ADMIN'] : ['SCHOOL_ADMIN', 'PRINCIPAL'] }, status: 'ACTIVE', deletedAt: null }, select: { id: true } });
-  return admins.map((a) => a.id);
+  const admins = await tx.user.findMany({
+    where: {
+      role: { in: ctx.user.role === 'STUDENT' ? ['SCHOOL_ADMIN'] : ['SCHOOL_ADMIN', 'PRINCIPAL'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+  return admins.map((a) => a.id).filter((id) => id !== ctx.user.id);
 }
 
 const include = {
@@ -96,7 +143,8 @@ const include = {
 type Row = Prisma.LeaveRequestGetPayload<{ include: typeof include }>;
 
 function shape(r: Row, ageOutHours: number, now: Date) {
-  const escalated = r.status === 'PENDING' && !!r.studentId && now.getTime() - r.createdAt.getTime() > ageOutHours * 3600_000;
+  const escalated =
+    r.status === 'PENDING' && !!r.studentId && now.getTime() - r.createdAt.getTime() > ageOutHours * 3600_000;
   const days = Math.round((r.toDate.getTime() - r.fromDate.getTime()) / 86400000) + 1;
   return {
     id: r.id,
@@ -120,7 +168,12 @@ function shape(r: Row, ageOutHours: number, now: Date) {
 export async function myLeave(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
-    const rows = await tx.leaveRequest.findMany({ where: { applicantId: ctx.user.id }, include, orderBy: { createdAt: 'desc' }, take: 50 });
+    const rows = await tx.leaveRequest.findMany({
+      where: { applicantId: ctx.user.id },
+      include,
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
     return rows.map((r) => shape(r, clock.leaveAgeOutHours, clock.now));
   });
 }
@@ -129,7 +182,12 @@ export async function myLeave(ctx: AuthedContext) {
  * Who decides (decision D5): a student's Class Incharge, or the School Admin (always; and the only one once a
  * student request has aged out). Staff requests: the Principal (if allowed) or the School Admin. Never oneself.
  */
-async function canDecide(ctx: AuthedContext, tx: TenantTx, r: { applicantId: string; studentId: string | null; student: { section: { id: string } | null } | null }, escalated: boolean) {
+async function canDecide(
+  ctx: AuthedContext,
+  tx: TenantTx,
+  r: { applicantId: string; studentId: string | null; student: { section: { id: string } | null } | null },
+  escalated: boolean,
+) {
   if (r.applicantId === ctx.user.id) return false;
   if (ctx.user.role === 'SCHOOL_ADMIN') return true;
   if (r.studentId) {
@@ -155,13 +213,21 @@ export async function approvalQueue(ctx: AuthedContext, status: 'PENDING' | 'DEC
             : { id: '00000000-0000-0000-0000-000000000000' }
           : { student: { sectionId: { in: scope?.inchargeSectionIds ?? [] } } }),
     };
-    const rows = await tx.leaveRequest.findMany({ where, include, orderBy: { createdAt: status === 'PENDING' ? 'asc' : 'desc' }, take: 100 });
+    const rows = await tx.leaveRequest.findMany({
+      where,
+      include,
+      orderBy: { createdAt: status === 'PENDING' ? 'asc' : 'desc' },
+      take: 100,
+    });
     const shaped = rows.map((r) => shape(r, clock.leaveAgeOutHours, clock.now));
     return ctx.user.role === 'TEACHER' ? shaped.filter((r) => !r.escalated) : shaped;
   });
 }
 
-export const decideSchema = z.object({ decision: z.enum(['APPROVED', 'REJECTED']), note: z.string().trim().max(300).optional() });
+export const decideSchema = z.object({
+  decision: z.enum(['APPROVED', 'REJECTED']),
+  note: z.string().trim().max(300).optional(),
+});
 
 export async function decideLeave(ctx: AuthedContext, id: string, input: z.infer<typeof decideSchema>) {
   return inTenant(ctx, async (tx) => {
@@ -174,7 +240,10 @@ export async function decideLeave(ctx: AuthedContext, id: string, input: z.infer
       throw forbidden('You can’t decide this leave request');
     }
     if (r.status !== 'PENDING') throw new AppError('CONFLICT', 'This request has already been decided');
-    await tx.leaveRequest.update({ where: { id }, data: { status: input.decision, decidedBy: ctx.user.id, decidedAt: new Date(), decisionNote: input.note || null } });
+    await tx.leaveRequest.update({
+      where: { id },
+      data: { status: input.decision, decidedBy: ctx.user.id, decidedAt: new Date(), decisionNote: input.note || null },
+    });
     await audit(ctx, tx, {
       action: input.decision === 'APPROVED' ? 'leave.approve' : 'leave.reject',
       entity: 'LeaveRequest',

@@ -8,17 +8,35 @@ import { useToast } from '@/components/overlay';
 import { Button } from '@/components/ui';
 
 /** One-tap teacher check-in (spec §6.5). Works offline: the tap time is kept and synced later. */
-export function CheckInCard({ status, checkedInAt, userId, timezone }: { status: string | null; checkedInAt: string | null; userId: string; timezone: string }) {
+export function CheckInCard({
+  status,
+  checkedInAt,
+  userId,
+  timezone,
+}: {
+  status: string | null;
+  checkedInAt: string | null;
+  userId: string;
+  timezone: string;
+}) {
   const toast = useToast();
   const [state, setState] = useState({ status, checkedInAt });
   const [busy, setBusy] = useState(false);
-  const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: timezone });
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: timezone });
 
   async function checkIn() {
     setBusy(true);
     const body = { clientRecordedAt: new Date().toISOString() };
     const offline = async () => {
-      await enqueue({ id: crypto.randomUUID(), url: '/api/v1/teacher-attendance/check-in', body, label: 'Check-in', createdAt: body.clientRecordedAt, userId });
+      await enqueue({
+        id: crypto.randomUUID(),
+        url: '/api/v1/teacher-attendance/check-in',
+        body,
+        label: 'Check-in',
+        createdAt: body.clientRecordedAt,
+        userId,
+      });
       setState({ status: 'QUEUED', checkedInAt: body.clientRecordedAt });
       toast('success', 'Checked in on this device. It will sync when you’re online.');
     };
@@ -39,7 +57,13 @@ export function CheckInCard({ status, checkedInAt, userId, timezone }: { status:
       <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
         <CheckCircle2 className="size-6 shrink-0 text-emerald-600" aria-hidden />
         <p className="text-sm">
-          <span className="font-semibold text-emerald-900">{state.status === 'QUEUED' ? 'Checked in (waiting to sync)' : state.status === 'LATE' ? 'Checked in · late' : 'Checked in'}</span>
+          <span className="font-semibold text-emerald-900">
+            {state.status === 'QUEUED'
+              ? 'Checked in (waiting to sync)'
+              : state.status === 'LATE'
+                ? 'Checked in · late'
+                : 'Checked in'}
+          </span>
           {state.checkedInAt && <span className="text-emerald-800"> at {time(state.checkedInAt)}</span>}
         </p>
       </div>
