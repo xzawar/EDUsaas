@@ -1,0 +1,66 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: edusaas
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://edusaas_app_login:app_password@localhost:5432/edusaas
+      SYSTEM_DATABASE_URL: postgresql://edusaas_system_login:system_password@localhost:5432/edusaas
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/edusaas
+      DB_APP_PASSWORD: app_password
+      DB_SYSTEM_PASSWORD: system_password
+      APP_URL: http://localhost:3000
+      CRON_SECRET: ci-only-cron-secret-0000000000000000000000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Format
+        run: npm run format:check
+      - name: Unit tests
+        run: npm test
+      - name: Migrate from scratch
+        run: npx prisma migrate deploy && npm run db:roles
+      - name: RLS coverage check
+        run: npm run db:check-rls
+      - name: Integration, RLS and authorization tests
+        run: npm run test:integration
+      - name: Build
+        run: npm run build
+      - name: Seed and e2e smoke
+        run: |
+          npm run db:seed
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build -t edusaas:ci .

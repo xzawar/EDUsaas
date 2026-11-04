@@ -1,0 +1,138 @@
+import type { UserRole } from '@prisma/client';
+
+/**
+ * Permission catalog (spec §2). Permissions are always checked server-side from the session's role +
+ * the school's toggles. Teacher/Student permissions are fixed AND further scoped in services
+ * (e.g. a teacher only reaches assigned sections), so holding a permission is necessary, not sufficient.
+ */
+export const PERMISSIONS = {
+  // People
+  'students.read': 'View student records',
+  'students.search': 'Search students',
+  'students.write': 'Add and edit students',
+  'students.import': 'Bulk import students',
+  'students.reset_password': 'Reset student passwords',
+  'teachers.read': 'View teachers',
+  'teachers.write': 'Add and edit teachers, assign subjects and sections',
+  'users.read': 'View staff accounts',
+  'users.manage': 'Create staff accounts and reset staff passwords',
+  // Structure
+  'structure.manage': 'Manage academic years, classes, sections and subjects',
+  'promotion.run': 'Promote students',
+  // Academic operations
+  'attendance.submit': 'Mark attendance for assigned sections',
+  'attendance.oversee': 'View and edit the full attendance grid',
+  'teacher_attendance.self': 'Check in own teacher attendance',
+  'teacher_attendance.oversee': 'View and correct teacher check-ins',
+  'leave.apply': 'Apply for own leave',
+  'leave.approve': 'Approve or reject leave',
+  'marks.enter': 'Enter marks for assigned assessments',
+  'marks.manage': 'Full access to marks, grades and remarks',
+  'remarks.write': 'Add remarks',
+  'timetable.view': 'View timetable',
+  'timetable.manage': 'Manage timetable',
+  // Management
+  'reports.read': 'View reports and dashboards',
+  'audit.read': 'View audit logs',
+  'announcements.manage': 'Publish announcements',
+  'settings.manage': 'Manage school settings and role permissions',
+  'self.records': 'View own attendance, marks and timetable',
+  // Platform
+  'platform.tenants.manage': 'Create, suspend and manage schools',
+  'platform.tenants.read': 'Search schools by name and metadata',
+  'platform.health.read': 'View system health',
+} as const;
+
+export type Permission = keyof typeof PERMISSIONS;
+export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
+
+type RolePolicy = {
+  /** Always granted; not configurable. */
+  fixed: Permission[];
+  /** Toggleable per school by the School Admin. Value = default when the school hasn't set it. */
+  configurable: Partial<Record<Permission, boolean>>;
+};
+
+const SCHOOL_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
+  (p) =>
+    !p.startsWith('platform.') &&
+    p !== 'self.records' &&
+    p !== 'teacher_attendance.self' &&
+    p !== 'attendance.submit' &&
+    p !== 'marks.enter',
+);
+
+export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
+  PLATFORM_OWNER: {
+    // No tenant-data permissions at all (spec §2.7, §9.6): tenant access only via break-glass support grants.
+    fixed: ['platform.tenants.manage', 'platform.tenants.read', 'platform.health.read'],
+    configurable: {},
+  },
+  PLATFORM_ADMIN: {
+    // Restricted operational seat; further scope granted explicitly by the Platform Owner (Phase 5).
+    fixed: ['platform.health.read'],
+    configurable: {},
+  },
+  SCHOOL_ADMIN: { fixed: SCHOOL_ADMIN_PERMISSIONS, configurable: {} },
+  PRINCIPAL: {
+    // Student search is granted by default regardless of toggles (spec §2.2).
+    fixed: ['students.read', 'students.search', 'leave.apply', 'timetable.view'],
+    configurable: {
+      'students.write': false,
+      'teachers.read': true,
+      'users.read': true,
+      'structure.manage': false,
+      'promotion.run': false,
+      'attendance.oversee': true,
+      'teacher_attendance.oversee': true,
+      'leave.approve': true,
+      'marks.manage': false,
+      'timetable.manage': false,
+      'reports.read': true,
+      'audit.read': true,
+      'announcements.manage': true,
+    },
+  },
+  ADMISSIONS_OFFICER: {
+    fixed: ['students.read', 'students.search'],
+    configurable: {
+      'students.write': true,
+      'students.import': true,
+      'students.reset_password': true,
+    },
+  },
+  TEACHER: {
+    fixed: [
+      'students.search',
+      'attendance.submit',
+      'teacher_attendance.self',
+      'leave.apply',
+      'marks.enter',
+      'remarks.write',
+      'timetable.view',
+    ],
+    configurable: {},
+  },
+  STUDENT: { fixed: ['self.records', 'leave.apply', 'timetable.view'], configurable: {} },
+};
+
+export const CONFIGURABLE_ROLES = ['PRINCIPAL', 'ADMISSIONS_OFFICER'] as const satisfies readonly UserRole[];
+export type ConfigurableRole = (typeof CONFIGURABLE_ROLES)[number];
+
+export function isConfigurable(role: UserRole, permission: string): permission is Permission {
+  return Object.prototype.hasOwnProperty.call(ROLE_POLICIES[role].configurable, permission);
+}
+
+/** Effective permissions for a role given the school's overrides ({permission: granted}). */
+export function effectivePermissions(
+  role: UserRole,
+  overrides: Partial<Record<string, boolean>> = {},
+): Set<Permission> {
+  const policy = ROLE_POLICIES[role];
+  const result = new Set<Permission>(policy.fixed);
+  for (const [perm, def] of Object.entries(policy.configurable) as [Permission, boolean][]) {
+    const granted = overrides[perm] ?? def;
+    if (granted) result.add(perm);
+  }
+  return result;
+}

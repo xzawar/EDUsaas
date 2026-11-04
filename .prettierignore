@@ -1,0 +1,6 @@
+prototype
+.next
+node_modules
+docs/spec
+prisma/migrations
+package-lock.json

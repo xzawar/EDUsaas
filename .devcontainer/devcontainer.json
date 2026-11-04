@@ -1,0 +1,10 @@
+{
+  "name": "EDUsaas",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": {} },
+  "forwardPorts": [3000, 5432],
+  "postCreateCommand": "cp -n .env.example .env; docker compose up -d db && npm ci && npx prisma migrate deploy && npm run db:roles && npm run db:seed",
+  "customizations": {
+    "vscode": { "extensions": ["Prisma.prisma", "dbaeumer.vscode-eslint", "esbenp.prettier-vscode"] }
+  }
+}
