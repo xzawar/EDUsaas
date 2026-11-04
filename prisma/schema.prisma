@@ -101,6 +101,13 @@ enum RemarkStatus {
   REJECTED
 }
 
+enum AnnouncementAudience {
+  EVERYONE
+  STAFF
+  STUDENTS
+  SECTION
+}
+
 enum JobStatus {
   QUEUED
   RUNNING
@@ -145,6 +152,7 @@ model Tenant {
   timetableSlots     TimetableSlot[]
   timetableEntries   TimetableEntry[]
   notifications      Notification[]
+  announcements      Announcement[]
 
   @@map("tenants")
 }
@@ -212,6 +220,7 @@ model User {
   leaveRequests  LeaveRequest[]       @relation("LeaveApplicant")
   remarks        Remark[]             @relation("RemarkAuthor")
   notifications  Notification[]
+  announcements  Announcement[]
 
   @@index([tenantId, role])
   @@map("users")
@@ -334,14 +343,15 @@ model Section {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  class        Class               @relation(fields: [classId], references: [id], onDelete: Restrict)
-  classTeacher Teacher?            @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
-  students     Student[]
-  assignments  TeacherAssignment[]
-  attendance   AttendanceBatch[]
-  assessments  Assessment[]
-  timetable    TimetableEntry[]
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class         Class               @relation(fields: [classId], references: [id], onDelete: Restrict)
+  classTeacher  Teacher?            @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
+  students      Student[]
+  assignments   TeacherAssignment[]
+  attendance    AttendanceBatch[]
+  assessments   Assessment[]
+  timetable     TimetableEntry[]
+  announcements Announcement[]
 
   @@unique([classId, name])
   @@index([tenantId])
@@ -770,4 +780,27 @@ model Notification {
   @@index([userId, readAt])
   @@index([tenantId, createdAt])
   @@map("notifications")
+}
+
+// ───────────── Announcements (Phase 4, spec §8.11) ─────────────
+
+model Announcement {
+  id        String               @id @default(uuid()) @db.Uuid
+  tenantId  String               @map("tenant_id") @db.Uuid
+  title     String
+  body      String
+  audience  AnnouncementAudience
+  sectionId String?              @map("section_id") @db.Uuid
+  pinned    Boolean              @default(false)
+  createdBy String               @map("created_by") @db.Uuid
+  createdAt DateTime             @default(now()) @map("created_at")
+  expiresOn DateTime?            @map("expires_on") @db.Date
+  deletedAt DateTime?            @map("deleted_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  section Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  author  User     @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@map("announcements")
 }
