@@ -563,6 +563,44 @@ async function chunked<T>(rows: T[], size: number, fn: (part: T[]) => Promise<un
   for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size));
 }
 
+// ── Phase 4 demo: a few announcements ───────────────────────────────────────
+async function seedAnnouncements(prefix: string) {
+  const tenant = await db.tenant.findUniqueOrThrow({ where: { prefix } });
+  if (await db.announcement.count({ where: { tenantId: tenant.id } })) return;
+  const admin = await db.user.findFirstOrThrow({ where: { tenantId: tenant.id, role: 'SCHOOL_ADMIN' } });
+  const section = await db.section.findFirst({
+    where: { tenantId: tenant.id, class: { academicYear: { status: 'CURRENT' } } },
+    orderBy: [{ class: { gradeLevel: 'desc' } }, { name: 'asc' }],
+    include: { class: true },
+  });
+  const items = [
+    {
+      title: 'Winter uniform from Monday',
+      body: 'Please wear the winter uniform (navy sweater) from Monday 16 November.',
+      audience: 'EVERYONE' as const,
+      pinned: true,
+    },
+    {
+      title: 'Staff meeting on Friday',
+      body: 'All teachers: short meeting in the staff room on Friday at 1:30 pm about mid-term papers.',
+      audience: 'STAFF' as const,
+      pinned: false,
+    },
+    ...(section
+      ? [
+          {
+            title: `Class ${section.class.name}-${section.name}: science fair`,
+            body: 'Bring your project proposal to your Class Incharge by next Wednesday.',
+            audience: 'SECTION' as const,
+            pinned: false,
+            sectionId: section.id,
+          },
+        ]
+      : []),
+  ];
+  for (const a of items) await db.announcement.create({ data: { tenantId: tenant.id, createdBy: admin.id, ...a } });
+}
+
 async function seedOperations(prefix: string) {
   const tenant = await db.tenant.findUnique({ where: { prefix } });
   if (!tenant) return;
@@ -834,6 +872,8 @@ async function main() {
   await seedGreenValley();
   await seedOperations('bss');
   await seedOperations('gvs');
+  await seedAnnouncements('bss');
+  await seedAnnouncements('gvs');
   console.log(`Seed complete. Demo password for every account: ${DEMO_PASSWORD}`);
 }
 

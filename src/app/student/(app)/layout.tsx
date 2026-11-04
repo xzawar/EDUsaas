@@ -19,6 +19,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
       user={ctx.user}
       nav={[{ items: STUDENT_NAV }]}
       mobileTabs={STUDENT_NAV}
+      tools={{ search: false, notifications: true }}
     >
       {children}
     </AppShell>

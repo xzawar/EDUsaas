@@ -15,6 +15,8 @@ import { gradeFor } from '@/server/school/assessments';
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 type Band = { grade: string; min: number };
+/** Fewer recorded days than this in a range is too little to call a student "below" the target. */
+export const MIN_DAYS = 5;
 const zero = (): Record<AttendanceStatus, number> => ({ PRESENT: 0, ABSENT: 0, LATE: 0, LEAVE: 0, EXCUSED: 0 });
 
 async function currentYear(ctx: AuthedContext) {
@@ -39,7 +41,7 @@ export async function attendanceReport(ctx: AuthedContext, q: z.infer<typeof att
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
     const to = q.to && q.to <= clock.today ? q.to : clock.today;
-    const from = q.from && q.from <= to ? q.from : `${to.slice(0, 7)}-01`;
+    const from = q.from && q.from <= to ? q.from : addDays(to, -29);
     if (addDays(from, 400) < to) throw new AppError('VALIDATION_FAILED', 'Choose a range of at most a year');
     const range = { gte: toDate(from), lte: toDate(to) };
 
@@ -106,7 +108,9 @@ export async function attendanceReport(ctx: AuthedContext, q: z.infer<typeof att
     for (const [id, c] of perStudent) {
       const pct = attendancePct(c);
       const sid = studentSection.get(id);
-      if (sid && pct !== null && pct < clock.atRiskThreshold) below.set(sid, (below.get(sid) ?? 0) + 1);
+      // Count someone as "below" only with enough recorded days in the range to mean something.
+      if (sid && pct !== null && c.PRESENT + c.LATE + c.ABSENT >= MIN_DAYS && pct < clock.atRiskThreshold)
+        below.set(sid, (below.get(sid) ?? 0) + 1);
     }
     const rows = sections.map((s) => {
       const a = by.get(s.id);
@@ -200,7 +204,7 @@ export async function marksReport(ctx: AuthedContext, q: z.infer<typeof marksRep
       })
       .sort((a, b) => b.heldOn.localeCompare(a.heldOn));
 
-    if (!q.sectionId) return { kind: 'school' as const, summary, grid: null };
+    if (!q.sectionId) return { kind: 'school' as const, summary, groups: groupSummary(summary), grid: null };
 
     const section = await tx.section.findUnique({ where: { id: q.sectionId }, include: { class: true } });
     if (!section) throw notFound('Section');
@@ -241,8 +245,56 @@ export async function marksReport(ctx: AuthedContext, q: z.infer<typeof marksRep
         };
       }),
     };
-    return { kind: 'section' as const, summary, grid };
+    return { kind: 'section' as const, summary, groups: null, grid };
   });
+}
+
+type SummaryRow = {
+  section: string;
+  subject: string;
+  name: string;
+  heldOn: string;
+  status: string;
+  entered: number;
+  average: number | null;
+  highest: number | null;
+  lowest: number | null;
+  passRate: number | null;
+};
+
+/** Whole-school view: one row per test (subject + name) across sections, weighted by marks entered. */
+function groupSummary(rows: SummaryRow[]) {
+  const by = new Map<string, SummaryRow[]>();
+  for (const r of rows) {
+    const k = `${r.subject} · ${r.name}`;
+    by.set(k, [...(by.get(k) ?? []), r]);
+  }
+  return [...by.entries()]
+    .map(([label, rs]) => {
+      const n = rs.reduce((x, r) => x + r.entered, 0);
+      const w = (f: (r: SummaryRow) => number | null) =>
+        n ? Math.round((rs.reduce((x, r) => x + (f(r) ?? 0) * r.entered, 0) / n) * 10) / 10 : null;
+      const highs = rs.map((r) => r.highest).filter((v): v is number => v !== null);
+      const lows = rs.map((r) => r.lowest).filter((v): v is number => v !== null);
+      const sorted = [...rs].filter((r) => r.average !== null).sort((a, b) => a.average! - b.average!);
+      return {
+        label,
+        heldOn: rs.map((r) => r.heldOn).sort()[0]!,
+        sections: rs.length,
+        waiting: rs.filter((r) => r.status !== 'PUBLISHED').length,
+        entered: n,
+        average: w((r) => r.average),
+        highest: highs.length ? Math.max(...highs) : null,
+        lowest: lows.length ? Math.min(...lows) : null,
+        passRate: w((r) => r.passRate),
+        weakest: sorted[0] ? { section: sorted[0].section, average: sorted[0].average } : null,
+        strongest:
+          sorted.length > 1
+            ? { section: sorted[sorted.length - 1]!.section, average: sorted[sorted.length - 1]!.average }
+            : null,
+      };
+    })
+    .sort((a, b) => b.heldOn.localeCompare(a.heldOn) || a.label.localeCompare(b.label));
 }
 
 export function marksCsv(r: Awaited<ReturnType<typeof marksReport>>) {

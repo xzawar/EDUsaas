@@ -202,7 +202,8 @@ function crc32(buf: Buffer): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function zip(files: { name: string; data: Buffer }[]): Buffer {
+/** Builds a ZIP archive (deflate). Exported for tests that craft hostile workbooks. */
+export function zip(files: { name: string; data: Buffer }[]): Buffer {
   const locals: Buffer[] = [];
   const centrals: Buffer[] = [];
   let offset = 0;
