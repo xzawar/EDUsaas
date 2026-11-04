@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen, CheckCircle2, Circle, GraduationCap, Layers, UserPlus, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import { actionLabel } from '@/lib/audit-labels';
+import { LatestAnnouncements } from '@/components/comms/LatestAnnouncements';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { BarList, Meter, TrendColumns } from '@/components/charts';
@@ -115,7 +116,10 @@ async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mt-6">
+        <LatestAnnouncements ctx={ctx} href="/staff/announcements" />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           {!setupComplete && ctx.user.role === 'SCHOOL_ADMIN' && (
             <Card title="Set up your school" description={`${done} of ${d.checklist.length} steps done`}>
@@ -348,6 +352,7 @@ async function TeacherToday({ ctx }: { ctx: AuthedContext }) {
   return (
     <>
       <PageHeader title={greeting(ctx.user.displayName)} description={`${label} · ${ctx.session.tenant?.name}`} />
+      <LatestAnnouncements ctx={ctx} href="/staff/announcements" />
       <div className="space-y-6">
         {checkin && (
           <CheckInCard

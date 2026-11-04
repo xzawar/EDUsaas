@@ -35,6 +35,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/client/api';
 import { clearQueue } from '@/client/offline';
+import { NotificationBell, SearchButton } from '@/components/HeaderTools';
 import { Avatar, ROLE_LABELS, cx } from '@/components/ui';
 
 const ICONS = {
@@ -166,13 +167,17 @@ export function Sidebar({
   orgName,
   user,
   mobileTabs,
+  tools = { search: false, notifications: false },
 }: {
   groups: NavGroup[];
   orgName: string;
   user: { displayName: string; role: string };
   mobileTabs?: NavItem[];
+  /** Global search (Ctrl/⌘ K) and the notifications bell. */
+  tools?: { search: boolean; notifications: boolean };
 }) {
   const [open, setOpen] = useState(false);
+  const pages = groups.flatMap((g) => g.items.map((i) => ({ href: i.href, label: i.label })));
   const pathname = usePathname();
   useEffect(() => setOpen(false), [pathname]);
 
@@ -181,6 +186,12 @@ export function Sidebar({
       {/* Desktop */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <Brand orgName={orgName} />
+        {(tools.search || tools.notifications) && (
+          <div className="flex items-center gap-1 px-3 pb-2">
+            <div className="min-w-0 flex-1">{tools.search && <SearchButton pages={pages} />}</div>
+            {tools.notifications && <NotificationBell />}
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto px-3 py-2">
           <NavList groups={groups} />
         </div>
@@ -197,8 +208,10 @@ export function Sidebar({
         >
           <Menu className="size-5" />
         </button>
-        <p className="truncate px-2 text-sm font-semibold">{orgName || 'EDUsaas'}</p>
-        <Avatar name={user.displayName} size="sm" />
+        <p className="min-w-0 flex-1 truncate px-2 text-sm font-semibold">{orgName || 'EDUsaas'}</p>
+        {tools.search && <SearchButton pages={pages} compact />}
+        {tools.notifications && <NotificationBell />}
+        {!tools.search && !tools.notifications && <Avatar name={user.displayName} size="sm" />}
       </div>
 
       {/* Mobile drawer */}

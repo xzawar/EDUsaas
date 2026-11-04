@@ -64,6 +64,18 @@ import * as ttEntries from '@/app/api/v1/timetable/entries/route';
 import * as ttMe from '@/app/api/v1/timetable/me/route';
 import * as ttSection from '@/app/api/v1/timetable/sections/[id]/route';
 import * as notifications from '@/app/api/v1/notifications/route';
+import * as imports from '@/app/api/v1/imports/route';
+import * as importStudents from '@/app/api/v1/imports/students/route';
+import * as importTemplate from '@/app/api/v1/imports/students/template/route';
+import * as importById from '@/app/api/v1/imports/[id]/route';
+import * as importCommit from '@/app/api/v1/imports/[id]/commit/route';
+import * as repAttendance from '@/app/api/v1/reports/attendance/route';
+import * as repMarks from '@/app/api/v1/reports/marks/route';
+import * as repAtRisk from '@/app/api/v1/reports/at-risk/route';
+import * as searchRoute from '@/app/api/v1/search/route';
+import * as announcements from '@/app/api/v1/announcements/route';
+import * as announcementById from '@/app/api/v1/announcements/[id]/route';
+import * as auditLogs from '@/app/api/v1/audit-logs/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -604,6 +616,88 @@ const MATRIX: Row[] = [
     handler: notifications.POST,
     request: () => ({ body: {} }),
     expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  // ── Phase 4: import, reports, search, announcements, audit ────────────────
+  {
+    key: 'GET /api/v1/imports',
+    handler: imports.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/imports/students',
+    handler: importStudents.POST,
+    // A CSV without the template's columns → 422; nothing is stored.
+    request: () => ({
+      body: { fileName: 'x.csv', data: Buffer.from('hello\n1').toString('base64'), clientKey: crypto.randomUUID() },
+    }),
+    expect: only({ SCHOOL_ADMIN: 422, ADMISSIONS_OFFICER: 422 }),
+  },
+  {
+    key: 'GET /api/v1/imports/students/template',
+    handler: importTemplate.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/imports/[id]',
+    handler: importById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/imports/[id]/commit',
+    handler: importCommit.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/reports/attendance',
+    handler: repAttendance.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/reports/marks',
+    handler: repMarks.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/reports/at-risk',
+    handler: repAtRisk.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/search',
+    handler: searchRoute.GET,
+    request: () => ({ path: '/api/v1/search?q=student' }),
+    expect: only({ TEACHER: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/announcements',
+    handler: announcements.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/announcements',
+    handler: announcements.POST,
+    request: () => ({ body: { title: 'x', body: 'Matrix', audience: 'EVERYONE' } }),
+    expect: only({ SCHOOL_ADMIN: 422, PRINCIPAL: 422 }),
+  },
+  {
+    key: 'DELETE /api/v1/announcements/[id]',
+    handler: announcementById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+  },
+  {
+    key: 'GET /api/v1/audit-logs',
+    handler: auditLogs.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
   },
 ];
 

@@ -12,6 +12,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       user={ctx.user}
       nav={groups}
       mobileTabs={mobileTabs}
+      tools={{ search: ctx.can('students.search'), notifications: true }}
     >
       {children}
     </AppShell>
