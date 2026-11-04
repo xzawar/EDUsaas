@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { api } from '@/client/api';
 import { Alert, Badge, Button, Card, Field, Input } from '@/components/ui';
@@ -24,6 +25,8 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  // Server-rendered stats (school and account counts) refresh after any change.
+  const router = useRouter();
 
   async function load(query = q, cursor?: string) {
     const params = new URLSearchParams();
@@ -44,12 +47,13 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
     )
       return;
     const res = await api<{ tenant: Tenant }>(`/platform/tenants/${t.id}`, { method: 'PATCH', body: { status } });
-    if (res.ok)
+    if (res.ok) {
       setPage((p) => ({
         ...p,
         items: p.items.map((x) => (x.id === t.id ? { ...x, status: res.data.tenant.status } : x)),
       }));
-    else setError(res.error.message);
+      router.refresh();
+    } else setError(res.error.message);
   }
 
   return (
@@ -74,6 +78,7 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
             setCreated(c);
             setShowCreate(false);
             void load('');
+            router.refresh();
           }}
         />
       )}
