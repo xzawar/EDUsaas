@@ -8,7 +8,9 @@ export const GET = defineRoute({
   portals: ['STUDENT'],
   permission: 'self.records',
   handler: async (ctx) => {
-    const s = await inTenant(ctx, (tx) => tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }));
+    const s = await inTenant(ctx, (tx) =>
+      tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }),
+    );
     if (!s) throw new AppError('NOT_FOUND', 'Student record not found');
     return studentAttendance(ctx, s.id);
   },

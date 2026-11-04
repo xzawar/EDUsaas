@@ -35,7 +35,9 @@ export async function enqueue(item: QueueItem) {
   try {
     const reg = await navigator.serviceWorker?.ready;
     // Background Sync (Chromium): lets the browser send the queue even after the tab is closed.
-    await (reg as ServiceWorkerRegistration & { sync?: { register(tag: string): Promise<void> } })?.sync?.register('edusaas-queue');
+    await (reg as ServiceWorkerRegistration & { sync?: { register(tag: string): Promise<void> } })?.sync?.register(
+      'edusaas-queue',
+    );
   } catch {
     /* not supported: the in-page flush below covers it */
   }
@@ -69,7 +71,12 @@ export async function flush(): Promise<{ sent: number; rejected: { label: string
     for (const item of await pending()) {
       let res: Response;
       try {
-        res = await fetch(item.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.body), credentials: 'same-origin' });
+        res = await fetch(item.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.body),
+          credentials: 'same-origin',
+        });
       } catch {
         break; // still offline
       }

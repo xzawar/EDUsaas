@@ -89,8 +89,8 @@ test('school admin admits a student and gets a printable login slip', async ({ p
 
 test('teacher sees only their own classes', async ({ page }) => {
   await signIn(page, '/staff/login', 'bss-t-alikhan-1');
-  await expect(page.getByText('Class Incharge', { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/staff$/);
+  await expect(page.getByRole('heading', { name: 'My classes' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'My students' }).click();
   await expect(page.getByRole('heading', { name: 'My students' })).toBeVisible();
   await page.getByLabel('Search students').fill('Ahmad Raza');
@@ -106,4 +106,45 @@ test('classes & sections page shows the structure and incharge pickers', async (
   await expect(page.getByRole('heading', { name: 'Classes & sections' })).toBeVisible();
   await expect(page.getByLabel('Class Incharge for 8-A')).toHaveValue(/.+/);
   await expect(page.getByLabel('Class Incharge for 10-B')).toHaveValue('');
+});
+
+// ── Phase 3: daily operations ───────────────────────────────────────────────
+
+test('teacher checks in and takes a register', async ({ page }) => {
+  await signIn(page, '/staff/login', 'bss-t-alikhan-1');
+  await expect(page).toHaveURL(/\/staff$/);
+  const checkIn = page.getByRole('button', { name: 'Check in' });
+  if (await checkIn.isVisible()) {
+    await checkIn.click();
+    await expect(page.getByText(/^Checked in ·/)).toBeVisible();
+  }
+  await page.goto('/staff/attendance');
+  await page.locator('a[href^="/staff/attendance/"]').first().click();
+  await expect(page.getByRole('radiogroup').first()).toBeVisible();
+  // Flip the first student between Late and Present so the register always has a change to save.
+  const late = page.getByRole('radio', { name: 'Late' }).first();
+  if ((await late.getAttribute('aria-checked')) === 'true') await page.getByRole('radio', { name: 'Present' }).first().click();
+  else await late.click();
+  const markRest = page.getByRole('button', { name: 'Mark rest present' });
+  if (await markRest.isVisible()) await markRest.click();
+  await page.getByRole('button', { name: /Submit attendance|Save changes/ }).click();
+  await expect(page.getByText(/^Attendance (saved|updated)$/)).toBeVisible();
+});
+
+test('student sees attendance, marks and timetable', async ({ page }) => {
+  await signIn(page, '/login', 'bss-8a-ahmad-14');
+  await expect(page.getByRole('heading', { name: /^Hello, / })).toBeVisible();
+  await page.goto('/student/attendance');
+  await expect(page.getByText(/\d+(\.\d)?%/).first()).toBeVisible();
+  await page.goto('/student/marks');
+  await expect(page.getByText('Unit Test 1').first()).toBeVisible();
+  await page.goto('/student/timetable');
+  await expect(page.getByText('Mathematics').first()).toBeVisible();
+});
+
+test('school admin dashboard shows today at a glance', async ({ page }) => {
+  await signIn(page, '/staff/login', 'admin@bss.test');
+  await expect(page.getByText('Registers not taken today')).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Leave' }).click();
+  await expect(page.getByRole('heading', { name: 'Leave' })).toBeVisible();
 });

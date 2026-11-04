@@ -1,12 +1,13 @@
 import { ClipboardList } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/AppShell';
 import { NewTestButton } from '@/components/marks/NewTest';
 import { RemarksQueue } from '@/components/marks/RemarksQueue';
 import { Badge, Card, EmptyState, TabLinks, Table, Td, Th } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
-import { listAssessments, remarksQueue, teachOptions } from '@/server/school/assessments';
+import { canViewMarks, listAssessments, remarksQueue, teachOptions } from '@/server/school/assessments';
 import { inTenant, schoolClock } from '@/server/school/common';
 
 export const metadata: Metadata = { title: 'Tests & marks' };
@@ -15,6 +16,7 @@ const LABEL = { DRAFT: 'Draft', SUBMITTED: 'To publish', PUBLISHED: 'Published' 
 
 export default async function AssessmentsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const ctx = await requirePortal('STAFF');
+  if (!canViewMarks(ctx)) redirect('/staff');
   const { tab } = await searchParams;
   const active = tab === 'publish' || tab === 'remarks' ? tab : 'all';
   const [items, options, remarks, clock] = await Promise.all([
@@ -23,25 +25,41 @@ export default async function AssessmentsPage({ searchParams }: { searchParams: 
     remarksQueue(ctx),
     inTenant(ctx, (tx) => schoolClock(tx)),
   ]);
-  const canPublish = ctx.user.role === 'SCHOOL_ADMIN' || (ctx.user.role === 'PRINCIPAL' && clock.marksPublisher === 'PRINCIPAL');
+  const canPublish =
+    ctx.user.role === 'SCHOOL_ADMIN' || (ctx.user.role === 'PRINCIPAL' && clock.marksPublisher === 'PRINCIPAL');
   return (
     <>
-      <PageHeader title="Tests & marks" description="Create a test, enter marks, submit. Students see marks after they’re published." actions={<NewTestButton options={options} today={clock.today} />} />
+      <PageHeader
+        title="Tests & marks"
+        description="Create a test, enter marks, submit. Students see marks after they’re published."
+        actions={<NewTestButton options={options} today={clock.today} />}
+      />
       <Card>
         <div className="mb-2">
           <TabLinks
             active={active}
             tabs={[
               { key: 'all', label: 'All tests', href: '/staff/assessments' },
-              ...(canPublish ? [{ key: 'publish', label: 'Ready to publish', href: '/staff/assessments?tab=publish' }] : []),
-              { key: 'remarks', label: 'Remarks to review', href: '/staff/assessments?tab=remarks', count: remarks.length },
+              ...(canPublish
+                ? [{ key: 'publish', label: 'Ready to publish', href: '/staff/assessments?tab=publish' }]
+                : []),
+              {
+                key: 'remarks',
+                label: 'Remarks to review',
+                href: '/staff/assessments?tab=remarks',
+                count: remarks.length,
+              },
             ]}
           />
         </div>
         {active === 'remarks' ? (
           <RemarksQueue rows={JSON.parse(JSON.stringify(remarks))} />
         ) : items.length === 0 ? (
-          <EmptyState icon={<ClipboardList className="size-5" />} title={active === 'publish' ? 'Nothing waiting to publish' : 'No tests yet'} description={options.length ? 'Use “New test” to create one.' : undefined} />
+          <EmptyState
+            icon={<ClipboardList className="size-5" />}
+            title={active === 'publish' ? 'Nothing waiting to publish' : 'No tests yet'}
+            description={options.length ? 'Use “New test” to create one.' : undefined}
+          />
         ) : (
           <Table>
             <thead>
@@ -65,7 +83,13 @@ export default async function AssessmentsPage({ searchParams }: { searchParams: 
                   <Td>
                     <Badge>{a.section}</Badge>
                   </Td>
-                  <Td className="hidden text-slate-600 sm:table-cell">{new Date(`${a.heldOn}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</Td>
+                  <Td className="hidden text-slate-600 sm:table-cell">
+                    {new Date(`${a.heldOn}T00:00:00Z`).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      timeZone: 'UTC',
+                    })}
+                  </Td>
                   <Td className="hidden text-right tabular-nums sm:table-cell">{a.maxMarks}</Td>
                   <Td>
                     <Badge tone={TONE[a.status]}>{LABEL[a.status]}</Badge>

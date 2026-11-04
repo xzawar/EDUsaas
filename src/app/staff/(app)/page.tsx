@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, CheckCircle2, Circle, GraduationCap, Layers, UserPlus, Users } from 'lucide-react';
 import type { Metadata } from 'next';
+import { actionLabel } from '@/lib/audit-labels';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { BarList, Meter, TrendColumns } from '@/components/charts';
@@ -16,30 +17,6 @@ import { todayLessons } from '@/server/school/timetable';
 import { inTenant, schoolClock } from '@/server/school/common';
 
 export const metadata: Metadata = { title: 'Dashboard' };
-
-const ACTION_LABELS: Record<string, string> = {
-  'auth.login': 'Signed in',
-  'auth.logout': 'Signed out',
-  'student.create': 'Student admitted',
-  'student.update': 'Student updated',
-  'student.update_guardian': 'Guardian details changed',
-  'student.transfer': 'Student transferred',
-  'student.withdraw': 'Student withdrawn',
-  'student.restore': 'Student restored',
-  'teacher.create': 'Teacher added',
-  'teacher.assignments': 'Teacher assignments changed',
-  'staff.create': 'Staff account created',
-  'user.reset_password': 'Password reset',
-  'section.incharge': 'Class Incharge changed',
-  'section.renumber': 'Roll numbers renumbered',
-  'promotion.run': 'Promotion run',
-  'permissions.update': 'Permission changed',
-  'settings.update': 'Settings changed',
-  'year.create': 'Academic year created',
-  'class.create': 'Class created',
-  'access.denied': 'Access denied',
-  'access.not_found': 'Blocked lookup',
-};
 
 function greeting(name: string) {
   const h = Number(
@@ -311,7 +288,7 @@ async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
                 {d.activity.map((a) => (
                   <li key={a.id} className="flex items-start justify-between gap-3">
                     <span className="text-slate-700">
-                      {ACTION_LABELS[a.action] ?? a.action}
+                      {actionLabel(a.action)}
                       {a.outcome !== 'success' && <span className="ml-1.5 text-xs text-red-700">({a.outcome})</span>}
                       {a.actorRole && <span className="block text-xs text-slate-500">{ROLE_LABELS[a.actorRole]}</span>}
                     </span>

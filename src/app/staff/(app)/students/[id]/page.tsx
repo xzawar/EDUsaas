@@ -32,7 +32,11 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     throw e;
   });
   const sections = ctx.can('students.write') ? await listSections(ctx) : [];
-  const [att, results, remarks] = await Promise.all([studentAttendance(ctx, student.id), studentResults(ctx, student.id), studentRemarks(ctx, student.id, false)]);
+  const [att, results, remarks] = await Promise.all([
+    studentAttendance(ctx, student.id),
+    studentResults(ctx, student.id),
+    studentRemarks(ctx, student.id, false),
+  ]);
   const statusTone = student.status === 'ACTIVE' ? 'green' : student.status === 'GRADUATED' ? 'blue' : 'red';
 
   return (
@@ -182,7 +186,15 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           </Card>
           <Card
             title="Remarks"
-            actions={ctx.can('remarks.write') || ctx.can('marks.manage') ? <AddRemarkButton studentId={student.id} name={student.name} autoApproved={ctx.user.role === 'SCHOOL_ADMIN'} /> : undefined}
+            actions={
+              ctx.can('remarks.write') || ctx.can('marks.manage') ? (
+                <AddRemarkButton
+                  studentId={student.id}
+                  name={student.name}
+                  autoApproved={ctx.user.role === 'SCHOOL_ADMIN'}
+                />
+              ) : undefined
+            }
           >
             {remarks.length ? (
               <ul className="space-y-3">
@@ -191,7 +203,12 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                     <p className="text-slate-800">“{m.text}”</p>
                     <p className="text-xs text-slate-500">
                       {m.author}
-                      {m.subject ? ` · ${m.subject}` : ''} · {m.status === 'APPROVED' ? 'visible to student' : m.status === 'PENDING' ? 'waiting for review' : 'hidden'}
+                      {m.subject ? ` · ${m.subject}` : ''} ·{' '}
+                      {m.status === 'APPROVED'
+                        ? 'visible to student'
+                        : m.status === 'PENDING'
+                          ? 'waiting for review'
+                          : 'hidden'}
                     </p>
                   </li>
                 ))}

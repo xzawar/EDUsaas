@@ -18,7 +18,11 @@ export function NewTestButton({ options, today }: { options: TeachOption[]; toda
   async function submit(e: FormEvent) {
     e.preventDefault();
     const [sectionId, subjectId] = pick.split(':');
-    const r = await run<{ assessment: { id: string } }>('/assessments', { body: { sectionId, subjectId, name: v.name, maxMarks: Number(v.maxMarks), heldOn: v.heldOn } }, 'Test created');
+    const r = await run<{ assessment: { id: string } }>(
+      '/assessments',
+      { body: { sectionId, subjectId, name: v.name, maxMarks: Number(v.maxMarks), heldOn: v.heldOn } },
+      'Test created',
+    );
     if (r) router.push(`/staff/assessments/${r.assessment.id}`);
   }
   if (!options.length) return null;
@@ -54,15 +58,32 @@ export function NewTestButton({ options, today }: { options: TeachOption[]; toda
             </Select>
           </Field>
           <Field label="Test name" htmlFor="t-name">
-            <Input id="t-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} placeholder="e.g. Unit Test 2, Mid-term" />
+            <Input
+              id="t-name"
+              value={v.name}
+              onChange={(e) => setV({ ...v, name: e.target.value })}
+              placeholder="e.g. Unit Test 2, Mid-term"
+            />
             <FieldError message={errors.name} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Total marks" htmlFor="t-max">
-              <Input id="t-max" type="number" min={1} max={1000} value={v.maxMarks} onChange={(e) => setV({ ...v, maxMarks: e.target.value })} />
+              <Input
+                id="t-max"
+                type="number"
+                min={1}
+                max={1000}
+                value={v.maxMarks}
+                onChange={(e) => setV({ ...v, maxMarks: e.target.value })}
+              />
             </Field>
             <Field label="Held on" htmlFor="t-date">
-              <Input id="t-date" type="date" value={v.heldOn} onChange={(e) => setV({ ...v, heldOn: e.target.value })} />
+              <Input
+                id="t-date"
+                type="date"
+                value={v.heldOn}
+                onChange={(e) => setV({ ...v, heldOn: e.target.value })}
+              />
             </Field>
           </div>
         </form>

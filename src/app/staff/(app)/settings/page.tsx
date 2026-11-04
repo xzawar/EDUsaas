@@ -11,7 +11,11 @@ export const metadata: Metadata = { title: 'Settings' };
 
 export default async function SettingsPage() {
   const ctx = await requirePortal('STAFF', 'settings.manage');
-  const [{ tenant, settings }, roles, scheme] = await Promise.all([getSchoolSettings(ctx), getRolePermissions(ctx), currentScheme(ctx)]);
+  const [{ tenant, settings }, roles, scheme] = await Promise.all([
+    getSchoolSettings(ctx),
+    getRolePermissions(ctx),
+    currentScheme(ctx),
+  ]);
   return (
     <>
       <PageHeader title="School settings" description={`${tenant.name} · username prefix "${tenant.prefix}"`} />
@@ -28,7 +32,10 @@ export default async function SettingsPage() {
           />
         </Card>
         {scheme && (
-          <Card title="Grading scale" description={`${scheme.yearName} · version ${scheme.version}. Grades are based on the percentage scored.`}>
+          <Card
+            title="Grading scale"
+            description={`${scheme.yearName} · version ${scheme.version}. Grades are based on the percentage scored.`}
+          >
             <GradingEditor yearName={scheme.yearName} bands={scheme.bands} inUse={scheme.inUse} />
           </Card>
         )}

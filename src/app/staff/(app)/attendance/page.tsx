@@ -14,24 +14,42 @@ export default async function AttendancePage() {
   if (!ctx.can('attendance.submit') && !ctx.can('attendance.oversee')) redirect('/staff');
   const { today, sections } = await attendanceSections(ctx);
   const done = sections.filter((s) => s.done).length;
-  const label = new Date(`${today}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const label = new Date(`${today}T00:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
   return (
     <>
       <PageHeader title="Attendance" description={`${label} · ${done} of ${sections.length} registers taken`} />
       {sections.length === 0 ? (
         <Card>
-          <EmptyState title="No sections to mark" description="You’ll see your sections here once you’re assigned to them." />
+          <EmptyState
+            title="No sections to mark"
+            description="You’ll see your sections here once you’re assigned to them."
+          />
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map((s) => (
-            <Link key={s.id} href={`/staff/attendance/${s.id}`} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--accent)]/40">
-              {s.done ? <CheckCircle2 className="size-6 text-emerald-600" aria-label="Taken" /> : <Circle className="size-6 text-slate-300" aria-label="Not taken" />}
+            <Link
+              key={s.id}
+              href={`/staff/attendance/${s.id}`}
+              className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--accent)]/40"
+            >
+              {s.done ? (
+                <CheckCircle2 className="size-6 text-emerald-600" aria-label="Taken" />
+              ) : (
+                <Circle className="size-6 text-slate-300" aria-label="Not taken" />
+              )}
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2 font-semibold">
                   {s.label} {s.isIncharge && <Badge tone="green">Incharge</Badge>}
                 </span>
-                <span className="block text-sm text-slate-500">{s.done ? `${s.present} present · ${s.absent} absent` : `${s.students} students · not taken yet`}</span>
+                <span className="block text-sm text-slate-500">
+                  {s.done ? `${s.present} present · ${s.absent} absent` : `${s.students} students · not taken yet`}
+                </span>
               </span>
               <ArrowRight className="size-4 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" />
             </Link>

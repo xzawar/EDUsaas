@@ -12,12 +12,16 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   ];
 
   const daily: NavItem[] = [];
-  if (ctx.can('attendance.submit') || ctx.can('attendance.oversee')) daily.push({ href: '/staff/attendance', label: 'Attendance', icon: 'attendance' });
-  if (ctx.can('teacher_attendance.oversee')) daily.push({ href: '/staff/teacher-attendance', label: 'Teacher check-ins', icon: 'checkin' });
-  if (ctx.can('marks.enter') || ctx.can('marks.manage') || ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL')
+  if (ctx.can('attendance.submit') || ctx.can('attendance.oversee'))
+    daily.push({ href: '/staff/attendance', label: 'Attendance', icon: 'attendance' });
+  if (ctx.can('teacher_attendance.oversee'))
+    daily.push({ href: '/staff/teacher-attendance', label: 'Teacher check-ins', icon: 'checkin' });
+  if (ctx.can('marks.enter') || ctx.can('marks.manage') || ctx.can('reports.read') || ctx.user.role === 'SCHOOL_ADMIN')
     daily.push({ href: '/staff/assessments', label: 'Tests & marks', icon: 'marks' });
-  if (ctx.can('leave.apply') || ctx.can('leave.approve')) daily.push({ href: '/staff/leave', label: 'Leave', icon: 'leave' });
-  if (ctx.can('timetable.view') || ctx.can('timetable.manage')) daily.push({ href: '/staff/timetable', label: 'Timetable', icon: 'timetable' });
+  if (ctx.can('leave.apply') || ctx.can('leave.approve'))
+    daily.push({ href: '/staff/leave', label: 'Leave', icon: 'leave' });
+  if (ctx.can('timetable.view') || ctx.can('timetable.manage'))
+    daily.push({ href: '/staff/timetable', label: 'Timetable', icon: 'timetable' });
   if (daily.length) groups.push({ label: 'Daily', items: daily });
 
   const people: NavItem[] = [];
