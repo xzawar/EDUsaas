@@ -209,7 +209,8 @@ export function ButtonLink({
       href={href}
       className={cx(
         'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-        variant === 'primary' && 'bg-[var(--accent)] text-white hover:brightness-110 focus-visible:ring-[var(--accent)]',
+        variant === 'primary' &&
+          'bg-[var(--accent)] text-white hover:brightness-110 focus-visible:ring-[var(--accent)]',
         variant === 'secondary' && 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50',
         variant === 'ghost' && 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
         className,
@@ -234,7 +235,10 @@ export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
   return (
     <th
       {...props}
-      className={cx('border-b border-slate-200 py-2 pr-4 text-xs font-medium tracking-wide text-slate-500 uppercase', className)}
+      className={cx(
+        'border-b border-slate-200 py-2 pr-4 text-xs font-medium tracking-wide text-slate-500 uppercase',
+        className,
+      )}
     />
   );
 }
@@ -258,7 +262,9 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
-      {icon && <div className="mb-3 grid size-12 place-items-center rounded-full bg-slate-100 text-slate-500">{icon}</div>}
+      {icon && (
+        <div className="mb-3 grid size-12 place-items-center rounded-full bg-slate-100 text-slate-500">{icon}</div>
+      )}
       <p className="font-medium text-slate-900">{title}</p>
       {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
@@ -266,7 +272,14 @@ export function EmptyState({
   );
 }
 
-const AVATAR_COLORS = ['bg-sky-100 text-sky-800', 'bg-emerald-100 text-emerald-800', 'bg-amber-100 text-amber-800', 'bg-rose-100 text-rose-800', 'bg-violet-100 text-violet-800', 'bg-teal-100 text-teal-800'];
+const AVATAR_COLORS = [
+  'bg-sky-100 text-sky-800',
+  'bg-emerald-100 text-emerald-800',
+  'bg-amber-100 text-amber-800',
+  'bg-rose-100 text-rose-800',
+  'bg-violet-100 text-violet-800',
+  'bg-teal-100 text-teal-800',
+];
 
 export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   const initials = name
@@ -299,7 +312,13 @@ export function Skeleton({ className }: { className?: string }) {
 
 // ── Navigation helpers ──────────────────────────────────────────────────────
 
-export function TabLinks({ tabs, active }: { tabs: { href: string; label: string; key: string; count?: number }[]; active: string }) {
+export function TabLinks({
+  tabs,
+  active,
+}: {
+  tabs: { href: string; label: string; key: string; count?: number }[];
+  active: string;
+}) {
   return (
     <nav className="-mb-px flex gap-1 overflow-x-auto border-b border-slate-200" aria-label="Tabs">
       {tabs.map((t) => (
@@ -309,11 +328,15 @@ export function TabLinks({ tabs, active }: { tabs: { href: string; label: string
           aria-current={t.key === active ? 'page' : undefined}
           className={cx(
             'border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap',
-            t.key === active ? 'border-[var(--accent)] text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800',
+            t.key === active
+              ? 'border-[var(--accent)] text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800',
           )}
         >
           {t.label}
-          {t.count !== undefined && <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600">{t.count}</span>}
+          {t.count !== undefined && (
+            <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600">{t.count}</span>
+          )}
         </Link>
       ))}
     </nav>
@@ -321,18 +344,32 @@ export function TabLinks({ tabs, active }: { tabs: { href: string; label: string
 }
 
 /** Cursor pagination: "Previous" goes back to the first page (cursors are forward-only). */
-export function Pager({ nextHref, firstHref, showing }: { nextHref?: string | null; firstHref?: string | null; showing: string }) {
+export function Pager({
+  nextHref,
+  firstHref,
+  showing,
+}: {
+  nextHref?: string | null;
+  firstHref?: string | null;
+  showing: string;
+}) {
   return (
     <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
       <span>{showing}</span>
       <div className="flex gap-2">
         {firstHref && (
-          <Link href={firstHref} className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">
+          <Link
+            href={firstHref}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+          >
             First page
           </Link>
         )}
         {nextHref && (
-          <Link href={nextHref} className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">
+          <Link
+            href={nextHref}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+          >
             Next →
           </Link>
         )}

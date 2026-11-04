@@ -55,7 +55,9 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
     <nav aria-label="Main" className="space-y-6">
       {groups.map((g, i) => (
         <div key={g.label ?? i}>
-          {g.label && <p className="mb-1.5 px-3 text-xs font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>}
+          {g.label && (
+            <p className="mb-1.5 px-3 text-xs font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>
+          )}
           <ul className="space-y-0.5">
             {g.items.map((item) => {
               const Icon = ICONS[item.icon];
@@ -68,7 +70,9 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
                     aria-current={active ? 'page' : undefined}
                     className={cx(
                       'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
-                      active ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                      active
+                        ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                     )}
                   >
                     <Icon className="size-4.5 shrink-0" aria-hidden />
@@ -96,7 +100,10 @@ function UserCard({ user }: { user: { displayName: string; role: string } }) {
         </div>
       </div>
       <div className="mt-1 grid grid-cols-2 gap-1">
-        <Link href="/change-password" className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">
+        <Link
+          href="/change-password"
+          className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+        >
           <KeyRound className="size-3.5" aria-hidden /> Password
         </Link>
         <button
@@ -119,7 +126,9 @@ function UserCard({ user }: { user: { displayName: string; role: string } }) {
 function Brand({ orgName }: { orgName: string }) {
   return (
     <div className="flex items-center gap-2.5 px-5 py-4">
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-sm font-bold text-white">E</span>
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-sm font-bold text-white">
+        E
+      </span>
       <div className="min-w-0">
         <p className="text-sm leading-tight font-semibold">EDUsaas</p>
         <p className="truncate text-xs text-slate-500">{orgName}</p>
@@ -156,7 +165,12 @@ export function Sidebar({
 
       {/* Mobile top bar */}
       <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
-        <button type="button" onClick={() => setOpen(true)} aria-label="Open menu" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open menu"
+          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+        >
           <Menu className="size-5" />
         </button>
         <p className="truncate px-2 text-sm font-semibold">{orgName || 'EDUsaas'}</p>
@@ -166,10 +180,18 @@ export function Sidebar({
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={() => setOpen(false)}>
-          <aside className="flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <aside
+            className="flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pr-3">
               <Brand orgName={orgName} />
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close menu"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
                 <X className="size-5" />
               </button>
             </div>
@@ -183,7 +205,11 @@ export function Sidebar({
 
       {/* Mobile bottom tabs (teachers & students) */}
       {mobileTabs && mobileTabs.length > 1 && (
-        <nav aria-label="Quick" className="fixed inset-x-0 bottom-0 z-20 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden" style={{ gridTemplateColumns: `repeat(${mobileTabs.length}, minmax(0, 1fr))` }}>
+        <nav
+          aria-label="Quick"
+          className="fixed inset-x-0 bottom-0 z-20 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+          style={{ gridTemplateColumns: `repeat(${mobileTabs.length}, minmax(0, 1fr))` }}
+        >
           {mobileTabs.map((item) => {
             const Icon = ICONS[item.icon];
             const active = isActive(pathname, item);
@@ -192,7 +218,10 @@ export function Sidebar({
                 key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={cx('flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium', active ? 'text-[var(--accent)]' : 'text-slate-500')}
+                className={cx(
+                  'flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
+                  active ? 'text-[var(--accent)]' : 'text-slate-500',
+                )}
               >
                 <Icon className="size-5" aria-hidden />
                 {item.label}

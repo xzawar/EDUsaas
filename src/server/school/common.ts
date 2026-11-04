@@ -77,9 +77,14 @@ export const DEFAULT_GRADING_BANDS = [
 export async function teacherScope(tx: TenantTx, userId: string) {
   const teacher = await tx.teacher.findUnique({
     where: { userId },
-    select: { id: true, assignments: { select: { sectionId: true, subjectId: true } }, inchargeOf: { select: { id: true } } },
+    select: {
+      id: true,
+      assignments: { select: { sectionId: true, subjectId: true } },
+      inchargeOf: { select: { id: true } },
+    },
   });
-  if (!teacher) return { teacherId: null, sectionIds: [] as string[], inchargeSectionIds: [] as string[], assignments: [] };
+  if (!teacher)
+    return { teacherId: null, sectionIds: [] as string[], inchargeSectionIds: [] as string[], assignments: [] };
   const inchargeSectionIds = teacher.inchargeOf.map((s) => s.id);
   const sectionIds = [...new Set([...teacher.assignments.map((a) => a.sectionId), ...inchargeSectionIds])];
   return { teacherId: teacher.id, sectionIds, inchargeSectionIds, assignments: teacher.assignments };

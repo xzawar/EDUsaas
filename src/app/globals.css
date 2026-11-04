@@ -11,3 +11,20 @@
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
+
+/* Printing a login slip: only the slip is printed. */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 24px;
+  }
+}

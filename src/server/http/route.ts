@@ -176,3 +176,10 @@ export const paginationQuery = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
+
+/** Reads a UUID route param; malformed ids are a 404 (indistinguishable from a missing record). */
+export function idParam(params: Params, key = 'id'): string {
+  const parsed = uuidParam.safeParse(params[key]);
+  if (!parsed.success) throw new AppError('NOT_FOUND', 'Not found');
+  return parsed.data;
+}

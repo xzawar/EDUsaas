@@ -21,7 +21,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4 lg:bottom-6">
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4 lg:bottom-6"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -31,7 +34,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               t.tone === 'success' ? 'bg-slate-900 text-white ring-slate-900' : 'bg-red-50 text-red-900 ring-red-200',
             )}
           >
-            {t.tone === 'success' ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="mt-0.5 size-4 shrink-0" />}
+            {t.tone === 'success' ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+            ) : (
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            )}
             <span>{t.text}</span>
           </div>
         ))}
@@ -119,7 +126,10 @@ export function Modal({
   const titleId = useId();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4" onMouseDown={onClose}>
+    <div
+      className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4"
+      onMouseDown={onClose}
+    >
       <div
         ref={ref}
         role="dialog"
@@ -138,12 +148,20 @@ export function Modal({
             </h2>
             {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
           </div>
-          <button data-close type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          <button
+            data-close
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
             <X className="size-5" />
           </button>
         </header>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</footer>}
+        {footer && (
+          <footer className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</footer>
+        )}
       </div>
     </div>
   );
@@ -180,7 +198,13 @@ export function Drawer({
           <h2 id={titleId} className="text-base font-semibold">
             {title}
           </h2>
-          <button data-close type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          <button
+            data-close
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
             <X className="size-5" />
           </button>
         </header>
@@ -273,7 +297,8 @@ export function fieldErrors(error: ApiError | null): Record<string, string> {
   const out: Record<string, string> = {};
   const details = error?.details;
   if (Array.isArray(details)) {
-    for (const d of details as { path?: string; message?: string }[]) if (d.path && d.message && !out[d.path]) out[d.path] = d.message;
+    for (const d of details as { path?: string; message?: string }[])
+      if (d.path && d.message && !out[d.path]) out[d.path] = d.message;
   } else if (details && typeof details === 'object' && 'field' in details) {
     out[String((details as { field: string }).field)] = error!.message;
   }

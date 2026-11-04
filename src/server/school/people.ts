@@ -5,9 +5,18 @@ import type { TenantTx } from '@/server/db/client';
 import { AppError, forbidden, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { generateTemporaryPassword, hashPassword } from '@/server/auth/password';
-import { normalizeUsername, segment, studentUsername, teacherUsername } from '@/server/auth/username';
+import { normalizeUsername, studentUsername, teacherUsername } from '@/server/auth/username';
 import { revokeUserSessions } from '@/server/auth/session';
-import { DAY_MS, audit, friendlyDbError, inTenant, isoDate, sectionLabel, teacherScope, toDate } from '@/server/school/common';
+import {
+  DAY_MS,
+  audit,
+  friendlyDbError,
+  inTenant,
+  isoDate,
+  sectionLabel,
+  teacherScope,
+  toDate,
+} from '@/server/school/common';
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-04-01');
 const phone = z
@@ -46,7 +55,10 @@ async function createLogin(
 async function nextTeacherUsername(tx: TenantTx, prefix: string, displayName: string) {
   for (let n = 1; n < 500; n++) {
     const candidate = teacherUsername({ prefix, displayName, sequence: n });
-    const taken = await tx.user.findFirst({ where: { usernameNormalized: normalizeUsername(candidate) }, select: { id: true } });
+    const taken = await tx.user.findFirst({
+      where: { usernameNormalized: normalizeUsername(candidate) },
+      select: { id: true },
+    });
     if (!taken) return candidate;
   }
   throw new AppError('CONFLICT', 'Could not generate a username');
@@ -89,8 +101,16 @@ export async function listTeachers(ctx: AuthedContext, query: z.infer<typeof lis
         : {},
       include: {
         user: { select: { displayName: true, username: true, status: true, lastLoginAt: true } },
-        assignments: { select: { subject: { select: { name: true } }, section: { select: { class: { select: { academicYear: { select: { status: true } } } } } } } },
-        inchargeOf: { where: { class: { academicYear: { status: 'CURRENT' } } }, select: { name: true, class: { select: { name: true } } } },
+        assignments: {
+          select: {
+            subject: { select: { name: true } },
+            section: { select: { class: { select: { academicYear: { select: { status: true } } } } } },
+          },
+        },
+        inchargeOf: {
+          where: { class: { academicYear: { status: 'CURRENT' } } },
+          select: { name: true, class: { select: { name: true } } },
+        },
       },
       orderBy: [{ user: { displayName: 'asc' } }, { id: 'asc' }],
       take: query.limit + 1,
@@ -121,12 +141,30 @@ export async function getTeacher(ctx: AuthedContext, id: string) {
     const t = await tx.teacher.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, displayName: true, username: true, status: true, lastLoginAt: true, mustChangePassword: true } },
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+            status: true,
+            lastLoginAt: true,
+            mustChangePassword: true,
+          },
+        },
         assignments: {
           where: { section: { class: { academicYear: { status: 'CURRENT' } } } },
-          include: { subject: { select: { id: true, name: true } }, section: { include: { class: { select: { name: true, gradeLevel: true } } } } },
+          include: {
+            subject: { select: { id: true, name: true } },
+            section: { include: { class: { select: { name: true, gradeLevel: true } } } },
+          },
         },
-        inchargeOf: { where: { class: { academicYear: { status: 'CURRENT' } } }, include: { class: { select: { name: true } }, _count: { select: { students: { where: { status: 'ACTIVE' } } } } } },
+        inchargeOf: {
+          where: { class: { academicYear: { status: 'CURRENT' } } },
+          include: {
+            class: { select: { name: true } },
+            _count: { select: { students: { where: { status: 'ACTIVE' } } } },
+          },
+        },
       },
     });
     if (!t) throw notFound('Teacher');
@@ -143,8 +181,17 @@ export async function getTeacher(ctx: AuthedContext, id: string) {
       qualification: t.qualification,
       joinedOn: isoDate(t.joinedOn),
       assignments: t.assignments
-        .map((a) => ({ sectionId: a.sectionId, subjectId: a.subjectId, section: sectionLabel(a.section), subject: a.subject.name, gradeLevel: a.section.class.gradeLevel }))
-        .sort((a, b) => a.gradeLevel - b.gradeLevel || a.section.localeCompare(b.section) || a.subject.localeCompare(b.subject)),
+        .map((a) => ({
+          sectionId: a.sectionId,
+          subjectId: a.subjectId,
+          section: sectionLabel(a.section),
+          subject: a.subject.name,
+          gradeLevel: a.section.class.gradeLevel,
+        }))
+        .sort(
+          (a, b) =>
+            a.gradeLevel - b.gradeLevel || a.section.localeCompare(b.section) || a.subject.localeCompare(b.subject),
+        ),
       inchargeOf: t.inchargeOf.map((s) => ({ id: s.id, label: sectionLabel(s), studentCount: s._count.students })),
     };
   });
@@ -170,7 +217,12 @@ export async function createTeacher(ctx: AuthedContext, input: z.infer<typeof cr
           joinedOn: input.joinedOn ? toDate(input.joinedOn) : null,
         },
       });
-      await audit(ctx, tx, { action: 'teacher.create', entity: 'Teacher', entityId: teacher.id, after: { ...input, username } });
+      await audit(ctx, tx, {
+        action: 'teacher.create',
+        entity: 'Teacher',
+        entityId: teacher.id,
+        after: { ...input, username },
+      });
       return { id: teacher.id, name: user.displayName, username, temporaryPassword };
     });
   } catch (e) {
@@ -183,7 +235,8 @@ export async function updateTeacher(ctx: AuthedContext, id: string, input: z.inf
     return await inTenant(ctx, async (tx) => {
       const before = await tx.teacher.findUnique({ where: { id }, include: { user: true } });
       if (!before) throw notFound('Teacher');
-      if (input.displayName) await tx.user.update({ where: { id: before.userId }, data: { displayName: input.displayName } });
+      if (input.displayName)
+        await tx.user.update({ where: { id: before.userId }, data: { displayName: input.displayName } });
       await tx.teacher.update({
         where: { id },
         data: {
@@ -213,7 +266,11 @@ export const setAssignmentsSchema = z.object({
 });
 
 /** Replaces a teacher's assignments within one academic year (other years are untouched). */
-export async function setAssignments(ctx: AuthedContext, teacherId: string, input: z.infer<typeof setAssignmentsSchema>) {
+export async function setAssignments(
+  ctx: AuthedContext,
+  teacherId: string,
+  input: z.infer<typeof setAssignmentsSchema>,
+) {
   try {
     return await inTenant(ctx, async (tx) => {
       const teacher = await tx.teacher.findUnique({ where: { id: teacherId } });
@@ -222,7 +279,10 @@ export async function setAssignments(ctx: AuthedContext, teacherId: string, inpu
         where: { id: { in: input.assignments.map((a) => a.sectionId) } },
         select: { id: true, class: { select: { academicYearId: true } } },
       });
-      if (sections.some((s) => s.class.academicYearId !== input.academicYearId) || sections.length !== new Set(input.assignments.map((a) => a.sectionId)).size) {
+      if (
+        sections.some((s) => s.class.academicYearId !== input.academicYearId) ||
+        sections.length !== new Set(input.assignments.map((a) => a.sectionId)).size
+      ) {
         throw new AppError('VALIDATION_FAILED', 'Every section must belong to the selected academic year');
       }
       const existing = await tx.teacherAssignment.findMany({
@@ -234,7 +294,8 @@ export async function setAssignments(ctx: AuthedContext, teacherId: string, inpu
       const have = new Set(existing.map(key));
       const add = [...want.values()].filter((a) => !have.has(key(a)));
       if (remove.length) await tx.teacherAssignment.deleteMany({ where: { id: { in: remove.map((r) => r.id) } } });
-      if (add.length) await tx.teacherAssignment.createMany({ data: add.map((a) => ({ ...a, tenantId: ctx.tenantId!, teacherId })) });
+      if (add.length)
+        await tx.teacherAssignment.createMany({ data: add.map((a) => ({ ...a, tenantId: ctx.tenantId!, teacherId })) });
       await audit(ctx, tx, {
         action: 'teacher.assignments',
         entity: 'Teacher',
@@ -284,14 +345,27 @@ export async function resetUserPassword(ctx: AuthedContext, userId: string) {
   const result = await inTenant(ctx, async (tx) => {
     const target = await tx.user.findFirst({ where: { id: userId, deletedAt: null } });
     if (!target) throw notFound('User');
-    const allowed = ctx.can('users.manage') ? target.role !== 'SCHOOL_ADMIN' : target.role === 'STUDENT' && ctx.can('students.reset_password');
+    const allowed = ctx.can('users.manage')
+      ? target.role !== 'SCHOOL_ADMIN'
+      : target.role === 'STUDENT' && ctx.can('students.reset_password');
     if (!allowed) throw forbidden('You cannot reset this account');
     const temporaryPassword = generateTemporaryPassword();
     await tx.user.update({
       where: { id: userId },
-      data: { passwordHash: await hashPassword(temporaryPassword), mustChangePassword: true, failedLoginAttempts: 0, lockedUntil: null, passwordChangedAt: new Date() },
+      data: {
+        passwordHash: await hashPassword(temporaryPassword),
+        mustChangePassword: true,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        passwordChangedAt: new Date(),
+      },
     });
-    await audit(ctx, tx, { action: 'user.reset_password', entity: 'User', entityId: userId, metadata: { role: target.role } });
+    await audit(ctx, tx, {
+      action: 'user.reset_password',
+      entity: 'User',
+      entityId: userId,
+      metadata: { role: target.role },
+    });
     return { username: target.username ?? target.email, displayName: target.displayName, temporaryPassword };
   });
   await revokeUserSessions(userId);
@@ -305,10 +379,17 @@ export async function setUserStatus(ctx: AuthedContext, userId: string, input: z
   await inTenant(ctx, async (tx) => {
     const target = await tx.user.findFirst({ where: { id: userId, deletedAt: null } });
     if (!target) throw notFound('User');
-    if (target.role === 'SCHOOL_ADMIN') throw forbidden('The School Admin account can only be changed by the Platform Owner');
+    if (target.role === 'SCHOOL_ADMIN')
+      throw forbidden('The School Admin account can only be changed by the Platform Owner');
     if (target.role === 'STUDENT') throw new AppError('VALIDATION_FAILED', 'Use withdraw/restore for students');
     await tx.user.update({ where: { id: userId }, data: { status: input.status } });
-    await audit(ctx, tx, { action: 'user.status', entity: 'User', entityId: userId, before: { status: target.status }, after: input });
+    await audit(ctx, tx, {
+      action: 'user.status',
+      entity: 'User',
+      entityId: userId,
+      before: { status: target.status },
+      after: input,
+    });
   });
   if (input.status === 'DISABLED') await revokeUserSessions(userId);
   return { ok: true };
@@ -348,7 +429,9 @@ export async function listStudents(ctx: AuthedContext, query: z.infer<typeof lis
               { user: { displayName: { contains: q, mode: 'insensitive' } } },
               { user: { usernameNormalized: { contains: normalizeUsername(q) } } },
               { admissionNo: { contains: q, mode: 'insensitive' } },
-              ...(digits && digits.length >= 4 && ctx.user.role !== 'TEACHER' ? [{ guardianPhone: { contains: digits } }] : []),
+              ...(digits && digits.length >= 4 && ctx.user.role !== 'TEACHER'
+                ? [{ guardianPhone: { contains: digits } }]
+                : []),
             ],
           }
         : {}),
@@ -360,7 +443,12 @@ export async function listStudents(ctx: AuthedContext, query: z.infer<typeof lis
           user: { select: { displayName: true, username: true, lastLoginAt: true } },
           section: { select: { id: true, name: true, class: { select: { name: true, gradeLevel: true } } } },
         },
-        orderBy: [{ section: { class: { gradeLevel: 'asc' } } }, { section: { name: 'asc' } }, { rollNumber: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          { section: { class: { gradeLevel: 'asc' } } },
+          { section: { name: 'asc' } },
+          { rollNumber: 'asc' },
+          { id: 'asc' },
+        ],
         take: query.limit + 1,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       }),
@@ -390,7 +478,16 @@ async function loadScopedStudent(ctx: AuthedContext, tx: TenantTx, id: string) {
   const s = await tx.student.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, displayName: true, username: true, status: true, lastLoginAt: true, mustChangePassword: true } },
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          username: true,
+          status: true,
+          lastLoginAt: true,
+          mustChangePassword: true,
+        },
+      },
       section: {
         include: {
           class: { select: { id: true, name: true, gradeLevel: true, academicYear: { select: { name: true } } } },
@@ -470,7 +567,8 @@ async function placeInSection(tx: TenantTx, sectionId: string) {
     include: { class: { include: { academicYear: { select: { status: true } } } } },
   });
   if (!section) throw notFound('Section');
-  if (section.class.academicYear.status === 'CLOSED') throw new AppError('VALIDATION_FAILED', 'That section belongs to a closed academic year');
+  if (section.class.academicYear.status === 'CLOSED')
+    throw new AppError('VALIDATION_FAILED', 'That section belongs to a closed academic year');
   // Atomic: takes a row lock on the section, so concurrent admissions never get the same roll number.
   const updated = await tx.section.update({ where: { id: sectionId }, data: { nextRollNumber: { increment: 1 } } });
   return { section, rollNumber: updated.nextRollNumber - 1 };
@@ -481,8 +579,19 @@ export async function createStudent(ctx: AuthedContext, input: z.infer<typeof cr
     return await inTenant(ctx, async (tx) => {
       const prefix = await tenantPrefix(tx);
       const { section, rollNumber } = await placeInSection(tx, input.sectionId);
-      const username = studentUsername({ prefix, className: section.class.name, sectionName: section.name, displayName: input.displayName, rollNumber });
-      const { user, temporaryPassword } = await createLogin(tx, { tenantId: ctx.tenantId!, role: 'STUDENT', displayName: input.displayName, username });
+      const username = studentUsername({
+        prefix,
+        className: section.class.name,
+        sectionName: section.name,
+        displayName: input.displayName,
+        rollNumber,
+      });
+      const { user, temporaryPassword } = await createLogin(tx, {
+        tenantId: ctx.tenantId!,
+        role: 'STUDENT',
+        displayName: input.displayName,
+        username,
+      });
       const student = await tx.student.create({
         data: {
           tenantId: ctx.tenantId!,
@@ -504,10 +613,20 @@ export async function createStudent(ctx: AuthedContext, input: z.infer<typeof cr
         entityId: student.id,
         after: { displayName: input.displayName, section: sectionLabel(section), rollNumber, username },
       });
-      return { id: student.id, name: input.displayName, username, rollNumber, section: sectionLabel(section), temporaryPassword };
+      return {
+        id: student.id,
+        name: input.displayName,
+        username,
+        rollNumber,
+        section: sectionLabel(section),
+        temporaryPassword,
+      };
     });
   } catch (e) {
-    friendlyDbError(e, { admission_no: 'That admission number is already used', username: 'Username clash, try again' });
+    friendlyDbError(e, {
+      admission_no: 'That admission number is already used',
+      username: 'Username clash, try again',
+    });
   }
 }
 
@@ -525,7 +644,8 @@ export async function updateStudent(ctx: AuthedContext, id: string, input: z.inf
       if (input.displayName && input.displayName !== before.user.displayName) {
         await tx.user.update({ where: { id: before.userId }, data: { displayName: input.displayName } });
       }
-      const opt = <T,>(v: T | null | undefined, map: (x: T) => unknown = (x) => x) => (v === undefined ? undefined : v === null || v === '' ? null : map(v));
+      const opt = <T>(v: T | null | undefined, map: (x: T) => unknown = (x) => x) =>
+        v === undefined ? undefined : v === null || v === '' ? null : map(v);
       await tx.student.update({
         where: { id },
         data: {
@@ -543,7 +663,12 @@ export async function updateStudent(ctx: AuthedContext, id: string, input: z.inf
         action: GUARDIAN_FIELDS.some((f) => changed.includes(f)) ? 'student.update_guardian' : 'student.update',
         entity: 'Student',
         entityId: id,
-        before: Object.fromEntries(changed.map((k) => [k, k === 'displayName' ? before.user.displayName : (before as Record<string, unknown>)[k]])),
+        before: Object.fromEntries(
+          changed.map((k) => [
+            k,
+            k === 'displayName' ? before.user.displayName : (before as Record<string, unknown>)[k],
+          ]),
+        ),
         after: input,
       });
       return { ok: true };
@@ -559,19 +684,33 @@ export const transferSchema = z.object({ sectionId: z.string().uuid() });
 export async function transferStudent(ctx: AuthedContext, id: string, input: z.infer<typeof transferSchema>) {
   try {
     return await inTenant(ctx, async (tx) => {
-      const s = await tx.student.findUnique({ where: { id }, include: { user: true, section: { include: { class: true } } } });
+      const s = await tx.student.findUnique({
+        where: { id },
+        include: { user: true, section: { include: { class: true } } },
+      });
       if (!s) throw notFound('Student');
       if (s.status !== 'ACTIVE') throw new AppError('VALIDATION_FAILED', 'Only active students can be transferred');
-      if (s.sectionId === input.sectionId) throw new AppError('VALIDATION_FAILED', 'The student is already in that section');
+      if (s.sectionId === input.sectionId)
+        throw new AppError('VALIDATION_FAILED', 'The student is already in that section');
       const { section, rollNumber } = await placeInSection(tx, input.sectionId);
-      const username = studentUsername({ prefix: await tenantPrefix(tx), className: section.class.name, sectionName: section.name, displayName: s.user.displayName, rollNumber });
+      const username = studentUsername({
+        prefix: await tenantPrefix(tx),
+        className: section.class.name,
+        sectionName: section.name,
+        displayName: s.user.displayName,
+        rollNumber,
+      });
       await tx.student.update({ where: { id }, data: { sectionId: section.id, rollNumber } });
       await setUsername(tx, s.userId, username);
       await audit(ctx, tx, {
         action: 'student.transfer',
         entity: 'Student',
         entityId: id,
-        before: { section: s.section ? sectionLabel(s.section) : null, rollNumber: s.rollNumber, username: s.user.username },
+        before: {
+          section: s.section ? sectionLabel(s.section) : null,
+          rollNumber: s.rollNumber,
+          username: s.user.username,
+        },
         after: { section: sectionLabel(section), rollNumber, username },
       });
       return { username, rollNumber, section: sectionLabel(section) };
@@ -589,7 +728,13 @@ export async function withdrawStudent(ctx: AuthedContext, id: string) {
     if (s.status !== 'ACTIVE') throw new AppError('VALIDATION_FAILED', 'This student is not active');
     await tx.student.update({ where: { id }, data: { status: 'WITHDRAWN', withdrawnAt: new Date() } });
     await tx.user.update({ where: { id: s.userId }, data: { status: 'DISABLED' } });
-    await audit(ctx, tx, { action: 'student.withdraw', entity: 'Student', entityId: id, before: { status: s.status }, after: { status: 'WITHDRAWN' } });
+    await audit(ctx, tx, {
+      action: 'student.withdraw',
+      entity: 'Student',
+      entityId: id,
+      before: { status: s.status },
+      after: { status: 'WITHDRAWN' },
+    });
     return s.userId;
   });
   await revokeUserSessions(userId);
@@ -600,7 +745,8 @@ export async function restoreStudent(ctx: AuthedContext, id: string) {
   return inTenant(ctx, async (tx) => {
     const s = await tx.student.findUnique({ where: { id } });
     if (!s) throw notFound('Student');
-    if (s.status !== 'WITHDRAWN' || !s.withdrawnAt) throw new AppError('VALIDATION_FAILED', 'This student is not withdrawn');
+    if (s.status !== 'WITHDRAWN' || !s.withdrawnAt)
+      throw new AppError('VALIDATION_FAILED', 'This student is not withdrawn');
     if (Date.now() - s.withdrawnAt.getTime() > RESTORE_WINDOW_DAYS * DAY_MS) {
       throw new AppError('VALIDATION_FAILED', `The ${RESTORE_WINDOW_DAYS}-day restore window has passed`);
     }
@@ -640,7 +786,13 @@ async function renumberPlan(tx: TenantTx, sectionId: string) {
       oldRoll: s.rollNumber,
       newRoll,
       oldUsername: s.user.username,
-      newUsername: studentUsername({ prefix, className: section.class.name, sectionName: section.name, displayName: s.user.displayName, rollNumber: newRoll }),
+      newUsername: studentUsername({
+        prefix,
+        className: section.class.name,
+        sectionName: section.name,
+        displayName: s.user.displayName,
+        rollNumber: newRoll,
+      }),
     };
   });
   return { section, rows, changes: rows.filter((r) => r.oldRoll !== r.newRoll) };
@@ -649,7 +801,8 @@ async function renumberPlan(tx: TenantTx, sectionId: string) {
 async function assertCanRenumber(ctx: AuthedContext, tx: TenantTx, sectionId: string) {
   if (ctx.can('structure.manage')) return;
   const scope = await teacherScope(tx, ctx.user.id);
-  if (!scope.inchargeSectionIds.includes(sectionId)) throw forbidden('Only the School Admin or this section’s Class Incharge can renumber');
+  if (!scope.inchargeSectionIds.includes(sectionId))
+    throw forbidden('Only the School Admin or this section’s Class Incharge can renumber');
 }
 
 export async function previewRenumber(ctx: AuthedContext, sectionId: string) {
@@ -664,30 +817,37 @@ export const renumberSchema = z.object({ confirm: z.literal(true), expectedChang
 
 /** Resequences 1..n with mandatory confirmation; usernames change; full before/after mapping is audited. */
 export async function applyRenumber(ctx: AuthedContext, sectionId: string, input: z.infer<typeof renumberSchema>) {
-  return inTenant(ctx, async (tx) => {
-    await assertCanRenumber(ctx, tx, sectionId);
-    const { section, rows, changes } = await renumberPlan(tx, sectionId);
-    if (changes.length !== input.expectedChanges) {
-      throw new AppError('CONFLICT', 'The class list changed since you previewed it. Review the changes again.');
-    }
-    // Two passes avoid unique (section_id, roll_number) clashes mid-update.
-    for (const r of changes) await tx.student.update({ where: { id: r.studentId }, data: { rollNumber: 10000 + r.newRoll } });
-    for (const r of changes) {
-      await tx.student.update({ where: { id: r.studentId }, data: { rollNumber: r.newRoll } });
-      await setUsername(tx, r.userId, r.newUsername);
-    }
-    await tx.section.update({ where: { id: sectionId }, data: { nextRollNumber: rows.length + 1 } });
-    await audit(ctx, tx, {
-      action: 'section.renumber',
-      entity: 'Section',
-      entityId: sectionId,
-      metadata: {
-        section: sectionLabel(section),
-        mapping: changes.map((c) => ({ student: c.studentId, roll: [c.oldRoll, c.newRoll], username: [c.oldUsername, c.newUsername] })),
-      },
-    });
-    return { changed: changes.length };
-  }, 30000);
+  return inTenant(
+    ctx,
+    async (tx) => {
+      await assertCanRenumber(ctx, tx, sectionId);
+      const { section, rows, changes } = await renumberPlan(tx, sectionId);
+      if (changes.length !== input.expectedChanges) {
+        throw new AppError('CONFLICT', 'The class list changed since you previewed it. Review the changes again.');
+      }
+      // Two passes avoid unique (section_id, roll_number) clashes mid-update.
+      for (const r of changes)
+        await tx.student.update({ where: { id: r.studentId }, data: { rollNumber: 10000 + r.newRoll } });
+      for (const r of changes) {
+        await tx.student.update({ where: { id: r.studentId }, data: { rollNumber: r.newRoll } });
+        await setUsername(tx, r.userId, r.newUsername);
+      }
+      await tx.section.update({ where: { id: sectionId }, data: { nextRollNumber: rows.length + 1 } });
+      await audit(ctx, tx, {
+        action: 'section.renumber',
+        entity: 'Section',
+        entityId: sectionId,
+        metadata: {
+          section: sectionLabel(section),
+          mapping: changes.map((c) => ({
+            student: c.studentId,
+            roll: [c.oldRoll, c.newRoll],
+            username: [c.oldUsername, c.newUsername],
+          })),
+        },
+      });
+      return { changed: changes.length };
+    },
+    30000,
+  );
 }
-
-export { segment };

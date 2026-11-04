@@ -6,10 +6,9 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   return (
     <AppShell
       portal="platform"
-      homeHref="/platform"
       orgName="Platform console"
       user={ctx.user}
-      nav={[{ href: '/platform', label: 'Schools' }]}
+      nav={[{ items: [{ href: '/platform', label: 'Schools', icon: 'schools', exact: true }] }]}
     >
       {children}
     </AppShell>
