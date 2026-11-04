@@ -67,6 +67,40 @@ enum Gender {
   OTHER
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE
+  EXCUSED
+}
+
+enum TeacherAttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SUBMITTED
+  PUBLISHED
+}
+
+enum RemarkStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum JobStatus {
   QUEUED
   RUNNING
@@ -100,6 +134,16 @@ model Tenant {
   students           Student[]
   gradingSchemes     GradingScheme[]
   jobs               Job[]
+  attendanceBatches  AttendanceBatch[]
+  attendanceRecords  AttendanceRecord[]
+  teacherAttendance  TeacherAttendance[]
+  leaveTypes         LeaveType[]
+  leaveRequests      LeaveRequest[]
+  assessments        Assessment[]
+  marks              Mark[]
+  remarks            Remark[]
+  timetableSlots     TimetableSlot[]
+  timetableEntries   TimetableEntry[]
 
   @@map("tenants")
 }
@@ -164,6 +208,8 @@ model User {
   passwordResets PasswordResetToken[]
   teacher        Teacher?
   student        Student?
+  leaveRequests  LeaveRequest[]       @relation("LeaveApplicant")
+  remarks        Remark[]             @relation("RemarkAuthor")
 
   @@index([tenantId, role])
   @@map("users")
@@ -246,6 +292,7 @@ model AcademicYear {
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   classes        Class[]
   gradingSchemes GradingScheme[]
+  assessments    Assessment[]
 
   @@unique([tenantId, name])
   @@index([tenantId, status])
@@ -290,6 +337,9 @@ model Section {
   classTeacher Teacher?            @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
   students     Student[]
   assignments  TeacherAssignment[]
+  attendance   AttendanceBatch[]
+  assessments  Assessment[]
+  timetable    TimetableEntry[]
 
   @@unique([classId, name])
   @@index([tenantId])
@@ -309,6 +359,8 @@ model Subject {
   tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   classes     ClassSubject[]
   assignments TeacherAssignment[]
+  assessments Assessment[]
+  timetable   TimetableEntry[]
 
   @@unique([tenantId, name])
   @@map("subjects")
@@ -348,6 +400,8 @@ model Teacher {
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignments TeacherAssignment[]
   inchargeOf  Section[]           @relation("ClassTeacher")
+  attendance  TeacherAttendance[]
+  timetable   TimetableEntry[]
 
   @@unique([tenantId, employeeNo])
   @@index([tenantId])
@@ -396,9 +450,13 @@ model Student {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  section Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section    Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  attendance AttendanceRecord[]
+  marks      Mark[]
+  remarks    Remark[]
+  leaves     LeaveRequest[]
 
   @@unique([sectionId, rollNumber])
   @@unique([tenantId, admissionNo])
@@ -420,6 +478,7 @@ model GradingScheme {
 
   tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  assessments  Assessment[]
 
   @@unique([academicYearId, version])
   @@index([tenantId])
@@ -448,4 +507,244 @@ model Job {
   @@index([tenantId, createdAt])
   @@index([status])
   @@map("jobs")
+}
+
+// ───────────── Attendance (Phase 3, spec §6) ─────────────
+// A row per student per sheet; percentages are computed at read time, never stored.
+
+/**
+ * One submitted register for a section on a date (period 1 = once-daily mode). Idempotent by client_uuid.
+ */
+model AttendanceBatch {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  sectionId        String    @map("section_id") @db.Uuid
+  date             DateTime  @db.Date
+  period           Int       @default(1)
+  subjectId        String?   @map("subject_id") @db.Uuid
+  submittedBy      String    @map("submitted_by") @db.Uuid
+  clientUuid       String    @map("client_uuid")
+  clientRecordedAt DateTime? @map("client_recorded_at")
+  serverReceivedAt DateTime  @default(now()) @map("server_received_at")
+  syncedLate       Boolean   @default(false) @map("synced_late")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  updatedBy        String?   @map("updated_by") @db.Uuid
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  section Section            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
+
+  @@unique([tenantId, sectionId, date, period])
+  @@unique([tenantId, clientUuid])
+  @@index([tenantId, date])
+  @@map("attendance_batches")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @map("tenant_id") @db.Uuid
+  batchId   String           @map("batch_id") @db.Uuid
+  studentId String           @map("student_id") @db.Uuid
+  status    AttendanceStatus
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batch   AttendanceBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  student Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, studentId])
+  @@index([studentId])
+  @@index([tenantId])
+  @@map("attendance_records")
+}
+
+/**
+ * Teacher self check-in (spec §6.5). Kept fully separate from student attendance.
+ */
+model TeacherAttendance {
+  id          String                  @id @default(uuid()) @db.Uuid
+  tenantId    String                  @map("tenant_id") @db.Uuid
+  teacherId   String                  @map("teacher_id") @db.Uuid
+  date        DateTime                @db.Date
+  status      TeacherAttendanceStatus
+  checkedInAt DateTime?               @map("checked_in_at")
+  note        String?
+  correctedBy String?                 @map("corrected_by") @db.Uuid
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, date])
+  @@index([tenantId, date])
+  @@map("teacher_attendance")
+}
+
+// ───────────── Leave (Phase 3, decision D5) ─────────────
+
+model LeaveType {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String
+  forStudents Boolean   @default(true) @map("for_students")
+  forStaff    Boolean   @default(true) @map("for_staff")
+  archivedAt  DateTime? @map("archived_at")
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requests LeaveRequest[]
+
+  @@unique([tenantId, name])
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id           String      @id @default(uuid()) @db.Uuid
+  tenantId     String      @map("tenant_id") @db.Uuid
+  applicantId  String      @map("applicant_id") @db.Uuid
+  /// Set when the applicant is a student (routes to their Class Incharge).
+  studentId    String?     @map("student_id") @db.Uuid
+  typeId       String      @map("type_id") @db.Uuid
+  fromDate     DateTime    @map("from_date") @db.Date
+  toDate       DateTime    @map("to_date") @db.Date
+  reason       String
+  status       LeaveStatus @default(PENDING)
+  decidedBy    String?     @map("decided_by") @db.Uuid
+  decidedAt    DateTime?   @map("decided_at")
+  decisionNote String?     @map("decision_note")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  applicant User      @relation("LeaveApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  student   Student?  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type      LeaveType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status])
+  @@index([applicantId])
+  @@index([studentId])
+  @@map("leave_requests")
+}
+
+// ───────────── Assessment (Phase 3, spec §7) ─────────────
+
+model Assessment {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  academicYearId  String           @map("academic_year_id") @db.Uuid
+  sectionId       String           @map("section_id") @db.Uuid
+  subjectId       String           @map("subject_id") @db.Uuid
+  gradingSchemeId String           @map("grading_scheme_id") @db.Uuid
+  name            String
+  maxMarks        Decimal          @map("max_marks") @db.Decimal(6, 2)
+  heldOn          DateTime         @map("held_on") @db.Date
+  status          AssessmentStatus @default(DRAFT)
+  createdBy       String           @map("created_by") @db.Uuid
+  submittedBy     String?          @map("submitted_by") @db.Uuid
+  submittedAt     DateTime?        @map("submitted_at")
+  publishedBy     String?          @map("published_by") @db.Uuid
+  publishedAt     DateTime?        @map("published_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear  AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  section       Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject       Subject       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  gradingScheme GradingScheme @relation(fields: [gradingSchemeId], references: [id], onDelete: Restrict)
+  marks         Mark[]
+
+  @@index([tenantId, sectionId])
+  @@index([sectionId, subjectId])
+  @@index([academicYearId])
+  @@index([subjectId])
+  @@index([gradingSchemeId])
+  @@map("assessments")
+}
+
+model Mark {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  assessmentId String   @map("assessment_id") @db.Uuid
+  studentId    String   @map("student_id") @db.Uuid
+  score        Decimal? @db.Decimal(6, 2)
+  absent       Boolean  @default(false)
+  updatedBy    String?  @map("updated_by") @db.Uuid
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId])
+  @@index([tenantId])
+  @@map("marks")
+}
+
+/**
+ * Teacher remarks; visible to students only once approved by the Class Incharge or School Admin (spec §7.4).
+ */
+model Remark {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  studentId   String       @map("student_id") @db.Uuid
+  authorId    String       @map("author_id") @db.Uuid
+  subjectName String?      @map("subject_name")
+  text        String
+  status      RemarkStatus @default(PENDING)
+  moderatedBy String?      @map("moderated_by") @db.Uuid
+  moderatedAt DateTime?    @map("moderated_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  author  User    @relation("RemarkAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([studentId])
+  @@index([authorId])
+  @@map("remarks")
+}
+
+// ───────────── Timetable (Phase 3, decision D12) ─────────────
+// Stored per section, never per student (spec §12.2). DB constraints make clashes impossible.
+
+model TimetableSlot {
+  id        String  @id @default(uuid()) @db.Uuid
+  tenantId  String  @map("tenant_id") @db.Uuid
+  /// 1 = Monday … 7 = Sunday
+  dayOfWeek Int     @map("day_of_week")
+  periodNo  Int     @map("period_no")
+  startsAt  String  @map("starts_at")
+  endsAt    String  @map("ends_at")
+  isBreak   Boolean @default(false) @map("is_break")
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entries TimetableEntry[]
+
+  @@unique([tenantId, dayOfWeek, periodNo])
+  @@map("timetable_slots")
+}
+
+model TimetableEntry {
+  id        String  @id @default(uuid()) @db.Uuid
+  tenantId  String  @map("tenant_id") @db.Uuid
+  sectionId String  @map("section_id") @db.Uuid
+  slotId    String  @map("slot_id") @db.Uuid
+  subjectId String  @map("subject_id") @db.Uuid
+  teacherId String? @map("teacher_id") @db.Uuid
+  room      String?
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  section Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  slot    TimetableSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  subject Subject       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@unique([sectionId, slotId])
+  @@index([teacherId])
+  @@index([slotId])
+  @@index([subjectId])
+  @@index([tenantId])
+  @@map("timetable_entries")
 }
