@@ -4,6 +4,10 @@ import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/AppShell';
 import { StudentActions } from '@/components/people/StudentActions';
 import { EditStudentButton } from '@/components/people/StudentForm';
+import { AddRemarkButton } from '@/components/marks/AddRemark';
+import { AttendanceRing } from '@/components/student/AttendanceRing';
+import { studentAttendance } from '@/server/school/attendance';
+import { studentRemarks, studentResults } from '@/server/school/assessments';
 import { Alert, Avatar, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { AppError } from '@/server/http/errors';
@@ -28,6 +32,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     throw e;
   });
   const sections = ctx.can('students.write') ? await listSections(ctx) : [];
+  const [att, results, remarks] = await Promise.all([studentAttendance(ctx, student.id), studentResults(ctx, student.id), studentRemarks(ctx, student.id, false)]);
   const statusTone = student.status === 'ACTIVE' ? 'green' : student.status === 'GRADUATED' ? 'blue' : 'red';
 
   return (
@@ -144,10 +149,56 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               ]}
             />
           </Card>
-          <Card title="Attendance & marks">
-            <p className="text-sm text-slate-600">
-              Attendance history, marks and remarks will appear here once the school starts recording them.
-            </p>
+          <Card title="Attendance" description="This academic year.">
+            <div className="flex flex-wrap items-center gap-6">
+              <AttendanceRing pct={att.pct} threshold={att.threshold} size={110} />
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <dt className="text-slate-500">Present</dt>
+                <dd className="font-medium tabular-nums">{att.counts.PRESENT}</dd>
+                <dt className="text-slate-500">Late</dt>
+                <dd className="font-medium tabular-nums">{att.counts.LATE}</dd>
+                <dt className="text-slate-500">Absent</dt>
+                <dd className="font-medium tabular-nums">{att.counts.ABSENT}</dd>
+                <dt className="text-slate-500">Leave / excused</dt>
+                <dd className="font-medium tabular-nums">{att.counts.LEAVE + att.counts.EXCUSED}</dd>
+              </dl>
+            </div>
+          </Card>
+          <Card title="Marks" description="Published results this year.">
+            {results.subjects.length ? (
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {results.subjects.map((x) => (
+                  <li key={x.subject} className="flex justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    <span>{x.subject}</span>
+                    <span className="font-semibold">
+                      {x.grade} <span className="font-normal text-slate-500 tabular-nums">{x.pct}%</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">No published marks yet.</p>
+            )}
+          </Card>
+          <Card
+            title="Remarks"
+            actions={ctx.can('remarks.write') || ctx.can('marks.manage') ? <AddRemarkButton studentId={student.id} name={student.name} autoApproved={ctx.user.role === 'SCHOOL_ADMIN'} /> : undefined}
+          >
+            {remarks.length ? (
+              <ul className="space-y-3">
+                {remarks.map((m) => (
+                  <li key={m.id} className="text-sm">
+                    <p className="text-slate-800">“{m.text}”</p>
+                    <p className="text-xs text-slate-500">
+                      {m.author}
+                      {m.subject ? ` · ${m.subject}` : ''} · {m.status === 'APPROVED' ? 'visible to student' : m.status === 'PENDING' ? 'waiting for review' : 'hidden'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">No remarks yet.</p>
+            )}
           </Card>
         </div>
       </div>
