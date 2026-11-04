@@ -24,7 +24,8 @@
     "db:roles": "tsx scripts/db-setup-roles.ts",
     "db:check-rls": "tsx scripts/check-rls.ts",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force --skip-seed && npm run db:roles && npm run db:seed"
+    "db:reset": "prisma migrate reset --force --skip-seed && npm run db:roles && npm run db:seed",
+    "vercel-build": "bash scripts/vercel-build.sh"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",

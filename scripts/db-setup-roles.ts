@@ -31,10 +31,17 @@ async function main() {
   for (const r of roles) {
     const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [r.login]);
     const pw = client.escapeLiteral(r.password);
-    if (exists.rowCount) {
-      await client.query(`ALTER ROLE ${r.login} WITH LOGIN ${r.attrs} PASSWORD ${pw}`);
-    } else {
-      await client.query(`CREATE ROLE ${r.login} WITH LOGIN ${r.attrs} PASSWORD ${pw}`);
+    try {
+      if (exists.rowCount) {
+        await client.query(`ALTER ROLE ${r.login} WITH LOGIN ${r.attrs} PASSWORD ${pw}`);
+      } else {
+        await client.query(`CREATE ROLE ${r.login} WITH LOGIN ${r.attrs} PASSWORD ${pw}`);
+      }
+    } catch (e) {
+      throw new Error(
+        `Could not create/update ${r.login} (${r.attrs}): ${(e as Error).message}. ` +
+          'DIRECT_URL must use a role allowed to create roles with BYPASSRLS (on Supabase: the "postgres" user).',
+      );
     }
     await client.query(`GRANT ${r.group} TO ${r.login}`);
     const db = (await client.query('SELECT current_database() AS db')).rows[0].db as string;

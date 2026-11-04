@@ -95,8 +95,38 @@ The seed refuses to run when `NODE_ENV=production`.
 
 **Vercel is for demo and development only** (decision D8). The app stays host-portable: `next build` produces a `standalone` server, and the [`Dockerfile`](Dockerfile) builds a production image that runs anywhere.
 
-Demo on Vercel + Supabase:
+### Demo on Vercel + Supabase (about 10 minutes, no commands)
 
-1. In Supabase SQL editor (or with the `postgres` connection string as `DIRECT_URL`), run `npx prisma migrate deploy` then `npm run db:roles` with `DB_APP_PASSWORD` and `DB_SYSTEM_PASSWORD` set.
-2. In Vercel set `DATABASE_URL` (pooler URL, user `edusaas_app_login`, add `?pgbouncer=true`), `SYSTEM_DATABASE_URL` (pooler, `edusaas_system_login`), `DIRECT_URL` (direct, `postgres`), `APP_URL` and a random 32+ character `CRON_SECRET`.
-3. `vercel.json` schedules `/api/internal/cron/daily`. Vercel sends `Authorization: Bearer $CRON_SECRET` automatically; any other scheduler can call the same URL the same way.
+On Vercel, `npm run vercel-build` runs [`scripts/vercel-build.sh`](scripts/vercel-build.sh). It applies database migrations, creates the two runtime database logins, optionally loads the demo accounts, then builds. Every deploy keeps the database up to date on its own.
+
+**1. Create the database (Supabase)**
+
+1. At supabase.com, create a project. Pick a region near your users and save the database password.
+2. Open **Connect** (top bar) and note your **project ref** (the `xxxx` in `db.xxxx.supabase.co`) and the **pooler host** (e.g. `aws-0-ap-south-1.pooler.supabase.com`).
+3. Choose two new strong passwords for the app's database logins (letters and digits only keeps the URLs simple). Call them `APP_PW` and `SYSTEM_PW`.
+
+**2. Import the repo into Vercel**
+
+1. At vercel.com → **Add New… → Project** → import `xzawar/EDUsaas`. Framework preset: Next.js (detected). Leave the build command as the default.
+2. Before clicking **Deploy**, open **Environment Variables** and add these (replace `REF`, `POOLER_HOST`, `DB_PASSWORD`, `APP_PW`, `SYSTEM_PW`):
+
+| Name                  | Value                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `DIRECT_URL`          | `postgresql://postgres.REF:DB_PASSWORD@POOLER_HOST:5432/postgres`                                             |
+| `DATABASE_URL`        | `postgresql://edusaas_app_login.REF:APP_PW@POOLER_HOST:6543/postgres?pgbouncer=true&connection_limit=1`       |
+| `SYSTEM_DATABASE_URL` | `postgresql://edusaas_system_login.REF:SYSTEM_PW@POOLER_HOST:6543/postgres?pgbouncer=true&connection_limit=1` |
+| `DB_APP_PASSWORD`     | `APP_PW`                                                                                                      |
+| `DB_SYSTEM_PASSWORD`  | `SYSTEM_PW`                                                                                                   |
+| `CRON_SECRET`         | any random string of 32+ characters                                                                           |
+| `APP_URL`             | `https://<your-project>.vercel.app` (set after the first deploy if you don't know it yet, then redeploy)      |
+| `DEMO_SEED`           | `true` (loads the demo schools and accounts; leave unset for an empty platform)                               |
+
+3. Click **Deploy**. When it finishes, open the URL and sign in with the [demo accounts](#demo-accounts-development-only).
+
+Notes:
+
+- `DIRECT_URL` uses Supabase's **session** pooler (port 5432) because the direct `db.REF.supabase.co` host is IPv6-only and Vercel builds use IPv4. The app itself uses the **transaction** pooler (port 6543).
+- Through Supabase's pooler, every username carries `.REF` (e.g. `edusaas_app_login.abcd1234`).
+- If the build stops at "Could not create/update edusaas_system_login (BYPASSRLS)", the `DIRECT_URL` user isn't allowed to create that role. Use the `postgres` user.
+- `vercel.json` schedules `/api/internal/cron/daily` once a day. Vercel sends `Authorization: Bearer $CRON_SECRET` automatically, and any other scheduler can call the same URL the same way.
+- Every pull request gets its own preview URL. Previews share the same demo database.

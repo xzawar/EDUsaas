@@ -68,7 +68,10 @@ async function upsertUser(u: SeedUser, tenantId: string | null, passwordHash: st
 }
 
 async function main() {
-  if (process.env.NODE_ENV === 'production') throw new Error('Refusing to seed demo accounts in production');
+  // Production builds only seed when explicitly asked to (the Vercel demo sets DEMO_SEED=true).
+  if (process.env.NODE_ENV === 'production' && process.env.DEMO_SEED !== 'true') {
+    throw new Error('Refusing to seed demo accounts in production (set DEMO_SEED=true for a demo deployment)');
+  }
   const passwordHash = await hash(DEMO_PASSWORD, ARGON2);
 
   for (const u of PLATFORM_USERS) await upsertUser(u, null, passwordHash);
