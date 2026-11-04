@@ -1,4 +1,4 @@
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, FileText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/AppShell';
 import { Badge, Card, EmptyState, Table, Td, Th } from '@/components/ui';
@@ -18,7 +18,20 @@ export default async function StudentMarksPage() {
     : [{ items: [], subjects: [] }, []];
   return (
     <>
-      <PageHeader title="Marks" description="Published marks for this academic year." />
+      <PageHeader
+        title="Marks"
+        description="Published marks for this academic year."
+        actions={
+          <a
+            href="/api/v1/report-card/me"
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+          >
+            <FileText className="size-4" /> Report card (PDF)
+          </a>
+        }
+      />
       {r.items.length === 0 ? (
         <Card>
           <EmptyState

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { api } from '@/client/api';
@@ -118,7 +119,13 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
               {page.items.map((t) => (
                 <tr key={t.id}>
                   <td className="py-2.5 pr-4">
-                    <p className="font-medium">{t.name}</p>
+                    {canManage ? (
+                      <Link href={`/platform/tenants/${t.id}`} className="font-medium hover:underline">
+                        {t.name}
+                      </Link>
+                    ) : (
+                      <p className="font-medium">{t.name}</p>
+                    )}
                     {t.city && <p className="text-xs text-slate-500">{t.city}</p>}
                   </td>
                   <td className="py-2.5 pr-4 font-mono">{t.prefix}</td>

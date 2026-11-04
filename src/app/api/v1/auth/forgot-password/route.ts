@@ -1,3 +1,4 @@
+import { LIMITS, rateLimit } from '@/server/auth/ratelimit';
 import { z } from 'zod';
 import { defineRoute } from '@/server/http/route';
 import { requestPasswordReset } from '@/server/auth/service';
@@ -9,6 +10,8 @@ export const POST = defineRoute({
   auth: 'public',
   input: schema,
   handler: async (meta, { input }) => {
+    if (meta.ipHash)
+      await rateLimit(`reset:${meta.ipHash}`, LIMITS.passwordReset.limit, LIMITS.passwordReset.windowSeconds);
     await requestPasswordReset({ email: input.email, portal: input.portal === 'staff' ? 'STAFF' : 'PLATFORM' }, meta);
     return { message: 'If an account with that email exists, a reset link has been sent.' };
   },

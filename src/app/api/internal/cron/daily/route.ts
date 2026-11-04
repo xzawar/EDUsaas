@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { env } from '@/server/env';
 import { json } from '@/server/http/route';
-import { purgeExpiredCredentials } from '@/server/auth/service';
+import { runDaily } from '@/server/jobs/daily';
 
 /**
  * Host-agnostic scheduled entry point (decision D8). Vercel Cron calls it in the demo with
@@ -16,6 +16,5 @@ function authorized(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: { code: 'UNAUTHENTICATED', message: 'Unauthorized' } }, 401);
-  const purged = await purgeExpiredCredentials();
-  return json({ ok: true, purged });
+  return json({ ok: true, results: await runDaily() });
 }

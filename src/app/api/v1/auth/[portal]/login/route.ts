@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { defineRoute } from '@/server/http/route';
 import { AppError } from '@/server/http/errors';
 import { login } from '@/server/auth/service';
+import { LIMITS, rateLimit } from '@/server/auth/ratelimit';
 import { PORTAL_SLUGS, type PortalSlug } from '@/server/auth/portals';
 import { sessionCookie } from '@/server/auth/session';
 
@@ -17,6 +18,7 @@ export const POST = defineRoute({
   handler: async (meta, { input, params }) => {
     const slug = String(params.portal);
     if (!Object.hasOwn(PORTAL_SLUGS, slug)) throw new AppError('NOT_FOUND', 'Unknown portal');
+    if (meta.ipHash) await rateLimit(`login:${meta.ipHash}`, LIMITS.login.limit, LIMITS.login.windowSeconds);
     const result = await login({ portal: PORTAL_SLUGS[slug as PortalSlug], ...input }, meta);
     return {
       body: { redirectTo: result.redirectTo, mustChangePassword: result.mustChangePassword },
