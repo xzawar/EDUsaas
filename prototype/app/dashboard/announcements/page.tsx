@@ -1,0 +1,2 @@
+import {pageUser} from '@/lib/pageAuth';import {prisma} from '@/lib/prisma';import AnnouncementsClient from '@/components/AnnouncementsClient';
+export default async function Announcements(){const u=await pageUser('announcements.write',['SCHOOL_ADMIN','PRINCIPAL']);if(!u.tenantId)return null;const rows=await prisma.announcement.findMany({where:{tenantId:u.tenantId},orderBy:{createdAt:'desc'}});return <AnnouncementsClient initial={rows}/>}

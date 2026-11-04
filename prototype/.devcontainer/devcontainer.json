@@ -1,0 +1,7 @@
+{
+  "name": "Education SaaS",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {"ghcr.io/devcontainers/features/postgres:1":{"version":"18"}},
+  "forwardPorts": [3000,5432],
+  "postCreateCommand": "npm install && npx prisma generate"
+}

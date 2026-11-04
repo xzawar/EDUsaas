@@ -1,0 +1,2 @@
+import {pageUser} from '@/lib/pageAuth';import {prisma} from '@/lib/prisma';import AcademicYearsClient from '@/components/AcademicYearsClient';
+export default async function AcademicYears(){const u=await pageUser('academic.write',['SCHOOL_ADMIN','PRINCIPAL']);if(!u.tenantId)return <div className="card">Not available.</div>;const rows=await prisma.academicYear.findMany({where:{tenantId:u.tenantId},orderBy:{startsOn:'desc'}});return <AcademicYearsClient initial={rows.map(y=>({...y,startsOn:y.startsOn.toISOString().slice(0,10),endsOn:y.endsOn.toISOString().slice(0,10)}))}/>}

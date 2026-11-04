@@ -1,0 +1,2 @@
+import {redirect} from 'next/navigation';import {getCurrentUser} from '@/lib/auth';import type {UserRole} from '@prisma/client';import {can,type Permission} from '@/lib/permissions';
+export async function pageUser(permission?:Permission,roles?:UserRole[]){const u=await getCurrentUser();if(!u)redirect('/login');if(roles&&!roles.includes(u.role))redirect('/dashboard');if(permission&& !can(u.role,permission,u.tenant?.settings))redirect('/dashboard');return u}

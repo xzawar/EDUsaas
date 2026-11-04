@@ -1,0 +1,1 @@
+import {getCurrentUser} from '@/lib/auth';import SettingsClient from '@/components/SettingsClient';export default async function Settings(){const u=await getCurrentUser();return <SettingsClient user={{name:u?.displayName||'',username:u?.username||'',role:u?.role||'',tenant:u?.tenant?.name||'Platform',settings:u?.tenant?.settings||null}}/>}

@@ -1,0 +1,2 @@
+import {pageUser} from '@/lib/pageAuth';import {prisma} from '@/lib/prisma';import ClassesClient from '@/components/ClassesClient';
+export default async function Classes(){const u=await pageUser('classes.write',['SCHOOL_ADMIN','PRINCIPAL']);if(!u.tenantId)return <div className="card">Not available.</div>;const rows=await prisma.class.findMany({where:{tenantId:u.tenantId},include:{sections:true},orderBy:{gradeNumber:'asc'}});return <ClassesClient initial={rows}/>}

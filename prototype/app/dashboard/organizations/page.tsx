@@ -1,0 +1,2 @@
+import {getCurrentUser} from '@/lib/auth';import {prisma} from '@/lib/prisma';import OrganizationsClient from '@/components/OrganizationsClient';
+export default async function Organizations(){const u=await getCurrentUser();if(!u||!['PLATFORM_OWNER','PLATFORM_ADMIN'].includes(u.role))return <div className="card">Forbidden.</div>;const rows=await prisma.tenant.findMany({orderBy:{createdAt:'desc'}});return <OrganizationsClient initial={rows}/>}

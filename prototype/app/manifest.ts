@@ -1,0 +1,1 @@
+import type { MetadataRoute } from 'next';export default function manifest():MetadataRoute.Manifest{return{name:'Education SaaS Teacher Attendance',short_name:'EduSaaS',description:'School management web app',start_url:'/dashboard',display:'standalone',background_color:'#0a0a0a',theme_color:'#5B5FEF',icons:[]}}

@@ -1,0 +1,393 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum TenantStatus { ACTIVE SUSPENDED TRIAL }
+enum UserRole { PLATFORM_OWNER PLATFORM_ADMIN SCHOOL_ADMIN PRINCIPAL ADMISSIONS_OFFICER TEACHER STUDENT }
+enum UserStatus { ACTIVE INVITED SUSPENDED }
+enum LeaveStatus { PENDING APPROVED REJECTED CANCELLED }
+enum AttendanceStatus { PRESENT ABSENT LEAVE LATE EXCUSED }
+enum StudentStatus { ACTIVE INACTIVE TRANSFERRED GRADUATED WITHDRAWN SUSPENDED }
+enum AuditAction { LOGIN LOGOUT CREATE UPDATE DELETE VIEW EXPORT IMPORT APPROVE REJECT PROMOTE RESET_PASSWORD UPLOAD_PHOTO SUPPORT_ACCESS }
+
+model Tenant {
+  id String @id @default(cuid())
+  name String
+  nickname String @unique
+  status TenantStatus @default(TRIAL)
+  logoUrl String?
+  primaryColor String? @default("#5B5FEF")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  settings TenantSettings?
+  users User[]
+  students Student[]
+  teachers Teacher[]
+  academicYears AcademicYear[]
+  classes Class[]
+  sections Section[]
+  subjects Subject[]
+  assignments TeacherAssignment[]
+  enrollments StudentEnrollment[]
+  attendance Attendance[]
+  teacherAttendance TeacherAttendance[]
+  leaveRequests LeaveRequest[]
+  assessments Assessment[]
+  marks Mark[]
+  remarks Remark[]
+  timetableSlots TimetableSlot[]
+  announcements Announcement[]
+  auditLogs AuditLog[]
+  notifications Notification[]
+}
+
+model TenantSettings {
+  id String @id @default(cuid())
+  tenantId String @unique
+  attendanceMode String @default("once_daily")
+  atRiskThreshold Int @default(75)
+  principalCanStudents Boolean @default(false)
+  principalCanPromote Boolean @default(false)
+  principalCanAttendance Boolean @default(true)
+  principalCanLeaves Boolean @default(true)
+  principalCanMarks Boolean @default(true)
+  principalCanTimetable Boolean @default(false)
+  principalCanAudit Boolean @default(true)
+  admissionsCanBulkImport Boolean @default(true)
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+}
+
+model User {
+  id String @id @default(cuid())
+  tenantId String?
+  tenant Tenant? @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  username String @unique
+  usernameNormalized String @unique
+  passwordHash String
+  role UserRole
+  status UserStatus @default(ACTIVE)
+  displayName String
+  email String?
+  photoUrl String?
+  failedLoginAttempts Int @default(0)
+  lockedUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student Student?
+  teacher Teacher?
+  auditLogs AuditLog[] @relation("Actor")
+  sessions Session[]
+  leaveRequests LeaveRequest[] @relation("LeaveApplicant")
+  notifications Notification[]
+  @@index([tenantId,role])
+}
+
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+  @@index([userId,expiresAt])
+}
+
+model Student {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  userId String @unique
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  admissionNo String?
+  rollNumber Int?
+  guardianName String?
+  guardianPhone String?
+  dateOfBirth DateTime?
+  status StudentStatus @default(ACTIVE)
+  currentSectionId String?
+  currentSection Section? @relation("CurrentSection",fields:[currentSectionId],references:[id],onDelete:SetNull)
+  enrollments StudentEnrollment[]
+  attendance Attendance[]
+  marks Mark[]
+  remarks Remark[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId,status])
+  @@index([tenantId,currentSectionId])
+}
+
+model Teacher {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  userId String @unique
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  employeeNo String?
+  assignments TeacherAssignment[]
+  attendance TeacherAttendance[]
+  inChargeSections Section[] @relation("ClassTeacher")
+  remarks Remark[]
+  timetableSlots TimetableSlot[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId])
+}
+
+model TeacherAttendance {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  teacherId String
+  teacher Teacher @relation(fields:[teacherId],references:[id],onDelete:Cascade)
+  date DateTime
+  status AttendanceStatus
+  note String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([teacherId,date])
+  @@index([tenantId,date])
+}
+
+model AcademicYear {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  name String
+  startsOn DateTime
+  endsOn DateTime
+  isCurrent Boolean @default(false)
+  enrollments StudentEnrollment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId,name])
+}
+
+model Class {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  name String
+  gradeNumber Int?
+  sections Section[]
+  subjects ClassSubject[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId,name])
+}
+
+model Section {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  classId String
+  class Class @relation(fields:[classId],references:[id],onDelete:Cascade)
+  name String
+  capacity Int?
+  classTeacherId String?
+  classTeacher Teacher? @relation("ClassTeacher",fields:[classTeacherId],references:[id],onDelete:SetNull)
+  currentStudents Student[] @relation("CurrentSection")
+  enrollments StudentEnrollment[]
+  assignments TeacherAssignment[]
+  timetable TimetableSlot[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([classId,name])
+}
+
+model Subject {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  name String
+  code String?
+  classes ClassSubject[]
+  assignments TeacherAssignment[]
+  assessments Assessment[]
+  remarks Remark[]
+  timetable TimetableSlot[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId,name])
+}
+
+model ClassSubject {
+  id String @id @default(cuid())
+  classId String
+  subjectId String
+  class Class @relation(fields:[classId],references:[id],onDelete:Cascade)
+  subject Subject @relation(fields:[subjectId],references:[id],onDelete:Cascade)
+  @@unique([classId,subjectId])
+}
+
+model TeacherAssignment {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  teacherId String
+  teacher Teacher @relation(fields:[teacherId],references:[id],onDelete:Cascade)
+  sectionId String
+  section Section @relation(fields:[sectionId],references:[id],onDelete:Cascade)
+  subjectId String
+  subject Subject @relation(fields:[subjectId],references:[id],onDelete:Cascade)
+  createdAt DateTime @default(now())
+  @@unique([teacherId,sectionId,subjectId])
+  @@index([tenantId,teacherId])
+}
+
+model StudentEnrollment {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  studentId String
+  student Student @relation(fields:[studentId],references:[id],onDelete:Cascade)
+  academicYearId String
+  academicYear AcademicYear @relation(fields:[academicYearId],references:[id],onDelete:Cascade)
+  sectionId String
+  section Section @relation(fields:[sectionId],references:[id],onDelete:Cascade)
+  createdAt DateTime @default(now())
+  @@unique([studentId,academicYearId])
+  @@index([tenantId,academicYearId,sectionId])
+}
+
+model Attendance {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  studentId String
+  student Student @relation(fields:[studentId],references:[id],onDelete:Cascade)
+  sectionId String
+  subjectId String?
+  date DateTime
+  status AttendanceStatus
+  note String?
+  recordedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([studentId,sectionId,subjectId,date])
+  @@index([tenantId,date])
+  @@index([tenantId,studentId,date])
+}
+
+model LeaveRequest {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  applicantId String
+  applicant User @relation("LeaveApplicant",fields:[applicantId],references:[id],onDelete:Cascade)
+  type String
+  startsOn DateTime
+  endsOn DateTime
+  reason String
+  attachmentUrl String?
+  status LeaveStatus @default(PENDING)
+  decidedBy String?
+  decisionNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId,status])
+}
+
+model Assessment {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  name String
+  maxMarks Decimal @db.Decimal(8,2)
+  subjectId String
+  subject Subject @relation(fields:[subjectId],references:[id],onDelete:Cascade)
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  marks Mark[]
+  @@index([tenantId,subjectId])
+}
+
+model Mark {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  assessmentId String
+  assessment Assessment @relation(fields:[assessmentId],references:[id],onDelete:Cascade)
+  studentId String
+  student Student @relation(fields:[studentId],references:[id],onDelete:Cascade)
+  score Decimal @db.Decimal(8,2)
+  grade String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([assessmentId,studentId])
+  @@index([tenantId,studentId])
+}
+
+model Remark {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  studentId String
+  student Student @relation(fields:[studentId],references:[id],onDelete:Cascade)
+  teacherId String
+  teacher Teacher @relation(fields:[teacherId],references:[id],onDelete:Cascade)
+  subjectId String?
+  subject Subject? @relation(fields:[subjectId],references:[id],onDelete:SetNull)
+  text String
+  createdAt DateTime @default(now())
+  @@index([tenantId,studentId])
+}
+
+model TimetableSlot {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  sectionId String
+  section Section @relation(fields:[sectionId],references:[id],onDelete:Cascade)
+  subjectId String
+  subject Subject @relation(fields:[subjectId],references:[id],onDelete:Cascade)
+  teacherId String?
+  teacher Teacher? @relation(fields:[teacherId],references:[id],onDelete:SetNull)
+  dayOfWeek Int
+  startsAt String
+  endsAt String
+  room String?
+  @@index([tenantId,sectionId,dayOfWeek])
+  @@index([tenantId,teacherId,dayOfWeek])
+}
+
+model Announcement {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  title String
+  body String
+  audience String
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  title String
+  body String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([tenantId,userId,readAt])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  tenantId String?
+  tenant Tenant? @relation(fields:[tenantId],references:[id],onDelete:Restrict)
+  actorId String?
+  actor User? @relation("Actor",fields:[actorId],references:[id],onDelete:SetNull)
+  action AuditAction
+  entity String
+  entityId String?
+  ipAddress String?
+  userAgent String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  @@index([tenantId,createdAt])
+}

@@ -1,0 +1,2 @@
+import {getCurrentUser} from '@/lib/auth';import {redirect} from 'next/navigation';import Sidebar from './Sidebar';
+export default async function DashboardShell({children}:{children:React.ReactNode}){const u=await getCurrentUser();if(!u)redirect('/login');return <div className="layout"><Sidebar role={u.role} tenantName={u.tenant?.name} displayName={u.displayName}/><main className="container">{children}</main></div>}
