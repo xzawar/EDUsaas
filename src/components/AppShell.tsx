@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { OfflineSync } from '@/components/OfflineSync';
 import { ToastProvider } from '@/components/overlay';
 import { Sidebar, type NavGroup, type NavItem } from '@/components/Sidebar';
 import { PORTAL_THEME, accentStyle, type PortalKey } from '@/components/portal-theme';
@@ -22,6 +23,7 @@ export function AppShell({
   return (
     <div style={accentStyle(portal)} className="min-h-screen">
       <ToastProvider>
+        <OfflineSync />
         <Sidebar groups={nav} orgName={orgName} user={user} mobileTabs={mobileTabs} />
         <main
           aria-label={PORTAL_THEME[portal].name}

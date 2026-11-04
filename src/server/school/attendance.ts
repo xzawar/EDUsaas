@@ -425,3 +425,39 @@ export async function setTeacherAttendance(ctx: AuthedContext, input: z.infer<ty
     return { ok: true };
   });
 }
+
+/** Sections the caller can take attendance for, with today's status (overseers: all current sections). */
+export async function attendanceSections(ctx: AuthedContext) {
+  return inTenant(ctx, async (tx) => {
+    const clock = await schoolClock(tx);
+    const overseer = ctx.can('attendance.oversee');
+    const scope = overseer ? null : await teacherScope(tx, ctx.user.id);
+    const sections = await tx.section.findMany({
+      where: { class: { academicYear: { status: 'CURRENT' } }, ...(scope ? { id: { in: scope.sectionIds } } : {}) },
+      include: { class: true, _count: { select: { students: { where: { status: 'ACTIVE' } } } } },
+    });
+    const batches = await tx.attendanceBatch.findMany({
+      where: { sectionId: { in: sections.map((s) => s.id) }, date: toDate(clock.today), period: 1 },
+      include: { records: { select: { status: true } } },
+    });
+    const byId = new Map(batches.map((b) => [b.sectionId, b]));
+    return {
+      today: clock.today,
+      sections: sections
+        .sort((a, b) => a.class.gradeLevel - b.class.gradeLevel || a.name.localeCompare(b.name))
+        .map((s) => {
+          const b = byId.get(s.id);
+          const absent = b?.records.filter((r) => r.status === 'ABSENT').length ?? 0;
+          return {
+            id: s.id,
+            label: sectionLabel(s),
+            students: s._count.students,
+            isIncharge: scope?.inchargeSectionIds.includes(s.id) ?? false,
+            done: !!b,
+            absent,
+            present: b ? b.records.length - absent : 0,
+          };
+        }),
+    };
+  });
+}

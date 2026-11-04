@@ -11,6 +11,15 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
     { items: [{ href: '/staff', label: isTeacher ? 'Today' : 'Dashboard', icon: 'dashboard', exact: true }] },
   ];
 
+  const daily: NavItem[] = [];
+  if (ctx.can('attendance.submit') || ctx.can('attendance.oversee')) daily.push({ href: '/staff/attendance', label: 'Attendance', icon: 'attendance' });
+  if (ctx.can('teacher_attendance.oversee')) daily.push({ href: '/staff/teacher-attendance', label: 'Teacher check-ins', icon: 'checkin' });
+  if (ctx.can('marks.enter') || ctx.can('marks.manage') || ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL')
+    daily.push({ href: '/staff/assessments', label: 'Tests & marks', icon: 'marks' });
+  if (ctx.can('leave.apply') || ctx.can('leave.approve')) daily.push({ href: '/staff/leave', label: 'Leave', icon: 'leave' });
+  if (ctx.can('timetable.view') || ctx.can('timetable.manage')) daily.push({ href: '/staff/timetable', label: 'Timetable', icon: 'timetable' });
+  if (daily.length) groups.push({ label: 'Daily', items: daily });
+
   const people: NavItem[] = [];
   if (ctx.can('students.search'))
     people.push({ href: '/staff/students', label: isTeacher ? 'My students' : 'Students', icon: 'students' });
@@ -32,6 +41,9 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   const mobileTabs = isTeacher
     ? ([
         { href: '/staff', label: 'Today', icon: 'dashboard', exact: true },
+        { href: '/staff/attendance', label: 'Attendance', icon: 'attendance' },
+        { href: '/staff/assessments', label: 'Marks', icon: 'marks' },
+        { href: '/staff/timetable', label: 'Timetable', icon: 'timetable' },
         { href: '/staff/students', label: 'Students', icon: 'students' },
       ] satisfies NavItem[])
     : undefined;
