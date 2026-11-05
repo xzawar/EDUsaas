@@ -9,7 +9,10 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== SHELL).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== SHELL).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -55,7 +58,12 @@ async function replay() {
     r.onsuccess = () => resolve(r.result);
   });
   for (const item of items) {
-    const res = await fetch(item.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item.body), credentials: 'same-origin' });
+    const res = await fetch(item.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item.body),
+      credentials: 'same-origin',
+    });
     if (res.status === 401) return;
     await new Promise((resolve) => {
       const r = db.transaction('queue', 'readwrite').objectStore('queue').delete(item.id);
