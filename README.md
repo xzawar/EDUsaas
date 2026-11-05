@@ -18,9 +18,11 @@ Multi-tenant school management SaaS: one school = one tenant. Students, teachers
 | 3 — Daily operations: attendance (offline-ready), teacher check-in, leave, tests & marks, grading, remarks, timetable, notifications                               | ✅ Done |
 | 4 — Management: reports + CSV export, Excel student import, search (Ctrl K), announcements, notification bell, audit log                                           | ✅ Done |
 | 5 — Hardening: break-glass support access, report-card PDF, retention & scheduled jobs, rate limits                                                                | ✅ Done |
+| 6 — Gaps: file storage, photos, year + audit archival, plans & subscriptions, Platform Admins, support tickets, per-period attendance, offline marks, Sentry       | ✅ Done |
 
-**Still needed before real school data:** object storage for monthly audit archives (D14), error monitoring (Sentry),
-a backup/restore plan, a load test with a 1,000-student school, and a privacy policy. See `docs/PLAN.md` §11.
+**Still needed before real school data:** an S3/R2 bucket configured (`STORAGE_DRIVER=s3`, see `.env.example`; photos
+and archives wait until it is set), `SENTRY_DSN`, a backup/restore plan, a load test with a 1,000-student school, and a
+privacy policy. See `docs/PLAN.md` §11.
 
 ## Sign-in portals
 
@@ -69,7 +71,7 @@ Password for every demo account: `Demo-pass-2026`
 | Staff    | `admissions@bss.test` | Admissions Officer                                |
 | Staff    | `admin@gvs.test`      | School Admin, Green Valley School (second tenant) |
 | Platform | `owner@edusaas.test`  | Platform Owner                                    |
-| Platform | `ops@edusaas.test`    | Platform Admin                                    |
+| Platform | `ops@edusaas.test`    | Platform Admin (schools, support queue + access)  |
 
 The seed refuses to run when `NODE_ENV=production` unless `DEMO_SEED=true`. Bright Star School is a full demo school: 2026-27 with Prep + classes 1–10 (21 sections), 22 teachers (each signs in as `bss-t-<name>-1`, e.g. `bss-t-saimaakhtar-1`), and 444 students; 2027-28 is empty so you can try **Copy structure** and **Promotion**.
 
@@ -122,16 +124,18 @@ On Vercel, `npm run vercel-build` runs [`scripts/vercel-build.sh`](scripts/verce
 1. At vercel.com → **Add New… → Project** → import `xzawar/EDUsaas`. Framework preset: Next.js (detected). Leave the build command as the default.
 2. Before clicking **Deploy**, open **Environment Variables** and add these (replace `REF`, `POOLER_HOST`, `DB_PASSWORD`, `APP_PW`, `SYSTEM_PW`):
 
-| Name                  | Value                                                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `DIRECT_URL`          | `postgresql://postgres.REF:DB_PASSWORD@POOLER_HOST:5432/postgres`                                             |
-| `DATABASE_URL`        | `postgresql://edusaas_app_login.REF:APP_PW@POOLER_HOST:6543/postgres?pgbouncer=true&connection_limit=1`       |
-| `SYSTEM_DATABASE_URL` | `postgresql://edusaas_system_login.REF:SYSTEM_PW@POOLER_HOST:6543/postgres?pgbouncer=true&connection_limit=1` |
-| `DB_APP_PASSWORD`     | `APP_PW`                                                                                                      |
-| `DB_SYSTEM_PASSWORD`  | `SYSTEM_PW`                                                                                                   |
-| `CRON_SECRET`         | any random string of 32+ characters                                                                           |
-| `APP_URL`             | `https://<your-project>.vercel.app` (set after the first deploy if you don't know it yet, then redeploy)      |
-| `DEMO_SEED`           | `true` (loads the demo schools and accounts; leave unset for an empty platform)                               |
+| Name                  | Value                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `DIRECT_URL`          | `postgresql://postgres.REF:DB_PASSWORD@POOLER_HOST:5432/postgres`                                                                         |
+| `DATABASE_URL`        | `postgresql://edusaas_app_login.REF:APP_PW@POOLER_HOST:6543/postgres?pgbouncer=true&connection_limit=1`                                   |
+| `SYSTEM_DATABASE_URL` | `postgresql://edusaas_system_login.REF:SYSTEM_PW@POOLER_HOST:6543/postgres?pgbouncer=true&connection_limit=1`                             |
+| `DB_APP_PASSWORD`     | `APP_PW`                                                                                                                                  |
+| `DB_SYSTEM_PASSWORD`  | `SYSTEM_PW`                                                                                                                               |
+| `CRON_SECRET`         | any random string of 32+ characters                                                                                                       |
+| `APP_URL`             | `https://<your-project>.vercel.app` (set after the first deploy if you don't know it yet, then redeploy)                                  |
+| `DEMO_SEED`           | `true` (loads the demo schools and accounts; leave unset for an empty platform)                                                           |
+| `STORAGE_DRIVER`      | `s3`, plus `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (optional; needed for photos and archives) |
+| `SENTRY_DSN`          | optional; unexpected server errors are reported (scrubbed of personal data)                                                               |
 
 3. Click **Deploy**. When it finishes, open the URL and sign in with the [demo accounts](#demo-accounts-development-only).
 

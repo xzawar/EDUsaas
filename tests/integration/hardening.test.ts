@@ -267,6 +267,7 @@ describe('retention and scheduled jobs', () => {
       'atRiskDigests',
       'studentsAnonymized',
       'auditArchive',
+      'yearArchive',
       'demoData',
     ]);
     expect(JSON.stringify(r.json.results)).not.toContain('error');
