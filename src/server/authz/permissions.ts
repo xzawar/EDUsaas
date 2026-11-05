@@ -41,7 +41,20 @@ export const PERMISSIONS = {
   'platform.tenants.manage': 'Create, suspend and manage schools',
   'platform.tenants.read': 'Search schools by name and metadata',
   'platform.health.read': 'View system health',
+  'platform.plans.manage': 'Manage plans and school subscriptions',
+  'platform.admins.manage': 'Create Platform Admins and choose what they can do',
+  'platform.audit.read': 'View the platform audit log',
+  'platform.support.queue': 'Answer school support tickets',
+  'platform.support.access': 'Ask for time-boxed support access to a school (Platform Owner approves)',
 } as const;
+
+/** What the Platform Owner can switch on for an individual Platform Admin (spec §2.7, §2.8). */
+export const PLATFORM_ADMIN_GRANTABLE = [
+  'platform.tenants.read',
+  'platform.audit.read',
+  'platform.support.queue',
+  'platform.support.access',
+] as const satisfies readonly Permission[];
 
 export type Permission = keyof typeof PERMISSIONS;
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
@@ -65,7 +78,15 @@ const SCHOOL_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
 export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
   PLATFORM_OWNER: {
     // No tenant-data permissions at all (spec §2.7, §9.6): tenant access only via break-glass support grants.
-    fixed: ['platform.tenants.manage', 'platform.tenants.read', 'platform.health.read'],
+    fixed: [
+      'platform.tenants.manage',
+      'platform.tenants.read',
+      'platform.health.read',
+      'platform.plans.manage',
+      'platform.admins.manage',
+      'platform.audit.read',
+      'platform.support.queue',
+    ],
     configurable: {},
   },
   PLATFORM_ADMIN: {

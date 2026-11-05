@@ -9,6 +9,7 @@ import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { audit, inTenant, sectionLabel, toDate } from '@/server/school/common';
 import { createLogin, placeInSection, tenantPrefix } from '@/server/school/people';
+import { assertWithinPlan } from '@/server/platform/plans';
 
 /**
  * Bulk student import (spec §8.8, §9.5): template → upload → preview with row errors → commit in chunks.
@@ -317,6 +318,7 @@ export async function commitImport(ctx: AuthedContext, id: string) {
   const payload = pre.payload as unknown as Payload;
   if (!payload.rows.length) throw new AppError('VALIDATION_FAILED', 'There are no valid rows to import');
   const startAt = ((pre.progress ?? { done: 0 }) as Progress).done;
+  await assertWithinPlan(ctx.tenantId!, 'students', Math.min(CHUNK, payload.rows.length - startAt));
   // Hash outside the transaction (CPU-bound, runs in parallel); unused hashes are simply discarded.
   const creds = await Promise.all(
     payload.rows.slice(startAt, startAt + CHUNK).map(async () => {

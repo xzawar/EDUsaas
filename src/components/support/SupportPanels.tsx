@@ -139,16 +139,22 @@ export function PlatformSupportPanel({
   schoolName,
   grants,
   admins,
+  ticketId,
+  byAdmin,
 }: {
   tenantId: string;
   schoolName: string;
   grants: Grant[];
   admins: { id: string; name: string; email: string | null; locked: boolean }[];
+  /** When opened from a support ticket, the request is linked to it. */
+  ticketId?: string;
+  /** Platform Admins' requests go to the Platform Owner first. */
+  byAdmin?: boolean;
 }) {
   const { run, busy } = useAction();
   const [reason, setReason] = useState('');
   const [minutes, setMinutes] = useState('60');
-  const pending = grants.find((g) => g.status === 'PENDING');
+  const pending = grants.find((g) => g.status === 'PENDING' || g.status === 'AWAITING_OWNER');
   const active = grants.find((g) => g.status === 'ACTIVE');
   const open = pending ?? active;
 
@@ -177,7 +183,9 @@ export function PlatformSupportPanel({
         </Alert>
       ) : pending ? (
         <Alert tone="info">
-          Waiting for {schoolName}’s School Admin to approve your request ({dur(pending.durationMinutes)}).{' '}
+          {pending.status === 'AWAITING_OWNER'
+            ? `Waiting for the Platform Owner to approve this request (${dur(pending.durationMinutes)}), then ${schoolName} decides.`
+            : `Waiting for ${schoolName}’s School Admin to approve the request (${dur(pending.durationMinutes)}).`}{' '}
           <button
             type="button"
             className="font-medium underline"
@@ -195,7 +203,7 @@ export function PlatformSupportPanel({
             e.preventDefault();
             const r = await run(
               '/platform/tenants/' + tenantId + '/support',
-              { body: { reason, durationMinutes: Number(minutes) } },
+              { body: { reason, durationMinutes: Number(minutes), ...(ticketId ? { ticketId } : {}) } },
               'Request sent to the school',
             );
             if (r) setReason('');
@@ -223,7 +231,7 @@ export function PlatformSupportPanel({
               </Select>
             </Field>
             <Button type="submit" disabled={busy || reason.trim().length < 10}>
-              <LifeBuoy className="size-4" /> Ask for access
+              <LifeBuoy className="size-4" /> {byAdmin ? 'Ask (Owner approves first)' : 'Ask for access'}
             </Button>
           </div>
         </form>

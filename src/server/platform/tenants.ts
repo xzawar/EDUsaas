@@ -8,6 +8,7 @@ import type { AuthedContext } from '@/server/http/route';
 import { generateTemporaryPassword, hashPassword } from '@/server/auth/password';
 import { PREFIX_PATTERN } from '@/server/auth/username';
 import { revokeTenantSessions } from '@/server/auth/session';
+import { startTrial } from '@/server/platform/plans';
 
 /**
  * Platform console. Uses the privileged client because it is cross-tenant by nature, but it only ever
@@ -62,10 +63,15 @@ export async function listTenants(query: z.infer<typeof listTenantsQuery>) {
       createdAt: true,
       suspendedAt: true,
       _count: { select: { users: true } },
+      subscription: { select: { status: true, plan: { select: { name: true } } } },
     },
   });
   const hasMore = rows.length > query.limit;
-  const items = rows.slice(0, query.limit).map(({ _count, ...t }) => ({ ...t, userCount: _count.users }));
+  const items = rows.slice(0, query.limit).map(({ _count, subscription, ...t }) => ({
+    ...t,
+    userCount: _count.users,
+    plan: subscription ? `${subscription.plan.name}${subscription.status === 'ACTIVE' ? '' : ` (${subscription.status.toLowerCase().replace('_', ' ')})`}` : null,
+  }));
   return { items, nextCursor: hasMore ? items[items.length - 1]?.id : null };
 }
 
@@ -84,6 +90,7 @@ export async function createTenant(ctx: AuthedContext, input: z.infer<typeof cre
           settings: { create: {} },
         },
       });
+      await startTrial(tx, tenant.id);
       const admin = await tx.user.create({
         data: {
           tenantId: tenant.id,

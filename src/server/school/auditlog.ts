@@ -26,7 +26,7 @@ export const AUDIT_CATEGORIES = {
 
 const PREFIXES: Record<keyof typeof AUDIT_CATEGORIES, string[]> = {
   auth: ['auth.', 'user.reset_password', 'password.'],
-  student: ['student.', 'promotion.', 'section.renumber'],
+  student: ['student.', 'promotion.', 'section.renumber', 'archive.'],
   teacher: ['teacher.', 'staff.', 'user.'],
   attendance: ['attendance.'],
   teacher_attendance: ['teacher_attendance.'],
@@ -39,7 +39,7 @@ const PREFIXES: Record<keyof typeof AUDIT_CATEGORIES, string[]> = {
   import: ['import.'],
   announcement: ['announcement.'],
   access: ['access.'],
-  support: ['support.', 'tenant.'],
+  support: ['support.', 'tenant.', 'ticket.', 'subscription.'],
 };
 
 export const auditQuery = z.object({

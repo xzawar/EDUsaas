@@ -948,7 +948,7 @@ describe('platform console', () => {
   it('tenant list exposes metadata only', async () => {
     const r = await call(tenants.GET, { cookie: await cookieFor(f.owner) });
     const keys = Object.keys(r.json.items[0]).sort();
-    expect(keys).toEqual(['city', 'createdAt', 'id', 'name', 'prefix', 'status', 'suspendedAt', 'userCount']);
+    expect(keys).toEqual(['city', 'createdAt', 'id', 'name', 'plan', 'prefix', 'status', 'suspendedAt', 'userCount']);
   });
 });
 
