@@ -12,6 +12,7 @@ export const GET = defineRoute({
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    period: z.coerce.number().int().min(1).max(14).optional(),
   }),
-  handler: async (ctx, { query }) => attendanceSheet(ctx, query.sectionId, query.date),
+  handler: async (ctx, { query }) => attendanceSheet(ctx, query.sectionId, query.date, query.period),
 });

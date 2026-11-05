@@ -1,6 +1,7 @@
 import 'server-only';
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { reportError } from '@/server/monitoring';
 import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import type { Portal } from '@prisma/client';
 import { z, type ZodType } from 'zod';
@@ -46,6 +47,8 @@ type AuthedRoute<I, Q> = {
   auth: 'user';
   /** All listed permissions are required. */
   permission?: Permission | Permission[];
+  /** At least one of these is required (checked before input validation, like `permission`). */
+  anyPermission?: Permission[];
   /** Restrict to sessions from these portals (defence in depth on top of permissions). */
   portals?: Portal[];
   /** Routes reachable while a forced password change is pending (change-password, logout, me). */
@@ -143,6 +146,8 @@ export function defineRoute<I = undefined, Q = undefined>(def: PublicRoute<I, Q>
       const required =
         def.permission === undefined ? [] : Array.isArray(def.permission) ? def.permission : [def.permission];
       const missing = required.filter((p) => !permissions.has(p));
+      if (def.anyPermission?.length && !def.anyPermission.some((p) => permissions.has(p)))
+        missing.push(...def.anyPermission);
       if ((def.portals && !def.portals.includes(session.portal)) || missing.length > 0) {
         await recordAudit({
           tenantId: ctx.tenantId,
@@ -167,6 +172,7 @@ export function defineRoute<I = undefined, Q = undefined>(def: PublicRoute<I, Q>
     } catch (err) {
       if (err instanceof AppError) return errorResponse(err, meta.requestId);
       console.error('Unhandled API error', { requestId: meta.requestId, err });
+      await reportError(err, { requestId: meta.requestId, route: `${req.method} ${new URL(req.url).pathname}` });
       return errorResponse(new AppError('INTERNAL', 'Something went wrong. Please try again.'), meta.requestId);
     }
   };

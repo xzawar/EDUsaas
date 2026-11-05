@@ -15,12 +15,27 @@ export const platformAuditQuery = z.object({
 });
 
 export async function platformAudit(q: z.infer<typeof platformAuditQuery>) {
-  const where: Prisma.AuditLogWhereInput =
-    q.tenantId ? { tenantId: q.tenantId } : q.scope === 'platform' ? { OR: [{ tenantId: null }, { actorRole: { in: ['PLATFORM_OWNER', 'PLATFORM_ADMIN'] } }] } : {};
-  const rows = await systemDb().auditLog.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 51, ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}) });
+  const where: Prisma.AuditLogWhereInput = q.tenantId
+    ? { tenantId: q.tenantId }
+    : q.scope === 'platform'
+      ? { OR: [{ tenantId: null }, { actorRole: { in: ['PLATFORM_OWNER', 'PLATFORM_ADMIN'] } }] }
+      : {};
+  const rows = await systemDb().auditLog.findMany({
+    where,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 51,
+    ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}),
+  });
   const page = rows.slice(0, 50);
   const tenantIds = [...new Set(page.map((r) => r.tenantId).filter(Boolean))] as string[];
-  const actorIds = [...new Set(page.filter((r) => r.actorRole === 'PLATFORM_OWNER' || r.actorRole === 'PLATFORM_ADMIN').map((r) => r.actorId).filter(Boolean))] as string[];
+  const actorIds = [
+    ...new Set(
+      page
+        .filter((r) => r.actorRole === 'PLATFORM_OWNER' || r.actorRole === 'PLATFORM_ADMIN')
+        .map((r) => r.actorId)
+        .filter(Boolean),
+    ),
+  ] as string[];
   const [tenants, actors] = await Promise.all([
     systemDb().tenant.findMany({ where: { id: { in: tenantIds } }, select: { id: true, name: true } }),
     systemDb().user.findMany({ where: { id: { in: actorIds } }, select: { id: true, displayName: true } }),

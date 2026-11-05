@@ -9,6 +9,8 @@ import {
   addDays,
   attendancePct,
   audit,
+  countedPeriods,
+  countedPeriodsSql,
   dateInTz,
   inTenant,
   isoDate,
@@ -17,6 +19,7 @@ import {
   teacherScope,
   timeInTz,
   toDate,
+  weekday,
 } from '@/server/school/common';
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-09-03');
@@ -55,11 +58,47 @@ async function approvedLeaveFor(tx: TenantTx, studentIds: string[], date: string
   return new Set(rows.map((r) => r.studentId!));
 }
 
+/**
+ * Registers a section can have on a day (spec §6.6). Once-daily schools: one register ("period 1"). Per-period
+ * schools: one per timetabled teaching period that day, labelled with its time and subject.
+ */
+async function periodOptions(tx: TenantTx, sectionId: string, day: string, mode: string) {
+  if (mode !== 'PER_PERIOD') return [{ period: 1, label: 'Whole day', subjectId: null as string | null }];
+  const dow = weekday(day);
+  const slots = await tx.timetableSlot.findMany({
+    where: { dayOfWeek: dow, isBreak: false },
+    orderBy: { periodNo: 'asc' },
+  });
+  if (!slots.length) return [{ period: 1, label: 'Period 1', subjectId: null }];
+  const entries = await tx.timetableEntry.findMany({
+    where: { sectionId, slotId: { in: slots.map((x) => x.id) } },
+    include: { subject: { select: { name: true } } },
+  });
+  const bySlot = new Map(entries.map((e) => [e.slotId, e]));
+  return slots.map((x, i) => {
+    const e = bySlot.get(x.id);
+    return {
+      period: x.periodNo,
+      label: `P${i + 1} · ${x.startsAt}${e ? ` · ${e.subject.name}` : ''}`,
+      subjectId: e?.subjectId ?? null,
+    };
+  });
+}
+
+function resolvePeriod(options: { period: number }[], requested?: number) {
+  if (requested === undefined) return options[0]!.period;
+  if (!options.some((o) => o.period === requested))
+    throw new AppError('VALIDATION_FAILED', 'That period isn’t on today’s timetable');
+  return requested;
+}
+
 /** The register for one section and date, with what the caller may do with it. */
-export async function attendanceSheet(ctx: AuthedContext, sectionId: string, date?: string) {
+export async function attendanceSheet(ctx: AuthedContext, sectionId: string, date?: string, period?: number) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
     const day = date ?? clock.today;
+    const periods = await periodOptions(tx, sectionId, day, clock.attendanceMode);
+    const p = resolvePeriod(periods, period);
     const acc = await access(ctx, tx, sectionId);
     if (!acc.inScope) throw notFound('Section');
     const section = await tx.section.findUnique({ where: { id: sectionId }, include: { class: true } });
@@ -70,7 +109,7 @@ export async function attendanceSheet(ctx: AuthedContext, sectionId: string, dat
       orderBy: { rollNumber: 'asc' },
     });
     const batch = await tx.attendanceBatch.findUnique({
-      where: { tenantId_sectionId_date_period: { tenantId: ctx.tenantId!, sectionId, date: toDate(day), period: 1 } },
+      where: { tenantId_sectionId_date_period: { tenantId: ctx.tenantId!, sectionId, date: toDate(day), period: p } },
       include: { records: true },
     });
     const submitter = batch
@@ -106,6 +145,9 @@ export async function attendanceSheet(ctx: AuthedContext, sectionId: string, dat
           ? null
           : `The ${ATTENDANCE_CORRECTION_DAYS}-day correction window closed on ${win.lastEditable}. Ask the School Admin to make changes.`,
       editableUntil: acc.overseer ? null : win.lastEditable,
+      mode: clock.attendanceMode,
+      period: p,
+      periods,
       students: students.map((s) => ({
         id: s.id,
         name: s.user.displayName,
@@ -123,6 +165,8 @@ export const submitSchema = z.object({
   /** Client-generated idempotency key: a resent offline batch never creates a duplicate (spec §6.2). */
   clientUuid: z.string().uuid(),
   clientRecordedAt: z.string().datetime().optional(),
+  /** Per-period schools: which period (spec §6.6). Once-daily schools always use 1. */
+  period: z.number().int().min(1).max(14).optional(),
   records: z
     .array(z.object({ studentId: z.string().uuid(), status: z.enum(STATUSES) }))
     .min(1)
@@ -158,6 +202,9 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
     const valid = await tx.student.count({ where: { id: { in: ids }, sectionId: input.sectionId, status: 'ACTIVE' } });
     if (valid !== ids.length) throw new AppError('VALIDATION_FAILED', 'Some students are not in this section');
 
+    const options = await periodOptions(tx, input.sectionId, input.date, clock.attendanceMode);
+    const period = resolvePeriod(options, input.period);
+    const subjectId = options.find((o) => o.period === period)?.subjectId ?? null;
     const clientAt = input.clientRecordedAt ? new Date(input.clientRecordedAt) : null;
     const syncedLate = !!clientAt && clock.now.getTime() - clientAt.getTime() > 60 * 60 * 1000;
     const key = {
@@ -165,7 +212,7 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
         tenantId: ctx.tenantId!,
         sectionId: input.sectionId,
         date: toDate(input.date),
-        period: 1,
+        period,
       },
     };
     const existing = await tx.attendanceBatch.findUnique({ where: key, include: { records: true } });
@@ -176,7 +223,8 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
           tenantId: ctx.tenantId!,
           sectionId: input.sectionId,
           date: toDate(input.date),
-          period: 1,
+          period,
+          subjectId,
           submittedBy: ctx.user.id,
           clientUuid: input.clientUuid,
           clientRecordedAt: clientAt,
@@ -227,7 +275,7 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
 }
 
 /** Monthly grid for a section (spec §2.5 Class Incharge; §2.1 School Admin). */
-export async function sectionGrid(ctx: AuthedContext, sectionId: string, month?: string) {
+export async function sectionGrid(ctx: AuthedContext, sectionId: string, month?: string, period = 1) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
     const acc = await access(ctx, tx, sectionId);
@@ -246,7 +294,7 @@ export async function sectionGrid(ctx: AuthedContext, sectionId: string, month?:
         orderBy: { rollNumber: 'asc' },
       }),
       tx.attendanceBatch.findMany({
-        where: { sectionId, period: 1, date: { gte: toDate(start), lte: toDate(end) } },
+        where: { sectionId, period, date: { gte: toDate(start), lte: toDate(end) } },
         include: { records: { select: { studentId: true, status: true } } },
         orderBy: { date: 'asc' },
       }),
@@ -275,6 +323,7 @@ export async function sectionGrid(ctx: AuthedContext, sectionId: string, month?:
 }
 
 export const setOneSchema = z.object({
+  period: z.number().int().min(1).max(14).optional(),
   sectionId: z.string().uuid(),
   date: dateStr,
   studentId: z.string().uuid(),
@@ -283,7 +332,7 @@ export const setOneSchema = z.object({
 
 /** Single-cell correction from the grid (same rules as a batch). */
 export async function setOne(ctx: AuthedContext, input: z.infer<typeof setOneSchema>) {
-  const sheet = await attendanceSheet(ctx, input.sectionId, input.date);
+  const sheet = await attendanceSheet(ctx, input.sectionId, input.date, input.period);
   if (!sheet.canEdit) throw new AppError('FORBIDDEN', sheet.lockedReason ?? 'You can’t edit this day');
   const records = sheet.students.map((s) => ({
     studentId: s.id,
@@ -293,6 +342,7 @@ export async function setOne(ctx: AuthedContext, input: z.infer<typeof setOneSch
   return submitAttendance(ctx, {
     sectionId: input.sectionId,
     date: input.date,
+    period: sheet.period,
     clientUuid: crypto.randomUUID(),
     records,
   });
@@ -317,7 +367,7 @@ export async function studentAttendance(ctx: AuthedContext, studentId: string) {
     const year = await tx.academicYear.findFirst({ where: { status: 'CURRENT' } });
     const from = year ? year.startsOn : toDate(addDays(clock.today, -365));
     const records = await tx.attendanceRecord.findMany({
-      where: { studentId, batch: { date: { gte: from }, period: 1 } },
+      where: { studentId, batch: { date: { gte: from }, ...countedPeriods(clock.attendanceMode) } },
       select: { status: true, batch: { select: { date: true } } },
       orderBy: { batch: { date: 'asc' } },
     });
@@ -343,7 +393,11 @@ export async function attendanceOverview(ctx: AuthedContext) {
       },
     });
     const todayBatches = await tx.attendanceBatch.findMany({
-      where: { date: toDate(clock.today), period: 1, sectionId: { in: sections.map((s) => s.id) } },
+      where: {
+        date: toDate(clock.today),
+        ...countedPeriods(clock.attendanceMode),
+        sectionId: { in: sections.map((s) => s.id) },
+      },
       include: { records: { select: { status: true } } },
     });
     const submitted = new Set(todayBatches.map((b) => b.sectionId));
@@ -357,7 +411,7 @@ export async function attendanceOverview(ctx: AuthedContext) {
              COUNT(*) FILTER (WHERE r.status IN ('PRESENT','LATE')) AS attended,
              COUNT(*) FILTER (WHERE r.status IN ('PRESENT','LATE','ABSENT')) AS considered
       FROM attendance_batches b JOIN attendance_records r ON r.batch_id = b.id
-      WHERE b.period = 1 AND b.date >= ${toDate(since)} AND b.date <= ${toDate(clock.today)}
+      WHERE b.date >= ${toDate(since)} AND b.date <= ${toDate(clock.today)} ${countedPeriodsSql(clock.attendanceMode)}
       GROUP BY b.date ORDER BY b.date`;
     const trend = daily
       .map((d) => ({
@@ -369,7 +423,7 @@ export async function attendanceOverview(ctx: AuthedContext) {
 
     // At-risk: below the school threshold this year, with at least 10 recorded days.
     const counts = await countsByStudent(tx, {
-      batch: { date: { gte: year.startsOn }, period: 1 },
+      batch: { date: { gte: year.startsOn }, ...countedPeriods(clock.attendanceMode) },
       student: { status: 'ACTIVE' },
     });
     const risky = [...counts.entries()]

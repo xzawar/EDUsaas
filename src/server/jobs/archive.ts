@@ -6,6 +6,7 @@ import { recordAudit } from '@/server/audit/audit';
 import { systemDb } from '@/server/db/system';
 import { storage } from '@/server/files/storage';
 import { gradeFor, type Band } from '@/server/school/assessments';
+import { countedPeriods } from '@/server/school/common';
 import { renderReportCard, type Card } from '@/server/school/reportcard';
 
 /**
@@ -33,10 +34,15 @@ export async function yearCard(tenantId: string, studentId: string, yearId: stri
     db.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
     db.academicYear.findFirst({ where: { id: yearId, tenantId } }),
     db.student.findFirst({ where: { id: studentId, tenantId }, include: { user: { select: { displayName: true } } } }),
-    db.tenantSettings.findUnique({ where: { tenantId }, select: { atRiskThreshold: true } }),
+    db.tenantSettings.findUnique({ where: { tenantId }, select: { atRiskThreshold: true, attendanceMode: true } }),
   ]);
   if (!tenant || !year || !student) return null;
-  const inYear = { batch: { period: 1, section: { class: { academicYearId: yearId } } } };
+  const inYear = {
+    batch: {
+      ...countedPeriods(settings?.attendanceMode ?? 'ONCE_DAILY'),
+      section: { class: { academicYearId: yearId } },
+    },
+  };
   const [records, lastBatch, marks, remarks] = await Promise.all([
     db.attendanceRecord.groupBy({ by: ['status'], where: { tenantId, studentId, ...inYear }, _count: true }),
     db.attendanceRecord.findFirst({

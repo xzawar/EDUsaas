@@ -1,11 +1,20 @@
 'use client';
 
 /**
- * Offline queue for teacher actions (spec §6.2): attendance registers and check-ins are stored in IndexedDB
+ * Offline queue for teacher actions (spec §6.2): attendance registers, check-ins and marks are stored in IndexedDB
  * with a client UUID (idempotency key) and sent when the connection returns. The server re-validates everything.
  * The queue is per device and is wiped on sign-out.
  */
-export type QueueItem = { id: string; url: string; body: unknown; label: string; createdAt: string; userId: string };
+export type QueueItem = {
+  id: string;
+  url: string;
+  /** Defaults to POST (attendance, check-in); marks use PUT. */
+  method?: 'POST' | 'PUT';
+  body: unknown;
+  label: string;
+  createdAt: string;
+  userId: string;
+};
 
 const DB = 'edusaas-offline';
 const STORE = 'queue';
@@ -72,7 +81,7 @@ export async function flush(): Promise<{ sent: number; rejected: { label: string
       let res: Response;
       try {
         res = await fetch(item.url, {
-          method: 'POST',
+          method: item.method ?? 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item.body),
           credentials: 'same-origin',

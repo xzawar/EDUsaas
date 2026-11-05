@@ -12,7 +12,13 @@ import type { AuthedContext } from '@/server/http/route';
  * school adds students or staff, with a clear message instead of a silent failure.
  */
 
-const meta = (ctx: AuthedContext) => ({ actorId: ctx.user.id, actorRole: ctx.user.role, requestId: ctx.requestId, ipHash: ctx.ipHash, userAgent: ctx.userAgent });
+const meta = (ctx: AuthedContext) => ({
+  actorId: ctx.user.id,
+  actorRole: ctx.user.role,
+  requestId: ctx.requestId,
+  ipHash: ctx.ipHash,
+  userAgent: ctx.userAgent,
+});
 
 export const planSchema = z.object({
   name: z.string().trim().min(2).max(60),
@@ -23,7 +29,10 @@ export const planSchema = z.object({
 });
 
 export async function listPlans() {
-  const plans = await systemDb().plan.findMany({ orderBy: [{ active: 'desc' }, { priceMonthly: 'asc' }], include: { _count: { select: { subscriptions: true } } } });
+  const plans = await systemDb().plan.findMany({
+    orderBy: [{ active: 'desc' }, { priceMonthly: 'asc' }],
+    include: { _count: { select: { subscriptions: true } } },
+  });
   return plans.map(({ _count, ...p }) => ({ ...p, schools: _count.subscriptions }));
 }
 
@@ -33,7 +42,8 @@ export async function createPlan(ctx: AuthedContext, input: z.infer<typeof planS
     await recordAudit({ ...meta(ctx), action: 'plan.create', entity: 'Plan', entityId: plan.id, after: input });
     return plan;
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new AppError('CONFLICT', 'A plan with that name already exists');
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
+      throw new AppError('CONFLICT', 'A plan with that name already exists');
     throw e;
   }
 }
@@ -46,7 +56,8 @@ export async function updatePlan(ctx: AuthedContext, id: string, input: z.infer<
     await recordAudit({ ...meta(ctx), action: 'plan.update', entity: 'Plan', entityId: id, before, after: input });
     return plan;
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new AppError('CONFLICT', 'A plan with that name already exists');
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
+      throw new AppError('CONFLICT', 'A plan with that name already exists');
     throw e;
   }
 }
@@ -56,7 +67,11 @@ export async function usageFor(tenantIds: string[]) {
   const db = systemDb();
   const [students, staff] = await Promise.all([
     db.student.groupBy({ by: ['tenantId'], where: { tenantId: { in: tenantIds }, status: 'ACTIVE' }, _count: true }),
-    db.user.groupBy({ by: ['tenantId'], where: { tenantId: { in: tenantIds }, role: { not: 'STUDENT' }, status: 'ACTIVE', deletedAt: null }, _count: true }),
+    db.user.groupBy({
+      by: ['tenantId'],
+      where: { tenantId: { in: tenantIds }, role: { not: 'STUDENT' }, status: 'ACTIVE', deletedAt: null },
+      _count: true,
+    }),
   ]);
   const s = new Map(students.map((r) => [r.tenantId, r._count]));
   const t = new Map(staff.map((r) => [r.tenantId!, r._count]));
@@ -65,7 +80,10 @@ export async function usageFor(tenantIds: string[]) {
 
 export async function tenantSubscription(tenantId: string) {
   const db = systemDb();
-  const [sub, usage] = await Promise.all([db.subscription.findUnique({ where: { tenantId }, include: { plan: true } }), usageFor([tenantId])]);
+  const [sub, usage] = await Promise.all([
+    db.subscription.findUnique({ where: { tenantId }, include: { plan: true } }),
+    usageFor([tenantId]),
+  ]);
   return { subscription: sub, usage: usage.get(tenantId)! };
 }
 
@@ -85,8 +103,16 @@ export async function setSubscription(ctx: AuthedContext, tenantId: string, inpu
   if (!(await db.tenant.findUnique({ where: { id: tenantId } }))) throw notFound('School');
   const plan = await db.plan.findUnique({ where: { id: input.planId } });
   if (!plan) throw notFound('Plan');
-  const before = await db.subscription.findUnique({ where: { tenantId }, include: { plan: { select: { name: true } } } });
-  const data = { planId: plan.id, status: input.status, renewsOn: input.renewsOn ? new Date(`${input.renewsOn}T00:00:00Z`) : null, notes: input.notes ?? null };
+  const before = await db.subscription.findUnique({
+    where: { tenantId },
+    include: { plan: { select: { name: true } } },
+  });
+  const data = {
+    planId: plan.id,
+    status: input.status,
+    renewsOn: input.renewsOn ? new Date(`${input.renewsOn}T00:00:00Z`) : null,
+    notes: input.notes ?? null,
+  };
   await db.subscription.upsert({ where: { tenantId }, create: { tenantId, ...data }, update: data });
   await recordAudit({
     ...meta(ctx),
@@ -114,7 +140,11 @@ export async function assertWithinPlan(tenantId: string, kind: 'students' | 'sta
   const db = systemDb();
   const sub = await db.subscription.findUnique({ where: { tenantId }, include: { plan: true } });
   if (!sub) return;
-  if (sub.status === 'CANCELLED') throw new AppError('CONFLICT', 'Your school’s EDUsaas subscription is cancelled. Contact EDUsaas support to reactivate it.');
+  if (sub.status === 'CANCELLED')
+    throw new AppError(
+      'CONFLICT',
+      'Your school’s EDUsaas subscription is cancelled. Contact EDUsaas support to reactivate it.',
+    );
   const limit = kind === 'students' ? sub.plan.maxStudents : sub.plan.maxStaff;
   if (limit === null) return;
   const used = (await usageFor([tenantId])).get(tenantId)![kind];

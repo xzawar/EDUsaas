@@ -3,7 +3,8 @@
 import { Lock, Send, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ConfirmButton, useAction } from '@/components/overlay';
+import { enqueue } from '@/client/offline';
+import { ConfirmButton, useAction, useToast } from '@/components/overlay';
 import { Alert, Badge, Button, Card, Stat, cx } from '@/components/ui';
 
 type Band = { grade: string; min: number };
@@ -25,7 +26,7 @@ type Sheet = {
 const grade = (bands: Band[], pct: number | null) =>
   pct === null ? null : ([...bands].sort((a, b) => b.min - a.min).find((b) => pct >= b.min)?.grade ?? null);
 
-export function MarksSheet({ sheet }: { sheet: Sheet }) {
+export function MarksSheet({ sheet, userId }: { sheet: Sheet; userId?: string }) {
   const router = useRouter();
   const draftKey = `marks-draft:${sheet.id}`;
   const fromServer = useMemo(
@@ -38,6 +39,7 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
   const [rows, setRows] = useState<Record<string, { score: string; absent: boolean }>>(fromServer);
   const [restored, setRestored] = useState(false);
   const { run, busy } = useAction();
+  const toast = useToast();
 
   // Local draft autosave (spec §7.1: teachers enter marks locally, then submit).
   useEffect(() => {
@@ -76,6 +78,20 @@ export function MarksSheet({ sheet }: { sheet: Sheet }) {
         score: r.absent || r.score === '' ? null : Number(r.score),
         absent: r.absent,
       }));
+    // Spec §6.2: no signal → keep the marks on this device and send them when the connection returns.
+    if (typeof navigator !== 'undefined' && !navigator.onLine && userId) {
+      await enqueue({
+        id: crypto.randomUUID(),
+        url: `/api/v1/assessments/${sheet.id}/marks`,
+        method: 'PUT',
+        body: { marks, submit },
+        label: `Marks ${sheet.name}`,
+        createdAt: new Date().toISOString(),
+        userId,
+      });
+      toast('success', 'Saved on this device. It will sync automatically when you’re back online.');
+      return;
+    }
     const res = await run(
       '/assessments/' + sheet.id + '/marks',
       { method: 'PUT', body: { marks, submit } },

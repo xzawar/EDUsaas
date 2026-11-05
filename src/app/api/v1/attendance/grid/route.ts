@@ -11,6 +11,7 @@ export const GET = defineRoute({
       .string()
       .regex(/^\d{4}-\d{2}$/)
       .optional(),
+    period: z.coerce.number().int().min(1).max(14).optional(),
   }),
-  handler: async (ctx, { query }) => sectionGrid(ctx, query.sectionId, query.month),
+  handler: async (ctx, { query }) => sectionGrid(ctx, query.sectionId, query.month, query.period),
 });

@@ -14,19 +14,37 @@ export async function ticketQueue(q: z.infer<typeof ticketQuery>) {
     where: q.status === 'ALL' ? {} : { status: q.status },
     orderBy: { updatedAt: q.status === 'OPEN' ? 'asc' : 'desc' },
     take: 100,
-    include: { tenant: { select: { id: true, name: true, prefix: true } }, author: { select: { displayName: true, role: true } }, _count: { select: { messages: true } } },
+    include: {
+      tenant: { select: { id: true, name: true, prefix: true } },
+      author: { select: { displayName: true, role: true } },
+      _count: { select: { messages: true } },
+    },
   });
   const counts = await systemDb().supportTicket.groupBy({ by: ['status'], _count: true });
   return {
     counts: Object.fromEntries(counts.map((c) => [c.status, c._count])),
-    items: rows.map((t) => ({ id: t.id, subject: t.subject, status: t.status, school: t.tenant, author: t.author.displayName, authorRole: t.author.role, messages: t._count.messages, createdAt: t.createdAt, updatedAt: t.updatedAt })),
+    items: rows.map((t) => ({
+      id: t.id,
+      subject: t.subject,
+      status: t.status,
+      school: t.tenant,
+      author: t.author.displayName,
+      authorRole: t.author.role,
+      messages: t._count.messages,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    })),
   };
 }
 
 export async function ticketDetail(id: string) {
   const t = await systemDb().supportTicket.findUnique({
     where: { id },
-    include: { tenant: { select: { id: true, name: true, prefix: true } }, author: { select: { displayName: true } }, messages: { orderBy: { createdAt: 'asc' } } },
+    include: {
+      tenant: { select: { id: true, name: true, prefix: true } },
+      author: { select: { displayName: true } },
+      messages: { orderBy: { createdAt: 'asc' } },
+    },
   });
   if (!t) throw notFound('Ticket');
   return {
@@ -36,11 +54,20 @@ export async function ticketDetail(id: string) {
     school: t.tenant,
     author: t.author.displayName,
     createdAt: t.createdAt,
-    messages: t.messages.map((m) => ({ id: m.id, body: m.body, author: m.authorName, fromPlatform: m.fromPlatform, createdAt: m.createdAt })),
+    messages: t.messages.map((m) => ({
+      id: m.id,
+      body: m.body,
+      author: m.authorName,
+      fromPlatform: m.fromPlatform,
+      createdAt: m.createdAt,
+    })),
   };
 }
 
-export const platformReplySchema = z.object({ body: z.string().trim().min(1).max(5000), close: z.boolean().default(false) });
+export const platformReplySchema = z.object({
+  body: z.string().trim().min(1).max(5000),
+  close: z.boolean().default(false),
+});
 
 export async function replyAsPlatform(ctx: AuthedContext, id: string, input: z.infer<typeof platformReplySchema>) {
   const db = systemDb();
@@ -48,12 +75,37 @@ export async function replyAsPlatform(ctx: AuthedContext, id: string, input: z.i
   if (!t) throw notFound('Ticket');
   if (t.status === 'CLOSED' && !input.close) throw new AppError('CONFLICT', 'This ticket is closed');
   await db.$transaction([
-    db.ticketMessage.create({ data: { tenantId: t.tenantId, ticketId: id, authorId: ctx.user.id, authorName: `${ctx.user.displayName} (EDUsaas)`, fromPlatform: true, body: input.body } }),
+    db.ticketMessage.create({
+      data: {
+        tenantId: t.tenantId,
+        ticketId: id,
+        authorId: ctx.user.id,
+        authorName: `${ctx.user.displayName} (EDUsaas)`,
+        fromPlatform: true,
+        body: input.body,
+      },
+    }),
     db.supportTicket.update({ where: { id }, data: { status: input.close ? 'CLOSED' : 'ANSWERED' } }),
     db.notification.create({
-      data: { tenantId: t.tenantId, userId: t.createdBy, kind: 'support', title: 'EDUsaas support replied', body: t.subject, link: '/staff/support' },
+      data: {
+        tenantId: t.tenantId,
+        userId: t.createdBy,
+        kind: 'support',
+        title: 'EDUsaas support replied',
+        body: t.subject,
+        link: '/staff/support',
+      },
     }),
   ]);
-  await recordAudit({ tenantId: t.tenantId, actorId: ctx.user.id, actorRole: ctx.user.role, action: 'ticket.reply', entity: 'SupportTicket', entityId: id, metadata: { closed: input.close }, requestId: ctx.requestId });
+  await recordAudit({
+    tenantId: t.tenantId,
+    actorId: ctx.user.id,
+    actorRole: ctx.user.role,
+    action: 'ticket.reply',
+    entity: 'SupportTicket',
+    entityId: id,
+    metadata: { closed: input.close },
+    requestId: ctx.requestId,
+  });
   return { ok: true };
 }

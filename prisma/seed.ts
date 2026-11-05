@@ -563,6 +563,66 @@ async function chunked<T>(rows: T[], size: number, fn: (part: T[]) => Promise<un
   for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size));
 }
 
+// ── Phase 6 demo: plans, subscriptions, Platform Admin access, a support ticket ──
+async function seedPlatform() {
+  const plans = [
+    { name: 'Starter', priceMonthly: 15000, maxStudents: 300, maxStaff: 30 },
+    { name: 'School', priceMonthly: 45000, maxStudents: 1500, maxStaff: 120 },
+    { name: 'Campus', priceMonthly: 90000, maxStudents: null, maxStaff: null },
+  ];
+  for (const p of plans) await db.plan.upsert({ where: { name: p.name }, create: p, update: {} });
+  const byName = new Map((await db.plan.findMany()).map((p) => [p.name, p.id]));
+  for (const [prefix, plan, status] of [
+    ['bss', 'School', 'ACTIVE'],
+    ['gvs', 'Starter', 'TRIAL'],
+  ] as const) {
+    const t = await db.tenant.findUnique({ where: { prefix } });
+    if (t && !(await db.subscription.findUnique({ where: { tenantId: t.id } })))
+      await db.subscription.create({ data: { tenantId: t.id, planId: byName.get(plan)!, status } });
+  }
+  const owner = await db.user.findFirst({ where: { role: 'PLATFORM_OWNER' } });
+  const ops = await db.user.findFirst({ where: { role: 'PLATFORM_ADMIN', email: 'ops@edusaas.test' } });
+  if (owner && ops && !(await db.platformPermissionGrant.count({ where: { userId: ops.id } })))
+    await db.platformPermissionGrant.createMany({
+      data: ['platform.tenants.read', 'platform.support.queue', 'platform.support.access'].map((permission) => ({
+        userId: ops.id,
+        permission,
+        grantedBy: owner.id,
+      })),
+    });
+  const bss = await db.tenant.findUnique({ where: { prefix: 'bss' } });
+  const admin = bss && (await db.user.findFirst({ where: { tenantId: bss.id, role: 'SCHOOL_ADMIN' } }));
+  if (bss && admin && !(await db.supportTicket.count({ where: { tenantId: bss.id } }))) {
+    const t = await db.supportTicket.create({
+      data: {
+        tenantId: bss.id,
+        createdBy: admin.id,
+        subject: 'How do we print login slips for a whole class?',
+        status: 'ANSWERED',
+      },
+    });
+    await db.ticketMessage.createMany({
+      data: [
+        {
+          tenantId: bss.id,
+          ticketId: t.id,
+          authorId: admin.id,
+          authorName: admin.displayName,
+          body: 'We imported class 7-B. Can we print all their login slips at once?',
+        },
+        {
+          tenantId: bss.id,
+          ticketId: t.id,
+          authorId: (ops ?? owner)!.id,
+          authorName: `${(ops ?? owner)!.displayName} (EDUsaas)`,
+          fromPlatform: true,
+          body: 'Yes — after an import, press “Print slips” on the results screen. For students added earlier, reset their password from the student page to print a new slip.',
+        },
+      ],
+    });
+  }
+}
+
 // ── Phase 4 demo: a few announcements ───────────────────────────────────────
 async function seedAnnouncements(prefix: string) {
   const tenant = await db.tenant.findUniqueOrThrow({ where: { prefix } });
@@ -874,6 +934,7 @@ async function main() {
   await seedOperations('gvs');
   await seedAnnouncements('bss');
   await seedAnnouncements('gvs');
+  await seedPlatform();
   console.log(`Seed complete. Demo password for every account: ${DEMO_PASSWORD}`);
 }
 

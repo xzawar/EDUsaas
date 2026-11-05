@@ -4,7 +4,17 @@ import { z } from 'zod';
 import { toCsv, type Cell } from '@/server/files/csv';
 import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
-import { addDays, attendancePct, inTenant, isoDate, schoolClock, sectionLabel, toDate } from '@/server/school/common';
+import {
+  addDays,
+  attendancePct,
+  countedPeriods,
+  countedPeriodsSql,
+  inTenant,
+  isoDate,
+  schoolClock,
+  sectionLabel,
+  toDate,
+} from '@/server/school/common';
 import { countsByStudent } from '@/server/school/attendance';
 import { gradeFor } from '@/server/school/assessments';
 
@@ -54,9 +64,13 @@ export async function attendanceReport(ctx: AuthedContext, q: z.infer<typeof att
           include: { user: { select: { displayName: true } } },
           orderBy: { rollNumber: 'asc' },
         }),
-        tx.attendanceBatch.count({ where: { sectionId: section.id, period: 1, date: range } }),
+        tx.attendanceBatch.count({
+          where: { sectionId: section.id, ...countedPeriods(clock.attendanceMode), date: range },
+        }),
       ]);
-      const counts = await countsByStudent(tx, { batch: { sectionId: section.id, period: 1, date: range } });
+      const counts = await countsByStudent(tx, {
+        batch: { sectionId: section.id, ...countedPeriods(clock.attendanceMode), date: range },
+      });
       const rows = students.map((s) => {
         const c = counts.get(s.id) ?? zero();
         return { id: s.id, rollNumber: s.rollNumber, name: s.user.displayName, ...c, pct: attendancePct(c) };
@@ -92,10 +106,13 @@ export async function attendanceReport(ctx: AuthedContext, q: z.infer<typeof att
              COUNT(r.id) FILTER (WHERE r.status IN ('PRESENT','LATE')) AS attended,
              COUNT(r.id) FILTER (WHERE r.status IN ('PRESENT','LATE','ABSENT')) AS considered
       FROM attendance_batches b LEFT JOIN attendance_records r ON r.batch_id = b.id
-      WHERE b.period = 1 AND b.date >= ${toDate(from)} AND b.date <= ${toDate(to)}
+      WHERE b.date >= ${toDate(from)} AND b.date <= ${toDate(to)} ${countedPeriodsSql(clock.attendanceMode)}
       GROUP BY b.section_id`;
     const by = new Map(agg.map((a) => [a.section_id, a]));
-    const perStudent = await countsByStudent(tx, { batch: { period: 1, date: range }, student: { status: 'ACTIVE' } });
+    const perStudent = await countsByStudent(tx, {
+      batch: { ...countedPeriods(clock.attendanceMode), date: range },
+      student: { status: 'ACTIVE' },
+    });
     const below = new Map<string, number>();
     const studentSection = new Map(
       (
@@ -344,7 +361,7 @@ export async function atRiskReport(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
     const counts = await countsByStudent(tx, {
-      batch: { date: { gte: year.startsOn }, period: 1 },
+      batch: { date: { gte: year.startsOn }, ...countedPeriods(clock.attendanceMode) },
       student: { status: 'ACTIVE' },
     });
     const risky = [...counts.entries()]
@@ -361,7 +378,7 @@ export async function atRiskReport(ctx: AuthedContext) {
     const info = new Map(students.map((s) => [s.id, s]));
     const lastAbsent = await tx.$queryRaw<{ student_id: string; last: Date }[]>`
       SELECT r.student_id, MAX(b.date) AS last FROM attendance_records r JOIN attendance_batches b ON b.id = r.batch_id
-      WHERE r.status = 'ABSENT' AND b.period = 1 AND b.date >= ${year.startsOn}
+      WHERE r.status = 'ABSENT' AND b.date >= ${year.startsOn} ${countedPeriodsSql(clock.attendanceMode)}
       GROUP BY r.student_id`;
     const last = new Map(lastAbsent.map((l) => [l.student_id, isoDate(l.last)]));
     return {

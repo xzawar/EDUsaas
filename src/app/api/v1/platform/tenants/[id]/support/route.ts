@@ -16,6 +16,7 @@ const guard = (ctx: AuthedContext) => {
 export const GET = defineRoute({
   auth: 'user',
   portals: ['PLATFORM'],
+  anyPermission: ['platform.tenants.manage', 'platform.support.access'],
   handler: async (ctx, { params }) => {
     guard(ctx);
     return tenantSupportSummary(idParam(params));
@@ -26,6 +27,7 @@ export const GET = defineRoute({
 export const POST = defineRoute({
   auth: 'user',
   portals: ['PLATFORM'],
+  anyPermission: ['platform.tenants.manage', 'platform.support.access'],
   input: requestSupportSchema,
   handler: async (ctx, { input, params }) => {
     guard(ctx);
@@ -37,6 +39,7 @@ export const POST = defineRoute({
 export const DELETE = defineRoute({
   auth: 'user',
   portals: ['PLATFORM'],
+  anyPermission: ['platform.tenants.manage', 'platform.support.access'],
   handler: async (ctx, { params }) => {
     guard(ctx);
     return endSupportByPlatform(ctx, idParam(params));
