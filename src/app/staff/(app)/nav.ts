@@ -44,6 +44,8 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   if (ctx.can('reports.read')) school.push({ href: '/staff/reports', label: 'Reports', icon: 'reports' });
   if (ctx.can('audit.read')) school.push({ href: '/staff/audit', label: 'Audit log', icon: 'audit' });
   if (ctx.can('settings.manage')) school.push({ href: '/staff/settings', label: 'Settings', icon: 'settings' });
+  if (ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL')
+    school.push({ href: '/staff/support', label: 'Help & support', icon: 'support' });
   if (school.length) groups.push({ label: 'School', items: school });
 
   const mobileTabs = isTeacher

@@ -13,6 +13,7 @@ type Tenant = {
   city: string | null;
   status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED';
   userCount: number;
+  plan: string | null;
   createdAt: string | Date;
 };
 type Page = { items: Tenant[]; nextCursor: string | null | undefined };
@@ -111,6 +112,7 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
                 <th className="py-2 pr-4 font-medium">School</th>
                 <th className="py-2 pr-4 font-medium">Prefix</th>
                 <th className="py-2 pr-4 font-medium">Accounts</th>
+                <th className="py-2 pr-4 font-medium">Plan</th>
                 <th className="py-2 pr-4 font-medium">Status</th>
                 {canManage && <th className="py-2 font-medium" />}
               </tr>
@@ -130,6 +132,7 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
                   </td>
                   <td className="py-2.5 pr-4 font-mono">{t.prefix}</td>
                   <td className="py-2.5 pr-4 tabular-nums">{t.userCount}</td>
+                  <td className="py-2.5 pr-4 text-slate-600">{t.plan ?? '—'}</td>
                   <td className="py-2.5 pr-4">
                     <Badge tone={STATUS_TONE[t.status]}>{t.status.charAt(0) + t.status.slice(1).toLowerCase()}</Badge>
                   </td>

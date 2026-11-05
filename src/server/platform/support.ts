@@ -21,7 +21,13 @@ import type { AuthedContext } from '@/server/http/route';
 export const requestSupportSchema = z.object({
   reason: z.string().trim().min(10, 'Explain why in a sentence (at least 10 characters)').max(500),
   durationMinutes: z.union([z.literal(30), z.literal(60), z.literal(120), z.literal(240)]),
+  ticketId: z.string().uuid().optional(),
 });
+
+/** Platform console users who may work with support access: the Owner, or a Platform Admin granted it. */
+export function canUseSupportAccess(ctx: AuthedContext) {
+  return ctx.can('platform.tenants.manage') || ctx.can('platform.support.access');
+}
 
 const meta = (ctx: AuthedContext) => ({ requestId: ctx.requestId, ipHash: ctx.ipHash, userAgent: ctx.userAgent });
 
@@ -65,7 +71,7 @@ export async function tenantSupportSummary(tenantId: string) {
     tenant,
     grants,
     active: grants.find((g) => g.status === 'ACTIVE') ?? null,
-    pending: grants.find((g) => g.status === 'PENDING') ?? null,
+    pending: grants.find((g) => g.status === 'PENDING' || g.status === 'AWAITING_OWNER') ?? null,
     // Metadata only: who the School Admins are, so a locked-out school can be helped.
     admins: admins.map((a) => ({
       id: a.id,
@@ -86,12 +92,16 @@ export async function requestSupport(
   const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw notFound('School');
   await expireGrants(tenantId);
-  const open = await db.supportGrant.findFirst({ where: { tenantId, status: { in: ['PENDING', 'ACTIVE'] } } });
+  const open = await db.supportGrant.findFirst({ where: { tenantId, status: { in: ['AWAITING_OWNER', 'PENDING', 'ACTIVE'] } } });
   if (open)
     throw new AppError(
       'CONFLICT',
-      open.status === 'ACTIVE' ? 'Support access is already active' : 'A request is already waiting for the school',
+      open.status === 'ACTIVE' ? 'Support access is already active' : 'A request for this school is already waiting',
     );
+  if (input.ticketId && !(await db.supportTicket.findFirst({ where: { id: input.ticketId, tenantId } })))
+    throw notFound('Ticket');
+  // Spec §9.6: a Platform Admin goes through the same flow with the Platform Owner as approver first.
+  const byAdmin = ctx.user.role === 'PLATFORM_ADMIN';
   const g = await db.supportGrant.create({
     data: {
       tenantId,
@@ -99,6 +109,8 @@ export async function requestSupport(
       requesterName: ctx.user.displayName,
       reason: input.reason,
       durationMinutes: input.durationMinutes,
+      ticketId: input.ticketId ?? null,
+      status: byAdmin ? 'AWAITING_OWNER' : 'PENDING',
     },
   });
   await recordAudit({
@@ -112,18 +124,62 @@ export async function requestSupport(
     supportGrantId: g.id,
     ...meta(ctx),
   });
+  if (!byAdmin) await notifySchoolOfRequest(tenantId, g);
+  return g;
+}
+
+async function notifySchoolOfRequest(tenantId: string, g: { requesterName: string; durationMinutes: number; reason: string }) {
   await notifyAdmins(tenantId, {
     title: 'Support access requested',
-    body: `${ctx.user.displayName} (EDUsaas support) asks for read-only access for ${input.durationMinutes / 60 >= 1 ? `${input.durationMinutes / 60} h` : `${input.durationMinutes} min`}: ${input.reason}`,
+    body: `${g.requesterName} (EDUsaas support) asks for read-only access for ${g.durationMinutes / 60 >= 1 ? `${g.durationMinutes / 60} h` : `${g.durationMinutes} min`}: ${g.reason}`,
     link: '/staff/settings#support',
   });
-  return g;
+}
+
+/** Requests from Platform Admins waiting for the Owner (spec §9.6). */
+export async function awaitingOwner() {
+  const rows = await systemDb().supportGrant.findMany({
+    where: { status: 'AWAITING_OWNER' },
+    orderBy: { createdAt: 'asc' },
+    include: { tenant: { select: { id: true, name: true } } },
+  });
+  return rows.map((g) => ({ id: g.id, school: g.tenant, requester: g.requesterName, reason: g.reason, minutes: g.durationMinutes, createdAt: g.createdAt }));
+}
+
+export const ownerDecisionSchema = z.object({ decision: z.enum(['APPROVE', 'DENY']) });
+
+/** The Owner approves (the request then goes to the school, which still decides) or denies it. */
+export async function ownerDecision(ctx: AuthedContext, id: string, input: z.infer<typeof ownerDecisionSchema>) {
+  const db = systemDb();
+  const g = await db.supportGrant.findUnique({ where: { id } });
+  if (!g || g.status !== 'AWAITING_OWNER') throw notFound('Request');
+  await db.supportGrant.update({
+    where: { id },
+    data: input.decision === 'APPROVE' ? { status: 'PENDING', ownerApprovedBy: ctx.user.id } : { status: 'DENIED', endedAt: new Date() },
+  });
+  await recordAudit({
+    tenantId: g.tenantId,
+    actorId: ctx.user.id,
+    actorRole: ctx.user.role,
+    action: input.decision === 'APPROVE' ? 'support.owner_approve' : 'support.owner_deny',
+    entity: 'SupportGrant',
+    entityId: id,
+    supportGrantId: id,
+    metadata: { requester: g.requesterName },
+    ...meta(ctx),
+  });
+  if (input.decision === 'APPROVE') await notifySchoolOfRequest(g.tenantId, g);
+  return { ok: true };
 }
 
 export async function endSupportByPlatform(ctx: AuthedContext, tenantId: string) {
   const db = systemDb();
-  const g = await db.supportGrant.findFirst({ where: { tenantId, status: { in: ['PENDING', 'ACTIVE'] } } });
+  const g = await db.supportGrant.findFirst({
+    where: { tenantId, status: { in: ['AWAITING_OWNER', 'PENDING', 'ACTIVE'] } },
+  });
   if (!g) throw notFound('Support access');
+  // A Platform Admin can only withdraw or end their own access; the Owner can end anyone's.
+  if (!ctx.can('platform.tenants.manage') && g.requestedBy !== ctx.user.id) throw notFound('Support access');
   await db.supportGrant.update({
     where: { id: g.id },
     data: { status: g.status === 'ACTIVE' ? 'REVOKED' : 'DENIED', endedAt: new Date() },

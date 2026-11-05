@@ -8,6 +8,7 @@ import { generateTemporaryPassword, hashPassword } from '@/server/auth/password'
 import { normalizeUsername, studentUsername, teacherUsername } from '@/server/auth/username';
 import { revokeUserSessions } from '@/server/auth/session';
 import { photoVersion } from '@/server/school/photos';
+import { assertWithinPlan } from '@/server/platform/plans';
 import {
   DAY_MS,
   audit,
@@ -204,6 +205,7 @@ export async function getTeacher(ctx: AuthedContext, id: string) {
 }
 
 export async function createTeacher(ctx: AuthedContext, input: z.infer<typeof createTeacherSchema>) {
+  await assertWithinPlan(ctx.tenantId!, 'staff');
   try {
     return await inTenant(ctx, async (tx) => {
       const username = await nextTeacherUsername(tx, await tenantPrefix(tx), input.displayName);
@@ -326,6 +328,7 @@ export const createStaffSchema = z.object({
 });
 
 export async function createStaff(ctx: AuthedContext, input: z.infer<typeof createStaffSchema>) {
+  await assertWithinPlan(ctx.tenantId!, 'staff');
   try {
     return await inTenant(ctx, async (tx) => {
       const { user, temporaryPassword } = await createLogin(tx, {
@@ -381,6 +384,7 @@ export async function resetUserPassword(ctx: AuthedContext, userId: string) {
 export const setUserStatusSchema = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) });
 
 export async function setUserStatus(ctx: AuthedContext, userId: string, input: z.infer<typeof setUserStatusSchema>) {
+  if (input.status === 'ACTIVE') await assertWithinPlan(ctx.tenantId!, 'staff');
   if (userId === ctx.user.id) throw new AppError('VALIDATION_FAILED', 'You cannot change your own account status');
   await inTenant(ctx, async (tx) => {
     const target = await tx.user.findFirst({ where: { id: userId, deletedAt: null } });
@@ -583,6 +587,7 @@ export async function placeInSection(tx: TenantTx, sectionId: string) {
 }
 
 export async function createStudent(ctx: AuthedContext, input: z.infer<typeof createStudentSchema>) {
+  await assertWithinPlan(ctx.tenantId!, 'students');
   try {
     return await inTenant(ctx, async (tx) => {
       const prefix = await tenantPrefix(tx);
@@ -750,6 +755,7 @@ export async function withdrawStudent(ctx: AuthedContext, id: string) {
 }
 
 export async function restoreStudent(ctx: AuthedContext, id: string) {
+  await assertWithinPlan(ctx.tenantId!, 'students');
   return inTenant(ctx, async (tx) => {
     const s = await tx.student.findUnique({ where: { id } });
     if (!s) throw notFound('Student');
