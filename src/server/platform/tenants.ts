@@ -70,7 +70,9 @@ export async function listTenants(query: z.infer<typeof listTenantsQuery>) {
   const items = rows.slice(0, query.limit).map(({ _count, subscription, ...t }) => ({
     ...t,
     userCount: _count.users,
-    plan: subscription ? `${subscription.plan.name}${subscription.status === 'ACTIVE' ? '' : ` (${subscription.status.toLowerCase().replace('_', ' ')})`}` : null,
+    plan: subscription
+      ? `${subscription.plan.name}${subscription.status === 'ACTIVE' ? '' : ` (${subscription.status.toLowerCase().replace('_', ' ')})`}`
+      : null,
   }));
   return { items, nextCursor: hasMore ? items[items.length - 1]?.id : null };
 }

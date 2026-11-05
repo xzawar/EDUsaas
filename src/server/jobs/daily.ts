@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { purgeExpiredCredentials } from '@/server/auth/service';
 import { purgeRateLimits } from '@/server/auth/ratelimit';
 import { recordAudit } from '@/server/audit/audit';
+import { reportError } from '@/server/monitoring';
+import { countedPeriodsSql } from '@/server/school/common';
 import { systemDb } from '@/server/db/system';
 import { expireGrants } from '@/server/platform/support';
 import { refreshDemoData } from '@/server/jobs/demo';
@@ -111,7 +113,7 @@ export async function atRiskDigest(now = new Date(), force = false) {
   const db = systemDb();
   const tenants = await db.tenant.findMany({
     where: { status: { not: 'SUSPENDED' } },
-    select: { id: true, settings: { select: { timezone: true, atRiskThreshold: true } } },
+    select: { id: true, settings: { select: { timezone: true, atRiskThreshold: true, attendanceMode: true } } },
   });
   let sent = 0;
   for (const t of tenants) {
@@ -128,7 +130,7 @@ export async function atRiskDigest(now = new Date(), force = false) {
                COUNT(*) FILTER (WHERE r.status IN ('PRESENT','LATE','ABSENT')) AS considered
         FROM students s
         JOIN attendance_records r ON r.student_id = s.id
-        JOIN attendance_batches b ON b.id = r.batch_id AND b.period = 1
+        JOIN attendance_batches b ON b.id = r.batch_id ${countedPeriodsSql(t.settings?.attendanceMode ?? 'ONCE_DAILY')}
         JOIN sections sec ON sec.id = s.section_id
         JOIN classes c ON c.id = sec.class_id
         JOIN academic_years y ON y.id = c.academic_year_id AND y.status = 'CURRENT' AND b.date >= y.starts_on
@@ -176,6 +178,7 @@ export async function runDaily(now = new Date()) {
     } catch (e) {
       results[name] = { error: (e as Error).message };
       console.error(`daily job ${name} failed`, e);
+      await reportError(e, { job: name });
     }
   };
   await step('credentials', () => purgeExpiredCredentials());

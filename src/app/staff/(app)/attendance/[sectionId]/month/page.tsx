@@ -22,16 +22,18 @@ export default async function MonthPage({
   searchParams,
 }: {
   params: Promise<{ sectionId: string }>;
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; period?: string }>;
 }) {
   const ctx = await requirePortal('STAFF');
   const { sectionId } = await params;
-  const { month } = await searchParams;
+  const { month, period } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(sectionId)) notFound();
-  const grid = await sectionGrid(ctx, sectionId, month).catch((e) => {
-    if (e instanceof AppError && e.code === 'NOT_FOUND') notFound();
-    throw e;
-  });
+  const grid = await sectionGrid(ctx, sectionId, month, period && /^\d{1,2}$/.test(period) ? Number(period) : 1).catch(
+    (e) => {
+      if (e instanceof AppError && e.code === 'NOT_FOUND') notFound();
+      throw e;
+    },
+  );
   const clock = await inTenant(ctx, (tx) => schoolClock(tx));
   const title = new Date(`${grid.month}-01T00:00:00Z`).toLocaleDateString('en-GB', {
     month: 'long',

@@ -59,6 +59,46 @@ export async function createLeaveType(ctx: AuthedContext, input: z.infer<typeof 
   }
 }
 
+/** Settings view: every type, including retired ones, with how often each was used. */
+export async function allLeaveTypes(ctx: AuthedContext) {
+  return inTenant(ctx, async (tx) => {
+    await ensureTypes(tx, ctx.tenantId!);
+    const rows = await tx.leaveType.findMany({
+      orderBy: [{ archivedAt: 'asc' }, { name: 'asc' }],
+      include: { _count: { select: { requests: true } } },
+    });
+    return rows.map(({ _count, ...t }) => ({ ...t, used: _count.requests }));
+  });
+}
+
+export const updateLeaveTypeSchema = z
+  .object({ forStudents: z.boolean().optional(), forStaff: z.boolean().optional(), archived: z.boolean().optional() })
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
+
+/** Types are retired, never deleted, so past requests keep their label. */
+export async function updateLeaveType(ctx: AuthedContext, id: string, input: z.infer<typeof updateLeaveTypeSchema>) {
+  return inTenant(ctx, async (tx) => {
+    const before = await tx.leaveType.findUnique({ where: { id } });
+    if (!before) throw notFound('Leave type');
+    const t = await tx.leaveType.update({
+      where: { id },
+      data: {
+        forStudents: input.forStudents,
+        forStaff: input.forStaff,
+        archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
+      },
+    });
+    await audit(ctx, tx, {
+      action: 'leave_type.update',
+      entity: 'LeaveType',
+      entityId: id,
+      before: { forStudents: before.forStudents, forStaff: before.forStaff, archived: !!before.archivedAt },
+      after: { forStudents: t.forStudents, forStaff: t.forStaff, archived: !!t.archivedAt },
+    });
+    return t;
+  });
+}
+
 export const applySchema = z
   .object({
     typeId: z.string().uuid(),

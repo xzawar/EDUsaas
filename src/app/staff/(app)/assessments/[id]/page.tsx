@@ -28,7 +28,7 @@ export default async function AssessmentPage({ params }: { params: Promise<{ id:
         title={a.name}
         description={`${a.section} · ${a.subject} · ${new Date(`${a.heldOn}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })} · out of ${a.maxMarks}`}
       />
-      <MarksSheet sheet={JSON.parse(JSON.stringify(a))} />
+      <MarksSheet sheet={JSON.parse(JSON.stringify(a))} userId={ctx.user.id} />
     </>
   );
 }

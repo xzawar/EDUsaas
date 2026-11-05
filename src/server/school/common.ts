@@ -161,3 +161,14 @@ export function attendancePct(c: {
 
 export const ATTENDANCE_CORRECTION_DAYS = 3;
 export const MARKS_CORRECTION_DAYS = 7;
+
+/**
+ * Which registers count towards attendance % (spec §6.1, §6.6): once-daily schools use the first-period register;
+ * per-period schools count every period's register (each period is a row).
+ */
+export function countedPeriods(mode: string): { period?: number } {
+  return mode === 'PER_PERIOD' ? {} : { period: 1 };
+}
+export function countedPeriodsSql(mode: string, alias = 'b') {
+  return mode === 'PER_PERIOD' ? Prisma.empty : Prisma.sql`AND ${Prisma.raw(alias)}.period = 1`;
+}

@@ -14,6 +14,8 @@ type Status = 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE' | 'EXCUSED';
 type Sheet = {
   section: { id: string; label: string };
   date: string;
+  period: number;
+  mode: string;
   today: string;
   timezone: string;
   submitted: { at: string | Date; by: string; syncedLate: boolean } | null;
@@ -47,7 +49,7 @@ export function Register({ sheet, userId }: { sheet: Sheet; userId: string }) {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [queued, setQueued] = useState(false);
-  const queueKey = `${sheet.section.id}:${sheet.date}`;
+  const queueKey = `${sheet.section.id}:${sheet.date}:${sheet.period}`;
 
   useEffect(() => {
     void pending(userId).then((items) => setQueued(items.some((i) => i.label.endsWith(queueKey))));
@@ -75,6 +77,7 @@ export function Register({ sheet, userId }: { sheet: Sheet; userId: string }) {
     const body = {
       sectionId: sheet.section.id,
       date: sheet.date,
+      period: sheet.period,
       clientUuid: crypto.randomUUID(),
       clientRecordedAt: new Date().toISOString(),
       records,

@@ -59,7 +59,7 @@ async function replay() {
   });
   for (const item of items) {
     const res = await fetch(item.url, {
-      method: 'POST',
+      method: item.method || 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(item.body),
       credentials: 'same-origin',

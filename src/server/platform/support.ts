@@ -92,7 +92,9 @@ export async function requestSupport(
   const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw notFound('School');
   await expireGrants(tenantId);
-  const open = await db.supportGrant.findFirst({ where: { tenantId, status: { in: ['AWAITING_OWNER', 'PENDING', 'ACTIVE'] } } });
+  const open = await db.supportGrant.findFirst({
+    where: { tenantId, status: { in: ['AWAITING_OWNER', 'PENDING', 'ACTIVE'] } },
+  });
   if (open)
     throw new AppError(
       'CONFLICT',
@@ -128,7 +130,10 @@ export async function requestSupport(
   return g;
 }
 
-async function notifySchoolOfRequest(tenantId: string, g: { requesterName: string; durationMinutes: number; reason: string }) {
+async function notifySchoolOfRequest(
+  tenantId: string,
+  g: { requesterName: string; durationMinutes: number; reason: string },
+) {
   await notifyAdmins(tenantId, {
     title: 'Support access requested',
     body: `${g.requesterName} (EDUsaas support) asks for read-only access for ${g.durationMinutes / 60 >= 1 ? `${g.durationMinutes / 60} h` : `${g.durationMinutes} min`}: ${g.reason}`,
@@ -143,7 +148,14 @@ export async function awaitingOwner() {
     orderBy: { createdAt: 'asc' },
     include: { tenant: { select: { id: true, name: true } } },
   });
-  return rows.map((g) => ({ id: g.id, school: g.tenant, requester: g.requesterName, reason: g.reason, minutes: g.durationMinutes, createdAt: g.createdAt }));
+  return rows.map((g) => ({
+    id: g.id,
+    school: g.tenant,
+    requester: g.requesterName,
+    reason: g.reason,
+    minutes: g.durationMinutes,
+    createdAt: g.createdAt,
+  }));
 }
 
 export const ownerDecisionSchema = z.object({ decision: z.enum(['APPROVE', 'DENY']) });
@@ -155,7 +167,10 @@ export async function ownerDecision(ctx: AuthedContext, id: string, input: z.inf
   if (!g || g.status !== 'AWAITING_OWNER') throw notFound('Request');
   await db.supportGrant.update({
     where: { id },
-    data: input.decision === 'APPROVE' ? { status: 'PENDING', ownerApprovedBy: ctx.user.id } : { status: 'DENIED', endedAt: new Date() },
+    data:
+      input.decision === 'APPROVE'
+        ? { status: 'PENDING', ownerApprovedBy: ctx.user.id }
+        : { status: 'DENIED', endedAt: new Date() },
   });
   await recordAudit({
     tenantId: g.tenantId,

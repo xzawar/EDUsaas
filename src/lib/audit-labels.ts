@@ -30,6 +30,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'leave.reject': 'Leave not approved',
   'leave.cancel': 'Leave cancelled',
   'leave_type.create': 'Leave type added',
+  'leave_type.update': 'Leave type changed',
   'assessment.create': 'Test created',
   'assessment.delete': 'Test deleted',
   'marks.submit': 'Marks submitted',
