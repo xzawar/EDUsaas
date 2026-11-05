@@ -5,6 +5,7 @@ import { purgeRateLimits } from '@/server/auth/ratelimit';
 import { recordAudit } from '@/server/audit/audit';
 import { systemDb } from '@/server/db/system';
 import { expireGrants } from '@/server/platform/support';
+import { refreshDemoData } from '@/server/jobs/demo';
 
 /**
  * Daily maintenance (cron, decision D8). Each step is independent and idempotent, so a missed or repeated run is
@@ -186,5 +187,6 @@ export async function runDaily(now = new Date()) {
   await step('atRiskDigests', () => atRiskDigest(now));
   await step('studentsAnonymized', () => anonymizeWithdrawn(now));
   await step('auditArchive', () => auditArchival());
+  await step('demoData', () => refreshDemoData(now));
   return results;
 }
