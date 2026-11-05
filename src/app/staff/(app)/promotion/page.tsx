@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/AppShell';
 import { PromotionWizard } from '@/components/academics/PromotionWizard';
+import { YearArchiveCard } from '@/components/academics/YearArchiveCard';
+import { storage } from '@/server/files/storage';
+import { yearArchiveJobs } from '@/server/school/archives';
 import { Badge, Card, Table, Td, Th } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { listPromotionJobs, promotionCandidates } from '@/server/school/promotion';
@@ -21,10 +24,11 @@ export default async function PromotionPage({
     years.find((y) => y.id === sp.to && y.id !== from?.id) ??
     years.find((y) => y.status === 'PLANNED' && y.id !== from?.id) ??
     null;
-  const [candidates, targets, jobs] = await Promise.all([
+  const [candidates, targets, jobs, archives] = await Promise.all([
     from && to ? promotionCandidates(ctx, from.id) : Promise.resolve([]),
     to ? listSections(ctx, to.id) : Promise.resolve([]),
     listPromotionJobs(ctx),
+    yearArchiveJobs(ctx),
   ]);
   return (
     <>
@@ -47,6 +51,7 @@ export default async function PromotionPage({
           capacity: t.capacity,
         }))}
       />
+      <YearArchiveCard jobs={archives} storageReady={!!storage()} />
       {jobs.length > 0 && (
         <Card className="mt-6" title="Previous promotions">
           <Table>

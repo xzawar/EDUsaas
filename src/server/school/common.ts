@@ -93,3 +93,82 @@ export async function teacherScope(tx: TenantTx, userId: string) {
 export function sectionLabel(s: { name: string; class: { name: string } }) {
   return `${s.class.name}-${s.name}`;
 }
+
+// ── School-local dates (decision D6) ────────────────────────────────────────
+
+/** YYYY-MM-DD for an instant in a timezone. */
+export function dateInTz(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    instant,
+  );
+}
+
+/** HH:MM for an instant in a timezone. */
+export function timeInTz(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(
+    instant,
+  );
+}
+
+export function addDays(isoDay: string, days: number): string {
+  const d = new Date(`${isoDay}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 1 = Monday … 7 = Sunday */
+export function weekday(isoDay: string): number {
+  const d = new Date(`${isoDay}T00:00:00.000Z`).getUTCDay();
+  return d === 0 ? 7 : d;
+}
+
+export async function schoolClock(tx: TenantTx) {
+  const s = await tx.tenantSettings.findFirst({
+    select: {
+      timezone: true,
+      atRiskThreshold: true,
+      leaveAgeOutHours: true,
+      marksPublisher: true,
+      attendanceMode: true,
+    },
+  });
+  const timezone = s?.timezone ?? 'Asia/Karachi';
+  const now = new Date();
+  return {
+    timezone,
+    now,
+    today: dateInTz(now, timezone),
+    time: timeInTz(now, timezone),
+    atRiskThreshold: s?.atRiskThreshold ?? 75,
+    leaveAgeOutHours: s?.leaveAgeOutHours ?? 48,
+    marksPublisher: s?.marksPublisher ?? 'SCHOOL_ADMIN',
+    attendanceMode: s?.attendanceMode ?? 'ONCE_DAILY',
+  };
+}
+
+/** Attendance % rules (shown in the UI): Present + Late count as attended; approved Leave and Excused days don't count against. */
+export function attendancePct(c: {
+  PRESENT: number;
+  LATE: number;
+  ABSENT: number;
+  LEAVE: number;
+  EXCUSED: number;
+}): number | null {
+  const considered = c.PRESENT + c.LATE + c.ABSENT;
+  if (considered === 0) return null;
+  return Math.round(((c.PRESENT + c.LATE) / considered) * 1000) / 10;
+}
+
+export const ATTENDANCE_CORRECTION_DAYS = 3;
+export const MARKS_CORRECTION_DAYS = 7;
+
+/**
+ * Which registers count towards attendance % (spec §6.1, §6.6): once-daily schools use the first-period register;
+ * per-period schools count every period's register (each period is a row).
+ */
+export function countedPeriods(mode: string): { period?: number } {
+  return mode === 'PER_PERIOD' ? {} : { period: 1 };
+}
+export function countedPeriodsSql(mode: string, alias = 'b') {
+  return mode === 'PER_PERIOD' ? Prisma.empty : Prisma.sql`AND ${Prisma.raw(alias)}.period = 1`;
+}

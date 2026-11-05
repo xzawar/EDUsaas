@@ -14,6 +14,8 @@ export function middleware(request: NextRequest) {
     "img-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -29,5 +31,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [{ source: '/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)' }],
+  matcher: [
+    { source: '/((?!api|_next/static|_next/image|favicon.ico|icon.svg|sw.js|offline.html|manifest.webmanifest).*)' },
+  ],
 };

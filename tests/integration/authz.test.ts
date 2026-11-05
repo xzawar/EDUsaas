@@ -38,6 +38,77 @@ import * as studentRestore from '@/app/api/v1/students/[id]/restore/route';
 import * as studentReset from '@/app/api/v1/students/[id]/reset-password/route';
 import * as promotions from '@/app/api/v1/promotions/route';
 import * as promotionPreview from '@/app/api/v1/promotions/preview/route';
+import * as attSheet from '@/app/api/v1/attendance/sheet/route';
+import * as attBatches from '@/app/api/v1/attendance/batches/route';
+import * as attGrid from '@/app/api/v1/attendance/grid/route';
+import * as attRecords from '@/app/api/v1/attendance/records/route';
+import * as attMe from '@/app/api/v1/attendance/me/route';
+import * as checkIn from '@/app/api/v1/teacher-attendance/check-in/route';
+import * as teacherAtt from '@/app/api/v1/teacher-attendance/route';
+import * as leave from '@/app/api/v1/leave/route';
+import * as leaveTypes from '@/app/api/v1/leave/types/route';
+import * as leaveApprovals from '@/app/api/v1/leave/approvals/route';
+import * as leaveDecision from '@/app/api/v1/leave/[id]/decision/route';
+import * as leaveCancel from '@/app/api/v1/leave/[id]/cancel/route';
+import * as assessments from '@/app/api/v1/assessments/route';
+import * as assessmentById from '@/app/api/v1/assessments/[id]/route';
+import * as assessmentMarks from '@/app/api/v1/assessments/[id]/marks/route';
+import * as assessmentPublish from '@/app/api/v1/assessments/[id]/publish/route';
+import * as resultsMe from '@/app/api/v1/results/me/route';
+import * as grading from '@/app/api/v1/grading-scheme/route';
+import * as remarks from '@/app/api/v1/remarks/route';
+import * as remarksQueue from '@/app/api/v1/remarks/queue/route';
+import * as remarkModerate from '@/app/api/v1/remarks/[id]/moderate/route';
+import * as ttPeriods from '@/app/api/v1/timetable/periods/route';
+import * as ttEntries from '@/app/api/v1/timetable/entries/route';
+import * as ttMe from '@/app/api/v1/timetable/me/route';
+import * as ttSection from '@/app/api/v1/timetable/sections/[id]/route';
+import * as notifications from '@/app/api/v1/notifications/route';
+import * as imports from '@/app/api/v1/imports/route';
+import * as importStudents from '@/app/api/v1/imports/students/route';
+import * as importTemplate from '@/app/api/v1/imports/students/template/route';
+import * as importById from '@/app/api/v1/imports/[id]/route';
+import * as importCommit from '@/app/api/v1/imports/[id]/commit/route';
+import * as repAttendance from '@/app/api/v1/reports/attendance/route';
+import * as repMarks from '@/app/api/v1/reports/marks/route';
+import * as repAtRisk from '@/app/api/v1/reports/at-risk/route';
+import * as searchRoute from '@/app/api/v1/search/route';
+import * as announcements from '@/app/api/v1/announcements/route';
+import * as announcementById from '@/app/api/v1/announcements/[id]/route';
+import * as auditLogs from '@/app/api/v1/audit-logs/route';
+import * as tenantSupport from '@/app/api/v1/platform/tenants/[id]/support/route';
+import * as tenantSupportView from '@/app/api/v1/platform/tenants/[id]/support/view/route';
+import * as tenantAdminReset from '@/app/api/v1/platform/tenants/[id]/admin-reset/route';
+import * as supportGrants from '@/app/api/v1/support-grants/route';
+import * as supportDecision from '@/app/api/v1/support-grants/[id]/decision/route';
+import * as reportCard from '@/app/api/v1/students/[id]/report-card/route';
+import * as reportCardMe from '@/app/api/v1/report-card/me/route';
+import * as studentPhoto from '@/app/api/v1/students/[id]/photo/route';
+import * as teacherPhoto from '@/app/api/v1/teachers/[id]/photo/route';
+import * as mePhoto from '@/app/api/v1/me/photo/route';
+import * as promoArchive from '@/app/api/v1/promotions/archive/route';
+import * as promoArchiveById from '@/app/api/v1/promotions/archive/[id]/route';
+import * as studentArchivesRoute from '@/app/api/v1/students/[id]/archives/route';
+import * as archiveById from '@/app/api/v1/archives/[id]/route';
+import * as myArchivesRoute from '@/app/api/v1/report-card/archives/route';
+import * as auditArchives from '@/app/api/v1/audit-logs/archives/route';
+import * as auditArchiveMonth from '@/app/api/v1/audit-logs/archives/[month]/route';
+import * as pAdmins from '@/app/api/v1/platform/admins/route';
+import * as pAdminById from '@/app/api/v1/platform/admins/[id]/route';
+import * as pAdminReset from '@/app/api/v1/platform/admins/[id]/reset-password/route';
+import * as pPlans from '@/app/api/v1/platform/plans/route';
+import * as pPlanById from '@/app/api/v1/platform/plans/[id]/route';
+import * as pSubscription from '@/app/api/v1/platform/tenants/[id]/subscription/route';
+import * as pTickets from '@/app/api/v1/platform/tickets/route';
+import * as pTicketById from '@/app/api/v1/platform/tickets/[id]/route';
+import * as pTicketReply from '@/app/api/v1/platform/tickets/[id]/reply/route';
+import * as pSupportRequests from '@/app/api/v1/platform/support-requests/route';
+import * as pSupportRequestById from '@/app/api/v1/platform/support-requests/[id]/route';
+import * as pAudit from '@/app/api/v1/platform/audit/route';
+import * as sTickets from '@/app/api/v1/support/tickets/route';
+import * as sTicketReply from '@/app/api/v1/support/tickets/[id]/reply/route';
+import * as sTicketClose from '@/app/api/v1/support/tickets/[id]/close/route';
+import * as leaveTypeById from '@/app/api/v1/leave/types/[id]/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -371,6 +442,568 @@ const MATRIX: Row[] = [
     }),
     expect: only({ SCHOOL_ADMIN: 200 }),
   },
+  // ── Phase 3: attendance ───────────────────────────────────────────────────
+  {
+    key: 'GET /api/v1/attendance/sheet',
+    handler: attSheet.GET,
+    request: (f) => ({ path: `/api/v1/attendance/sheet?sectionId=${f.s.sectionA8A}` }),
+    // Admissions has neither attendance.submit nor attendance.oversee: the section is invisible to them.
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/attendance/batches',
+    handler: attBatches.POST,
+    // Unknown section + unknown student: overseers reach validation (422); others are out of scope (403).
+    request: () => ({
+      body: {
+        sectionId: MISSING,
+        date: '2026-09-01',
+        clientUuid: crypto.randomUUID(),
+        records: [{ studentId: MISSING, status: 'PRESENT' }],
+      },
+    }),
+    expect: only({ SCHOOL_ADMIN: 422, PRINCIPAL: 422 }),
+  },
+  {
+    key: 'GET /api/v1/attendance/grid',
+    handler: attGrid.GET,
+    request: (f) => ({ path: `/api/v1/attendance/grid?sectionId=${f.s.sectionA8A}&month=2026-09` }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/attendance/records',
+    handler: attRecords.POST,
+    // A day long past: only overseers may still change it; the teacher's 3-day window is closed.
+    request: (f) => ({
+      body: { sectionId: f.s.sectionA8A, date: '2026-04-02', studentId: f.s.studentA, status: 'LATE' },
+    }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 403, ADMISSIONS_OFFICER: 404 }),
+  },
+  { key: 'GET /api/v1/attendance/me', handler: attMe.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
+  {
+    key: 'POST /api/v1/teacher-attendance/check-in',
+    handler: checkIn.POST,
+    request: () => ({ body: {} }),
+    expect: only({ TEACHER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/teacher-attendance',
+    handler: teacherAtt.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'PUT /api/v1/teacher-attendance',
+    handler: teacherAtt.PUT,
+    request: () => ({ method: 'PUT', body: { teacherId: MISSING, date: '2026-09-01', status: 'PRESENT' } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+  },
+  // ── Phase 3: leave ────────────────────────────────────────────────────────
+  {
+    key: 'GET /api/v1/leave',
+    handler: leave.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/leave',
+    handler: leave.POST,
+    // Unknown leave type → 422 for everyone allowed to apply; nothing is created.
+    request: () => ({
+      body: { typeId: MISSING, fromDate: '2099-01-01', toDate: '2099-01-02', reason: 'Matrix check' },
+    }),
+    expect: only({ STUDENT: 422, TEACHER: 422, PRINCIPAL: 422, SCHOOL_ADMIN: 422 }),
+  },
+  {
+    key: 'GET /api/v1/leave/types',
+    handler: leaveTypes.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/leave/types',
+    handler: leaveTypes.POST,
+    request: () => ({ body: { name: `Matrix leave ${++n}` } }),
+    expect: only({ SCHOOL_ADMIN: 201 }),
+  },
+  { key: 'GET /api/v1/leave/approvals', handler: leaveApprovals.GET, request: () => ({}), expect: STAFF_ANY },
+  {
+    key: 'POST /api/v1/leave/[id]/decision',
+    handler: leaveDecision.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVED' } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/leave/[id]/cancel',
+    handler: leaveCancel.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404 }),
+  },
+  // ── Phase 3: tests, marks, grading, remarks ───────────────────────────────
+  {
+    key: 'GET /api/v1/assessments',
+    handler: assessments.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/assessments',
+    handler: assessments.POST,
+    // English in 8-A: the fixture teacher teaches only Mathematics there.
+    request: (f) => ({
+      body: {
+        sectionId: f.s.sectionA8A,
+        subjectId: f.s.subjEng,
+        name: 'Matrix test',
+        maxMarks: 10,
+        heldOn: '2099-01-01',
+      },
+    }),
+    expect: only({ SCHOOL_ADMIN: 422 }),
+  },
+  {
+    key: 'GET /api/v1/assessments/[id]',
+    handler: assessmentById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  {
+    key: 'DELETE /api/v1/assessments/[id]',
+    handler: assessmentById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  {
+    key: 'PUT /api/v1/assessments/[id]/marks',
+    handler: assessmentMarks.PUT,
+    request: () => ({ method: 'PUT', params: { id: MISSING }, body: { marks: [], submit: false } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/assessments/[id]/publish',
+    handler: assessmentPublish.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  { key: 'GET /api/v1/results/me', handler: resultsMe.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
+  { key: 'GET /api/v1/grading-scheme', handler: grading.GET, request: () => ({}), expect: STAFF_ANY },
+  {
+    key: 'PUT /api/v1/grading-scheme',
+    handler: grading.PUT,
+    // Only one band: invalid, so nothing changes.
+    request: () => ({ method: 'PUT', body: { bands: [{ grade: 'A', min: 0 }] } }),
+    expect: only({ SCHOOL_ADMIN: 422 }),
+  },
+  {
+    key: 'POST /api/v1/remarks',
+    handler: remarks.POST,
+    request: () => ({ body: { studentId: MISSING, text: 'Matrix remark' } }),
+    expect: only({ SCHOOL_ADMIN: 404, TEACHER: 404 }),
+  },
+  { key: 'GET /api/v1/remarks/queue', handler: remarksQueue.GET, request: () => ({}), expect: STAFF_ANY },
+  {
+    key: 'POST /api/v1/remarks/[id]/moderate',
+    handler: remarkModerate.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVED' } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  // ── Phase 3: timetable & notifications ────────────────────────────────────
+  {
+    key: 'GET /api/v1/timetable/periods',
+    handler: ttPeriods.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'PUT /api/v1/timetable/periods',
+    handler: ttPeriods.PUT,
+    request: () => ({ method: 'PUT', body: { days: [], periods: [] } }),
+    expect: only({ SCHOOL_ADMIN: 422 }),
+  },
+  {
+    key: 'PUT /api/v1/timetable/entries',
+    handler: ttEntries.PUT,
+    request: (f) => ({ method: 'PUT', body: { sectionId: f.s.sectionA8A, slotId: MISSING, subjectId: null } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'GET /api/v1/timetable/me',
+    handler: ttMe.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/timetable/sections/[id]',
+    handler: ttSection.GET,
+    request: (f) => ({ params: { id: f.s.sectionA8A } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/notifications',
+    handler: notifications.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/notifications',
+    handler: notifications.POST,
+    request: () => ({ body: {} }),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  // ── Phase 4: import, reports, search, announcements, audit ────────────────
+  {
+    key: 'GET /api/v1/imports',
+    handler: imports.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/imports/students',
+    handler: importStudents.POST,
+    // A CSV without the template's columns → 422; nothing is stored.
+    request: () => ({
+      body: { fileName: 'x.csv', data: Buffer.from('hello\n1').toString('base64'), clientKey: crypto.randomUUID() },
+    }),
+    expect: only({ SCHOOL_ADMIN: 422, ADMISSIONS_OFFICER: 422 }),
+  },
+  {
+    key: 'GET /api/v1/imports/students/template',
+    handler: importTemplate.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/imports/[id]',
+    handler: importById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/imports/[id]/commit',
+    handler: importCommit.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/reports/attendance',
+    handler: repAttendance.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/reports/marks',
+    handler: repMarks.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/reports/at-risk',
+    handler: repAtRisk.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/search',
+    handler: searchRoute.GET,
+    request: () => ({ path: '/api/v1/search?q=student' }),
+    expect: only({ TEACHER: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/announcements',
+    handler: announcements.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/announcements',
+    handler: announcements.POST,
+    request: () => ({ body: { title: 'x', body: 'Matrix', audience: 'EVERYONE' } }),
+    expect: only({ SCHOOL_ADMIN: 422, PRINCIPAL: 422 }),
+  },
+  {
+    key: 'DELETE /api/v1/announcements/[id]',
+    handler: announcementById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+  },
+  {
+    key: 'GET /api/v1/audit-logs',
+    handler: auditLogs.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  // ── Phase 5: support access, report cards ─────────────────────────────────
+  {
+    key: 'GET /api/v1/platform/tenants/[id]/support',
+    handler: tenantSupport.GET,
+    request: (f) => ({ params: { id: f.tenantA.id } }),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/platform/tenants/[id]/support',
+    handler: tenantSupport.POST,
+    request: (f) => ({ params: { id: f.tenantA.id }, body: { reason: 'short', durationMinutes: 60 } }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'DELETE /api/v1/platform/tenants/[id]/support',
+    handler: tenantSupport.DELETE,
+    request: (f) => ({ method: 'DELETE', params: { id: f.tenantA.id } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/tenants/[id]/support/view',
+    handler: tenantSupportView.GET,
+    // No grant: even the owner is refused. That is the point.
+    request: (f) => ({ params: { id: f.tenantA.id } }),
+    expect: only({}),
+  },
+  {
+    key: 'POST /api/v1/platform/tenants/[id]/admin-reset',
+    handler: tenantAdminReset.POST,
+    request: (f) => ({
+      params: { id: f.tenantA.id },
+      body: { userId: f.a.SCHOOL_ADMIN.id, reason: 'Matrix check only', confirm: 'NO' },
+    }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'GET /api/v1/support-grants',
+    handler: supportGrants.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/support-grants/[id]/decision',
+    handler: supportDecision.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVE' } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/report-card',
+    handler: reportCard.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
+  { key: 'GET /api/v1/report-card/me', handler: reportCardMe.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
+  // ── Phase 6: photos, archives, platform, tickets, leave types ─────────────
+  {
+    key: 'GET /api/v1/students/[id]/photo',
+    handler: studentPhoto.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: only({ TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }), // no photo yet
+  },
+  {
+    key: 'PUT /api/v1/students/[id]/photo',
+    handler: studentPhoto.PUT,
+    request: (f) => ({
+      method: 'PUT',
+      params: { id: f.s.studentA },
+      body: { data: Buffer.from('definitely not an image').toString('base64') },
+    }),
+    expect: only({ SCHOOL_ADMIN: 422, ADMISSIONS_OFFICER: 422 }),
+  },
+  {
+    key: 'DELETE /api/v1/students/[id]/photo',
+    handler: studentPhoto.DELETE,
+    request: (f) => ({ method: 'DELETE', params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/teachers/[id]/photo',
+    handler: teacherPhoto.GET,
+    request: (f) => ({ params: { id: f.s.teacherA } }),
+    expect: only({ TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'PUT /api/v1/teachers/[id]/photo',
+    handler: teacherPhoto.PUT,
+    request: (f) => ({
+      method: 'PUT',
+      params: { id: f.s.teacherA },
+      body: { data: Buffer.from('definitely not an image').toString('base64') },
+    }),
+    expect: only({ SCHOOL_ADMIN: 422 }),
+  },
+  {
+    key: 'DELETE /api/v1/teachers/[id]/photo',
+    handler: teacherPhoto.DELETE,
+    request: (f) => ({ method: 'DELETE', params: { id: f.s.teacherA } }),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/me/photo',
+    handler: mePhoto.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/promotions/archive',
+    handler: promoArchive.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/promotions/archive/[id]',
+    handler: promoArchiveById.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/archives',
+    handler: studentArchivesRoute.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    // Admissions has no marks access, so no report cards.
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/archives/[id]',
+    handler: archiveById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/report-card/archives',
+    handler: myArchivesRoute.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200 }),
+  },
+  {
+    key: 'GET /api/v1/audit-logs/archives',
+    handler: auditArchives.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'GET /api/v1/audit-logs/archives/[month]',
+    handler: auditArchiveMonth.GET,
+    request: () => ({ params: { month: '2020-01' } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/admins',
+    handler: pAdmins.GET,
+    request: () => ({}),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/platform/admins',
+    handler: pAdmins.POST,
+    request: () => ({ body: { displayName: 'Ops Two', email: 'not-an-email' } }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'PATCH /api/v1/platform/admins/[id]',
+    handler: pAdminById.PATCH,
+    request: (f) => ({ method: 'PATCH', params: { id: f.platformAdmin.id }, body: {} }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'POST /api/v1/platform/admins/[id]/reset-password',
+    handler: pAdminReset.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/plans',
+    handler: pPlans.GET,
+    request: () => ({}),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/platform/plans',
+    handler: pPlans.POST,
+    request: () => ({ body: { name: 'x', priceMonthly: 0, maxStudents: null, maxStaff: null } }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'PUT /api/v1/platform/plans/[id]',
+    handler: pPlanById.PUT,
+    request: () => ({
+      method: 'PUT',
+      params: { id: MISSING },
+      body: { name: 'Gone', priceMonthly: 0, maxStudents: null, maxStaff: null },
+    }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/tenants/[id]/subscription',
+    handler: pSubscription.GET,
+    request: (f) => ({ params: { id: f.tenantA.id } }),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'PUT /api/v1/platform/tenants/[id]/subscription',
+    handler: pSubscription.PUT,
+    request: (f) => ({ method: 'PUT', params: { id: f.tenantA.id }, body: { planId: MISSING, status: 'ACTIVE' } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/tickets',
+    handler: pTickets.GET,
+    request: () => ({}),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/platform/tickets/[id]',
+    handler: pTicketById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'POST /api/v1/platform/tickets/[id]/reply',
+    handler: pTicketReply.POST,
+    request: () => ({ params: { id: MISSING }, body: { body: 'Hello' } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/support-requests',
+    handler: pSupportRequests.GET,
+    request: () => ({}),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/platform/support-requests/[id]',
+    handler: pSupportRequestById.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVE' } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/audit',
+    handler: pAudit.GET,
+    request: () => ({}),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'GET /api/v1/support/tickets',
+    handler: sTickets.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+  },
+  {
+    key: 'POST /api/v1/support/tickets',
+    handler: sTickets.POST,
+    request: () => ({ body: { subject: 'Matrix question', body: 'Testing access' } }),
+    expect: only({ SCHOOL_ADMIN: 201, PRINCIPAL: 201 }),
+  },
+  {
+    key: 'POST /api/v1/support/tickets/[id]/reply',
+    handler: sTicketReply.POST,
+    request: () => ({ params: { id: MISSING }, body: { body: 'More detail' } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+  },
+  {
+    key: 'POST /api/v1/support/tickets/[id]/close',
+    handler: sTicketClose.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+  },
+  {
+    key: 'PATCH /api/v1/leave/types/[id]',
+    handler: leaveTypeById.PATCH,
+    request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: false } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */
@@ -392,6 +1025,10 @@ const actor = (role: UserRole): FixtureUser =>
 describe('authorization matrix', () => {
   for (const row of MATRIX) {
     describe(row.key, () => {
+      // Earlier rows reset passwords (which forces a change); start every row from signed-in, settled accounts.
+      beforeAll(async () => {
+        await systemDb().user.updateMany({ where: { mustChangePassword: true }, data: { mustChangePassword: false } });
+      });
       it('rejects anonymous requests with 401', async () => {
         const r = await call(row.handler, row.request(f));
         expect(r.status).toBe(401);
@@ -555,7 +1192,7 @@ describe('platform console', () => {
   it('tenant list exposes metadata only', async () => {
     const r = await call(tenants.GET, { cookie: await cookieFor(f.owner) });
     const keys = Object.keys(r.json.items[0]).sort();
-    expect(keys).toEqual(['city', 'createdAt', 'id', 'name', 'prefix', 'status', 'suspendedAt', 'userCount']);
+    expect(keys).toEqual(['city', 'createdAt', 'id', 'name', 'plan', 'prefix', 'status', 'suspendedAt', 'userCount']);
   });
 });
 
