@@ -247,7 +247,7 @@ describe('retention and scheduled jobs', () => {
 describe('rate limits (spec §9.4)', () => {
   it('blocks password spraying from one network across many accounts', async () => {
     const headers = { 'x-forwarded-for': '203.0.113.7' };
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
       const r = await call(login.POST, {
         headers,
         params: { portal: 'staff' },
@@ -268,6 +268,18 @@ describe('rate limits (spec §9.4)', () => {
       body: { identifier: 'admin@a.test', password: PASSWORD },
     });
     expect(other.status).toBe(200);
+  });
+
+  it('a whole school signing in from one network is never blocked by successful sign-ins', async () => {
+    const headers = { 'x-forwarded-for': '203.0.113.50' };
+    for (let i = 0; i < 60; i++) {
+      const r = await call(login.POST, {
+        headers,
+        params: { portal: 'student' },
+        body: { identifier: f.a.STUDENT.login, password: PASSWORD },
+      });
+      expect(r.status).toBe(200);
+    }
   });
 
   it('limits password-reset requests per network', async () => {

@@ -97,7 +97,8 @@ New database migrations are created with `npm run db:new-migration -- <name>` (a
 - The Platform Owner has **no** standing access to school data. For support they ask the school; the School Admin
   approves a time-boxed, read-only grant (30 min – 4 h), can end it any time, and every view is written to the
   school's own audit log. An emergency School Admin password reset needs a written reason and is shown to the school.
-- Per-network rate limits on sign-in and password reset (in Postgres, so they hold across serverless instances).
+- Per-network limits on failed sign-ins (50 per 10 minutes) and password-reset requests, kept in Postgres. Only
+  failures count, because a whole school often shares one internet address.
 - Spreadsheet imports are parsed defensively: size and decompression caps (zip bombs), no formulas, no DTDs.
   CSV exports neutralise formula-like cells.
 - Retention (D7): a year after withdrawal, a student's name and contact details are removed; anonymous history stays.
