@@ -1,14 +1,35 @@
-import { ArrowRight, BookOpen, CheckCircle2, Circle, GraduationCap, Layers, UserPlus, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  Circle,
+  ClipboardCheck,
+  GraduationCap,
+  Layers,
+  NotebookPen,
+  Plane,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 import { actionLabel } from '@/lib/audit-labels';
 import { LatestAnnouncements } from '@/components/comms/LatestAnnouncements';
 import { listSupportGrants } from '@/server/school/support';
 import Link from 'next/link';
-import { PageHeader } from '@/components/AppShell';
-import { BarList, Meter, TrendColumns } from '@/components/charts';
+import { BarList, Meter } from '@/components/charts';
+import { AreaTrend } from '@/components/dashboard/AreaTrend';
+import {
+  DayTimeline,
+  MiniCalendar,
+  Panel,
+  PanelLink,
+  PastelStat,
+  TONE_ORDER,
+  TONES,
+  TodoItem,
+} from '@/components/dashboard/widgets';
 import { CheckInCard } from '@/components/dashboard/CheckInCard';
-import { TodayLessons } from '@/components/dashboard/TodayLessons';
-import { Badge, ButtonLink, Card, EmptyState, ROLE_LABELS, Stat } from '@/components/ui';
+import { Badge, ButtonLink, EmptyState, ROLE_LABELS, cx } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import type { AuthedContext } from '@/server/http/route';
 import { schoolOverview, teacherOverview } from '@/server/school/dashboard';
@@ -32,158 +53,173 @@ export default async function StaffDashboard() {
   return ctx.user.role === 'TEACHER' ? <TeacherToday ctx={ctx} /> : <SchoolDashboard ctx={ctx} />;
 }
 
+const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : null);
+const dayLabel = (iso: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { ...opts, timeZone: 'UTC' });
+
+function Greeting({ title, subtitle, actions }: { title: string; subtitle: string; actions?: React.ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">{title} 👋</h1>
+        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+      </div>
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </header>
+  );
+}
+
 async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
   const supportPending =
     ctx.can('settings.manage') && (await listSupportGrants(ctx)).some((g) => g.status === 'PENDING');
-  const [d, att, board, approvals, toPublish] = await Promise.all([
+  const [d, att, board, approvals, toPublish, clock] = await Promise.all([
     schoolOverview(ctx),
     ctx.can('attendance.oversee') ? attendanceOverview(ctx) : Promise.resolve(null),
     ctx.can('teacher_attendance.oversee') ? teacherBoard(ctx) : Promise.resolve(null),
     pendingApprovals(ctx),
     ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL' ? unpublishedCount(ctx) : Promise.resolve(0),
+    inTenant(ctx, (tx) => schoolClock(tx)),
   ]);
   const done = d.checklist.filter((c) => c.done).length;
   const setupComplete = done === d.checklist.length;
-  const canAdmit = ctx.can('students.write');
+  const checkedIn = board ? board.summary.present + board.summary.late : 0;
+  const trend = (att?.trend ?? []).map((t) => ({
+    label: dayLabel(t.day, { day: 'numeric', month: 'short' }),
+    value: t.pct,
+    detail: dayLabel(t.day, { weekday: 'short', day: 'numeric', month: 'short' }),
+  }));
+  const low = trend.length ? Math.min(...trend.map((t) => t.value)) : 0;
+  const yMin = Math.max(0, Math.min(50, Math.floor((low - 10) / 10) * 10));
+  const hasTodo = supportPending || approvals > 0 || toPublish > 0 || (att?.pending.length ?? 0) > 0;
 
   return (
-    <>
-      <PageHeader
-        title={greeting(ctx.user.displayName)}
-        description={`${ROLE_LABELS[ctx.user.role]} · ${ctx.session.tenant?.name}${d.year ? ` · ${d.year.name}` : ''}`}
-        actions={
-          <>
-            {canAdmit && (
-              <ButtonLink href="/staff/students?new=1">
-                <UserPlus className="size-4" /> Admit student
-              </ButtonLink>
-            )}
-            {ctx.can('teachers.write') && (
-              <ButtonLink href="/staff/teachers?new=1" variant="secondary">
-                Add teacher
-              </ButtonLink>
-            )}
-          </>
-        }
-      />
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 space-y-6">
+        <Greeting
+          title={greeting(ctx.user.displayName)}
+          subtitle={`${ROLE_LABELS[ctx.user.role]} · ${ctx.session.tenant?.name}${d.year ? ` · ${d.year.name}` : ''}`}
+          actions={
+            <>
+              {ctx.can('students.write') && (
+                <ButtonLink href="/staff/students?new=1">
+                  <UserPlus className="size-4" /> Admit student
+                </ButtonLink>
+              )}
+              {ctx.can('teachers.write') && (
+                <ButtonLink href="/staff/teachers?new=1" variant="secondary">
+                  Add teacher
+                </ButtonLink>
+              )}
+            </>
+          }
+        />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
-          label="Active students"
-          value={d.counts.students.toLocaleString()}
-          hint={`${d.counts.teachers} teachers · ${d.counts.sections} sections`}
-        />
-        <Stat
-          label="Attendance today"
-          value={att?.todayPct !== null && att?.todayPct !== undefined ? `${att.todayPct}%` : '—'}
-          hint={att ? `${att.todayCounts.ABSENT} absent · ${att.todayCounts.LATE} late` : 'No current year'}
-        />
-        <Stat
-          label="Registers taken"
-          value={att ? `${att.sectionsSubmitted} / ${att.sectionsTotal}` : '—'}
-          hint={att && att.pending.length ? `${att.pending.length} still to take` : 'All done'}
-        />
-        <Stat
-          label="Teachers checked in"
-          value={board ? `${board.summary.present + board.summary.late} / ${board.summary.total}` : '—'}
-          hint={board ? `${board.summary.late} late` : undefined}
-        />
-      </div>
-
-      {(approvals > 0 || toPublish > 0 || (att?.atRiskCount ?? 0) > 0 || supportPending) && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {supportPending && (
-            <Link
-              href="/staff/settings#support"
-              className="rounded-full bg-violet-100 px-3 py-1.5 text-sm font-medium text-violet-900 ring-1 ring-violet-200 hover:bg-violet-200"
-            >
-              EDUsaas support asks for access →
-            </Link>
-          )}
-          {approvals > 0 && (
-            <Link
-              href="/staff/leave?tab=approve"
-              className="rounded-full bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-900 ring-1 ring-amber-200 hover:bg-amber-200"
-            >
-              {approvals} leave request{approvals === 1 ? '' : 's'} to decide →
-            </Link>
-          )}
-          {toPublish > 0 && (
-            <Link
-              href="/staff/assessments?tab=publish"
-              className="rounded-full bg-sky-100 px-3 py-1.5 text-sm font-medium text-sky-900 ring-1 ring-sky-200 hover:bg-sky-200"
-            >
-              {toPublish} test{toPublish === 1 ? '' : 's'} ready to publish →
-            </Link>
-          )}
-          {att && att.atRiskCount > 0 && (
-            <a
-              href="#at-risk"
-              className="rounded-full bg-red-100 px-3 py-1.5 text-sm font-medium text-red-900 ring-1 ring-red-200 hover:bg-red-200"
-            >
-              {att.atRiskCount} student{att.atRiskCount === 1 ? '' : 's'} below {att.threshold}% attendance →
-            </a>
-          )}
+        <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          <PastelStat
+            tone="violet"
+            title="Attendance today"
+            ring={att?.todayPct ?? null}
+            caption={att ? `${att.todayCounts.ABSENT} absent · ${att.todayCounts.LATE} late` : 'No current year'}
+            href={ctx.can('reports.read') ? '/staff/reports' : undefined}
+          />
+          <PastelStat
+            tone="pink"
+            title="Registers taken"
+            ring={att ? pct(att.sectionsSubmitted, att.sectionsTotal) : null}
+            value={att ? `${att.sectionsSubmitted} of ${att.sectionsTotal} sections` : undefined}
+            href="/staff/attendance"
+          />
+          <PastelStat
+            tone="sky"
+            title="Teachers in"
+            ring={board ? pct(checkedIn, board.summary.total) : null}
+            value={board ? `${checkedIn} of ${board.summary.total} · ${board.summary.late} late` : undefined}
+            href={board ? '/staff/teacher-attendance' : undefined}
+          />
+          <PastelStat
+            tone="mint"
+            title="Students"
+            icon={<GraduationCap className="size-6" />}
+            value={d.counts.students.toLocaleString()}
+            caption={`${d.counts.teachers} teachers · ${d.counts.sections} sections`}
+            href="/staff/students"
+          />
         </div>
-      )}
 
-      <div className="mt-6">
+        {hasTodo && (
+          <Panel title="Needs you" className="xl:hidden">
+            <div className="-mx-2 space-y-0.5">
+              {supportPending && (
+                <TodoItem href="/staff/settings#support" count={1} tone="violet">
+                  EDUsaas support asks for access
+                </TodoItem>
+              )}
+              {approvals > 0 && (
+                <TodoItem href="/staff/leave?tab=approve" count={approvals} tone="amber">
+                  leave request{approvals === 1 ? '' : 's'} to decide
+                </TodoItem>
+              )}
+              {toPublish > 0 && (
+                <TodoItem href="/staff/assessments?tab=publish" count={toPublish} tone="sky">
+                  test{toPublish === 1 ? '' : 's'} ready to publish
+                </TodoItem>
+              )}
+              {att && att.pending.length > 0 && (
+                <TodoItem href="/staff/attendance" count={att.pending.length} tone="pink">
+                  register{att.pending.length === 1 ? '' : 's'} not taken today
+                </TodoItem>
+              )}
+            </div>
+          </Panel>
+        )}
+
         <LatestAnnouncements ctx={ctx} href="/staff/announcements" />
-      </div>
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
-          {!setupComplete && ctx.user.role === 'SCHOOL_ADMIN' && (
-            <Card title="Set up your school" description={`${done} of ${d.checklist.length} steps done`}>
-              <Meter value={done} max={d.checklist.length} label="Setup progress" />
-              <ul className="mt-4 divide-y divide-slate-100">
-                {d.checklist.map((c) => (
-                  <li key={c.key}>
-                    <Link href={c.href} className="flex items-center gap-3 py-2.5 text-sm hover:text-[var(--accent)]">
-                      {c.done ? (
-                        <CheckCircle2 className="size-5 text-emerald-600" aria-label="Done" />
-                      ) : (
-                        <Circle className="size-5 text-slate-300" aria-label="To do" />
-                      )}
-                      <span className={c.done ? 'text-slate-500 line-through' : 'font-medium'}>{c.label}</span>
-                      {!c.done && <ArrowRight className="ml-auto size-4 text-slate-400" />}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
 
-          {att && (
-            <Card title="Attendance, last 30 school days" description="Share of students present or late each day.">
-              <TrendColumns
-                points={att.trend}
-                target={att.threshold}
-                caption="Daily attendance percentage for the last 30 school days"
-              />
-            </Card>
-          )}
+        {!setupComplete && ctx.user.role === 'SCHOOL_ADMIN' && (
+          <Panel
+            title="Set up your school"
+            action={<span className="text-sm text-slate-500">{`${done} of ${d.checklist.length} done`}</span>}
+          >
+            <Meter value={done} max={d.checklist.length} label="Setup progress" />
+            <ul className="mt-3 grid gap-x-6 sm:grid-cols-2">
+              {d.checklist.map((c) => (
+                <li key={c.key}>
+                  <Link
+                    href={c.href}
+                    className="flex items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-slate-50"
+                  >
+                    {c.done ? (
+                      <CheckCircle2 className="size-5 text-emerald-600" aria-label="Done" />
+                    ) : (
+                      <Circle className="size-5 text-slate-300" aria-label="To do" />
+                    )}
+                    <span className={c.done ? 'text-slate-400 line-through' : 'font-medium'}>{c.label}</span>
+                    {!c.done && <ArrowRight className="ml-auto size-4 text-slate-400" />}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
 
-          {att && att.pending.length > 0 && (
-            <Card title="Registers not taken today" description="Remind the Class Incharge, or take it yourself.">
-              <ul className="flex flex-wrap gap-2">
-                {att.pending.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/staff/attendance/${p.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:border-[var(--accent)]/40"
-                    >
-                      <span className="font-semibold">{p.label}</span>
-                      <span className="text-slate-500">{p.incharge ?? 'no incharge'}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+        {att && (
+          <Panel
+            title="Attendance, last 30 school days"
+            action={ctx.can('reports.read') ? <PanelLink href="/staff/reports">Full report</PanelLink> : undefined}
+          >
+            <AreaTrend
+              points={trend}
+              target={att.threshold}
+              yMin={yMin}
+              caption="School-wide attendance percentage per school day"
+            />
+          </Panel>
+        )}
 
-          <Card
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Panel
             title="Students by class"
-            description={d.year ? `Active students in ${d.year.name}` : 'No current academic year'}
+            action={<span className="text-sm text-slate-500">{d.year?.name ?? ''}</span>}
           >
             {d.classes.length ? (
               <BarList
@@ -207,81 +243,15 @@ async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
                 }
               />
             )}
-          </Card>
-
-          {(d.sectionsWithoutIncharge.length > 0 ||
-            d.sectionsWithoutTeachers.length > 0 ||
-            d.nearlyFull.length > 0) && (
-            <Card title="Needs attention">
-              <ul className="space-y-3 text-sm">
-                {d.sectionsWithoutIncharge.length > 0 && (
-                  <li className="flex flex-wrap items-center gap-2">
-                    <Badge tone="amber">No Class Incharge</Badge>
-                    <span className="text-slate-700">{d.sectionsWithoutIncharge.join(', ')}</span>
-                  </li>
-                )}
-                {d.sectionsWithoutTeachers.length > 0 && (
-                  <li className="flex flex-wrap items-center gap-2">
-                    <Badge tone="amber">No teachers assigned</Badge>
-                    <span className="text-slate-700">{d.sectionsWithoutTeachers.join(', ')}</span>
-                  </li>
-                )}
-                {d.nearlyFull.length > 0 && (
-                  <li className="flex flex-wrap items-center gap-2">
-                    <Badge tone="blue">Nearly full</Badge>
-                    <span className="text-slate-700">
-                      {d.nearlyFull.map((s) => `${s.label} (${s.students}/${s.capacity})`).join(', ')}
-                    </span>
-                  </li>
-                )}
-              </ul>
-            </Card>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {att && (
-            <div id="at-risk">
-              <Card title="At risk" description={`Below ${att.threshold}% attendance this year (10+ days recorded).`}>
-                {att.atRisk.length ? (
-                  <ul className="divide-y divide-slate-100">
-                    {att.atRisk.slice(0, 8).map((s) => (
-                      <li key={s.id}>
-                        <Link
-                          href={`/staff/students/${s.id}`}
-                          className="flex items-center justify-between gap-3 py-2 hover:text-[var(--accent)]"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">{s.name}</span>
-                            <span className="block text-xs text-slate-500">{s.section}</span>
-                          </span>
-                          <span className="text-sm font-semibold text-red-700 tabular-nums">{s.pct}%</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-500">No students below the target.</p>
-                )}
-              </Card>
-            </div>
-          )}
-
-          <Card
-            title="Recent admissions"
-            actions={
-              <Link href="/staff/students" className="text-sm font-medium text-[var(--accent)] hover:underline">
-                View all
-              </Link>
-            }
-          >
+          </Panel>
+          <Panel title="Recent admissions" action={<PanelLink href="/staff/students">View all</PanelLink>}>
             {d.recentAdmissions.length ? (
-              <ul className="divide-y divide-slate-100">
+              <ul className="space-y-1">
                 {d.recentAdmissions.map((s) => (
                   <li key={s.id}>
                     <Link
                       href={`/staff/students/${s.id}`}
-                      className="flex items-center justify-between gap-3 py-2.5 hover:text-[var(--accent)]"
+                      className="flex items-center justify-between gap-3 rounded-xl px-2 py-2 hover:bg-slate-50"
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium">{s.name}</span>
@@ -295,43 +265,147 @@ async function SchoolDashboard({ ctx }: { ctx: AuthedContext }) {
             ) : (
               <EmptyState icon={<GraduationCap className="size-5" />} title="No students yet" />
             )}
-          </Card>
+          </Panel>
+        </div>
 
-          {d.activity && (
-            <Card title="Recent activity" actions={ctx.can('audit.read') ? undefined : undefined}>
-              <ul className="space-y-2.5 text-sm">
-                {d.activity.map((a) => (
-                  <li key={a.id} className="flex items-start justify-between gap-3">
-                    <span className="text-slate-700">
-                      {actionLabel(a.action)}
-                      {a.outcome !== 'success' && <span className="ml-1.5 text-xs text-red-700">({a.outcome})</span>}
-                      {a.actorRole && <span className="block text-xs text-slate-500">{ROLE_LABELS[a.actorRole]}</span>}
-                    </span>
-                    <time className="shrink-0 text-xs text-slate-500" dateTime={a.createdAt.toISOString()}>
-                      {relative(a.createdAt)}
-                    </time>
+        {(d.sectionsWithoutIncharge.length > 0 || d.sectionsWithoutTeachers.length > 0 || d.nearlyFull.length > 0) && (
+          <Panel title="Needs attention">
+            <ul className="space-y-3 text-sm">
+              {d.sectionsWithoutIncharge.length > 0 && (
+                <li className="flex flex-wrap items-center gap-2">
+                  <Badge tone="amber">No Class Incharge</Badge>
+                  <span className="text-slate-700">{d.sectionsWithoutIncharge.join(', ')}</span>
+                </li>
+              )}
+              {d.sectionsWithoutTeachers.length > 0 && (
+                <li className="flex flex-wrap items-center gap-2">
+                  <Badge tone="amber">No teachers assigned</Badge>
+                  <span className="text-slate-700">{d.sectionsWithoutTeachers.join(', ')}</span>
+                </li>
+              )}
+              {d.nearlyFull.length > 0 && (
+                <li className="flex flex-wrap items-center gap-2">
+                  <Badge tone="blue">Nearly full</Badge>
+                  <span className="text-slate-700">
+                    {d.nearlyFull.map((s) => `${s.label} (${s.students}/${s.capacity})`).join(', ')}
+                  </span>
+                </li>
+              )}
+            </ul>
+          </Panel>
+        )}
+      </div>
+
+      {/* Right rail */}
+      <aside className="space-y-6">
+        <Panel>
+          <MiniCalendar today={clock.today} />
+        </Panel>
+
+        {hasTodo && (
+          <Panel title="Needs you" className="hidden xl:block">
+            <div className="-mx-2 space-y-0.5">
+              {supportPending && (
+                <TodoItem href="/staff/settings#support" count={1} tone="violet">
+                  EDUsaas support asks for access
+                </TodoItem>
+              )}
+              {approvals > 0 && (
+                <TodoItem href="/staff/leave?tab=approve" count={approvals} tone="amber">
+                  leave request{approvals === 1 ? '' : 's'} to decide
+                </TodoItem>
+              )}
+              {toPublish > 0 && (
+                <TodoItem href="/staff/assessments?tab=publish" count={toPublish} tone="sky">
+                  test{toPublish === 1 ? '' : 's'} ready to publish
+                </TodoItem>
+              )}
+              {att && att.pending.length > 0 && (
+                <TodoItem href="/staff/attendance" count={att.pending.length} tone="pink">
+                  register{att.pending.length === 1 ? '' : 's'} not taken today
+                </TodoItem>
+              )}
+            </div>
+          </Panel>
+        )}
+
+        {att && att.pending.length > 0 && (
+          <Panel title="Registers not taken today">
+            <ul className="flex flex-wrap gap-1.5">
+              {att.pending.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/staff/attendance/${p.id}`}
+                    title={p.incharge ?? 'No Class Incharge'}
+                    className="inline-flex items-center rounded-lg bg-slate-50 px-2.5 py-1 text-sm font-semibold ring-1 ring-slate-200 hover:bg-white"
+                  >
+                    {p.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-slate-500">Remind the Class Incharge, or take it yourself.</p>
+          </Panel>
+        )}
+
+        {att && (
+          <Panel
+            id="at-risk"
+            title="At risk"
+            action={
+              ctx.can('reports.read') ? (
+                <PanelLink href="/staff/reports?tab=at-risk">All {att.atRiskCount}</PanelLink>
+              ) : undefined
+            }
+          >
+            {att.atRisk.length ? (
+              <ul className="space-y-0.5">
+                {att.atRisk.slice(0, 6).map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/staff/students/${s.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 hover:bg-slate-50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{s.name}</span>
+                        <span className="block text-xs text-slate-500">{s.section}</span>
+                      </span>
+                      <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 tabular-nums">
+                        {s.pct}%
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
-            </Card>
-          )}
+            ) : (
+              <p className="text-sm text-slate-500">No students below {att.threshold}%.</p>
+            )}
+            <p className="mt-2 text-xs text-slate-500">Below {att.threshold}% this year, 10+ days recorded.</p>
+          </Panel>
+        )}
 
-          <Card title="Your access" description="Configured by your School Admin.">
-            <p className="text-sm text-slate-600">
-              You have {ctx.permissions.size} permissions as {ROLE_LABELS[ctx.user.role]}.
-              {ctx.user.role === 'SCHOOL_ADMIN' && (
-                <>
-                  {' '}
-                  <Link href="/staff/settings#permissions" className="font-medium text-[var(--accent)] hover:underline">
-                    Manage Principal and Admissions access
-                  </Link>
-                </>
-              )}
-            </p>
-          </Card>
-        </div>
-      </div>
-    </>
+        {d.activity && (
+          <Panel
+            title="Recent activity"
+            action={ctx.can('audit.read') ? <PanelLink href="/staff/audit">Audit log</PanelLink> : undefined}
+          >
+            <ul className="space-y-2.5 text-sm">
+              {d.activity.slice(0, 6).map((a) => (
+                <li key={a.id} className="flex items-start justify-between gap-3">
+                  <span className="text-slate-700">
+                    {actionLabel(a.action)}
+                    {a.actorRole && <span className="block text-xs text-slate-500">{ROLE_LABELS[a.actorRole]}</span>}
+                  </span>
+                  <time className="shrink-0 text-xs text-slate-400" dateTime={a.createdAt.toISOString()}>
+                    {relative(a.createdAt)}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+      </aside>
+    </div>
   );
 }
 
@@ -353,124 +427,142 @@ async function TeacherToday({ ctx }: { ctx: AuthedContext }) {
     teacherMarksTodo(ctx),
     inTenant(ctx, (tx) => schoolClock(tx)),
   ]);
-  const label = new Date(`${clock.today}T00:00:00Z`).toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  });
+  const label = dayLabel(clock.today, { weekday: 'long', day: 'numeric', month: 'long' });
   const registersLeft = todo.filter((t) => !t.done);
+  const doneToday = new Set(todo.filter((t) => t.done).map((t) => t.id));
+  const takes = new Set(todo.map((t) => t.id));
   return (
-    <>
-      <PageHeader title={greeting(ctx.user.displayName)} description={`${label} · ${ctx.session.tenant?.name}`} />
-      <LatestAnnouncements ctx={ctx} href="/staff/announcements" />
-      <div className="space-y-6">
-        {checkin && (
-          <CheckInCard
-            status={checkin.status}
-            checkedInAt={checkin.checkedInAt ? checkin.checkedInAt.toISOString() : null}
-            userId={ctx.user.id}
-            timezone={clock.timezone}
-          />
-        )}
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 space-y-6">
+        <Greeting title={greeting(ctx.user.displayName)} subtitle={`${label} · ${ctx.session.tenant?.name}`} />
 
+        <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          {checkin && (
+            <CheckInCard
+              status={checkin.status}
+              checkedInAt={checkin.checkedInAt ? checkin.checkedInAt.toISOString() : null}
+              userId={ctx.user.id}
+              timezone={clock.timezone}
+            />
+          )}
+          <PastelStat
+            tone="pink"
+            title="Registers"
+            ring={pct(todo.length - registersLeft.length, todo.length)}
+            value={todo.length ? `${todo.length - registersLeft.length} of ${todo.length} taken today` : 'None to take'}
+            href="/staff/attendance"
+          />
+          <PastelStat
+            tone="amber"
+            title="Leave requests"
+            icon={<Plane className="size-6" />}
+            value={approvals ? `${approvals} to decide` : 'All decided'}
+            href="/staff/leave?tab=approve"
+          />
+          <PastelStat
+            tone="sky"
+            title="Marks"
+            icon={<NotebookPen className="size-6" />}
+            value={drafts ? `${drafts} test${drafts === 1 ? '' : 's'} to submit` : 'All submitted'}
+            href="/staff/assessments"
+          />
+        </div>
+
+        <LatestAnnouncements ctx={ctx} href="/staff/announcements" />
+
+        <Panel title="My classes" action={<PanelLink href="/staff/students">My students</PanelLink>}>
+          {!d || d.sections.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen className="size-5" />}
+              title="No classes assigned yet"
+              description="Your School Admin will assign you to sections and subjects."
+            />
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+              {d.sections.map((s, i) => {
+                const tone = TONE_ORDER[i % TONE_ORDER.length]!;
+                const taken = doneToday.has(s.id);
+                return (
+                  <li key={s.id} className={cx('flex flex-col rounded-2xl p-4', TONES[tone].card)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-lg leading-tight font-semibold">{s.label}</p>
+                        <p className="truncate text-xs text-slate-600">
+                          {s.subjects.length ? s.subjects.join(' · ') : 'Class Incharge'}
+                        </p>
+                      </div>
+                      {s.isIncharge && (
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                          Incharge
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-3 flex items-center gap-1.5 text-sm text-slate-700">
+                      <Users className="size-4" aria-hidden /> {s.students} students
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 text-sm">
+                      {takes.has(s.id) && (
+                        <Link
+                          href={`/staff/attendance/${s.id}`}
+                          className={cx(
+                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-medium',
+                            taken ? 'bg-white/70 text-slate-700' : 'bg-slate-900 text-white hover:bg-slate-800',
+                          )}
+                        >
+                          <ClipboardCheck className="size-4" aria-hidden /> {taken ? 'Register taken' : 'Take register'}
+                        </Link>
+                      )}
+                      <Link
+                        href={`/staff/students?sectionId=${s.id}`}
+                        className="rounded-xl px-2 py-1.5 font-medium text-slate-700 hover:bg-white/60"
+                      >
+                        Students
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
+      {/* Right rail */}
+      <aside className="space-y-6">
+        <Panel>
+          <MiniCalendar today={clock.today} />
+        </Panel>
+        <Panel title={lessons.dayName} action={<PanelLink href="/staff/timetable">Week</PanelLink>}>
+          <DayTimeline
+            lessons={lessons.lessons}
+            now={lessons.now}
+            schoolDay={lessons.schoolDay}
+            dayName={lessons.dayName}
+            showSection
+          />
+        </Panel>
         {(registersLeft.length > 0 || approvals > 0 || drafts > 0) && (
-          <Card title="To do today">
-            <ul className="divide-y divide-slate-100">
+          <Panel title="To do today">
+            <div className="-mx-2 space-y-0.5">
               {registersLeft.map((t) => (
-                <li key={t.id}>
-                  <Link
-                    href={`/staff/attendance/${t.id}`}
-                    className="flex items-center justify-between py-2.5 text-sm hover:text-[var(--accent)]"
-                  >
-                    <span>
-                      Take attendance for <strong>{t.label}</strong>
-                    </span>
-                    <ArrowRight className="size-4 text-slate-400" />
-                  </Link>
-                </li>
+                <TodoItem key={t.id} href={`/staff/attendance/${t.id}`} count={1} tone="pink">
+                  Take attendance for <strong>{t.label}</strong>
+                </TodoItem>
               ))}
               {approvals > 0 && (
-                <li>
-                  <Link
-                    href="/staff/leave?tab=approve"
-                    className="flex items-center justify-between py-2.5 text-sm hover:text-[var(--accent)]"
-                  >
-                    <span>
-                      <strong>{approvals}</strong> leave request{approvals === 1 ? '' : 's'} from your students
-                    </span>
-                    <ArrowRight className="size-4 text-slate-400" />
-                  </Link>
-                </li>
+                <TodoItem href="/staff/leave?tab=approve" count={approvals} tone="amber">
+                  leave request{approvals === 1 ? '' : 's'} from your students
+                </TodoItem>
               )}
               {drafts > 0 && (
-                <li>
-                  <Link
-                    href="/staff/assessments"
-                    className="flex items-center justify-between py-2.5 text-sm hover:text-[var(--accent)]"
-                  >
-                    <span>
-                      <strong>{drafts}</strong> test{drafts === 1 ? '' : 's'} with marks not submitted
-                    </span>
-                    <ArrowRight className="size-4 text-slate-400" />
-                  </Link>
-                </li>
+                <TodoItem href="/staff/assessments" count={drafts} tone="sky">
+                  test{drafts === 1 ? '' : 's'} with marks not submitted
+                </TodoItem>
               )}
-            </ul>
-          </Card>
+            </div>
+          </Panel>
         )}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card
-            title="Today’s lessons"
-            actions={
-              <Link href="/staff/timetable" className="text-sm font-medium text-[var(--accent)] hover:underline">
-                Week
-              </Link>
-            }
-          >
-            <TodayLessons
-              lessons={lessons.lessons}
-              now={lessons.now}
-              schoolDay={lessons.schoolDay}
-              dayName={lessons.dayName}
-              showSection
-            />
-          </Card>
-          <Card title="My classes">
-            {!d || d.sections.length === 0 ? (
-              <EmptyState
-                icon={<BookOpen className="size-5" />}
-                title="No classes assigned yet"
-                description="Your School Admin will assign you to sections and subjects."
-              />
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {d.sections.map((s) => (
-                  <li key={s.id}>
-                    <Link
-                      href={`/staff/students?sectionId=${s.id}`}
-                      className="flex items-center justify-between gap-3 py-2.5 hover:text-[var(--accent)]"
-                    >
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-2 font-medium">
-                          {s.label} {s.isIncharge && <Badge tone="green">Incharge</Badge>}
-                        </span>
-                        <span className="block truncate text-xs text-slate-500">
-                          {s.subjects.length ? s.subjects.join(' · ') : 'Class Incharge only'}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-1 text-sm text-slate-500">
-                        <Users className="size-4" aria-hidden /> {s.students}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
-      </div>
-    </>
+      </aside>
+    </div>
   );
 }

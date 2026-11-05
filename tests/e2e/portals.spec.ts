@@ -145,7 +145,8 @@ test('student sees attendance, marks and timetable', async ({ page }) => {
 
 test('school admin dashboard shows today at a glance', async ({ page }) => {
   await signIn(page, '/staff/login', 'admin@bss.test');
-  await expect(page.getByText('Registers not taken today')).toBeVisible();
+  await expect(page.getByText('Attendance today', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Attendance, last 30 school days' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Leave' }).click();
   await expect(page.getByRole('heading', { name: 'Leave' })).toBeVisible();
 });
