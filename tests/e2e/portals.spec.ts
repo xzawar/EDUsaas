@@ -123,7 +123,8 @@ test('teacher checks in and takes a register', async ({ page }) => {
   await expect(page.getByRole('radiogroup').first()).toBeVisible();
   // Flip the first student between Late and Present so the register always has a change to save.
   const late = page.getByRole('radio', { name: 'Late' }).first();
-  if ((await late.getAttribute('aria-checked')) === 'true') await page.getByRole('radio', { name: 'Present' }).first().click();
+  if ((await late.getAttribute('aria-checked')) === 'true')
+    await page.getByRole('radio', { name: 'Present' }).first().click();
   else await late.click();
   const markRest = page.getByRole('button', { name: 'Mark rest present' });
   if (await markRest.isVisible()) await markRest.click();
