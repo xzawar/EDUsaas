@@ -49,6 +49,31 @@ enum MarksPublisher {
   PRINCIPAL
 }
 
+enum AcademicYearStatus {
+  PLANNED
+  CURRENT
+  CLOSED
+}
+
+enum StudentStatus {
+  ACTIVE
+  WITHDRAWN
+  GRADUATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 // ───────────── Tenancy ─────────────
 
 model Tenant {
@@ -62,21 +87,31 @@ model Tenant {
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
-  settings        TenantSettings?
-  rolePermissions TenantRolePermission[]
-  users           User[]
+  settings           TenantSettings?
+  rolePermissions    TenantRolePermission[]
+  users              User[]
+  academicYears      AcademicYear[]
+  classes            Class[]
+  sections           Section[]
+  subjects           Subject[]
+  classSubjects      ClassSubject[]
+  teachers           Teacher[]
+  teacherAssignments TeacherAssignment[]
+  students           Student[]
+  gradingSchemes     GradingScheme[]
+  jobs               Job[]
 
   @@map("tenants")
 }
 
 model TenantSettings {
-  tenantId          String         @id @map("tenant_id") @db.Uuid
-  timezone          String         @default("Asia/Karachi")
-  attendanceMode    AttendanceMode @default(ONCE_DAILY) @map("attendance_mode")
-  atRiskThreshold   Int            @default(75) @map("at_risk_threshold")
-  marksPublisher    MarksPublisher @default(SCHOOL_ADMIN) @map("marks_publisher")
-  leaveAgeOutHours  Int            @default(48) @map("leave_age_out_hours")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  tenantId         String         @id @map("tenant_id") @db.Uuid
+  timezone         String         @default("Asia/Karachi")
+  attendanceMode   AttendanceMode @default(ONCE_DAILY) @map("attendance_mode")
+  atRiskThreshold  Int            @default(75) @map("at_risk_threshold")
+  marksPublisher   MarksPublisher @default(SCHOOL_ADMIN) @map("marks_publisher")
+  leaveAgeOutHours Int            @default(48) @map("leave_age_out_hours")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -127,6 +162,8 @@ model User {
   tenant         Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   sessions       Session[]
   passwordResets PasswordResetToken[]
+  teacher        Teacher?
+  student        Student?
 
   @@index([tenantId, role])
   @@map("users")
@@ -170,24 +207,245 @@ model PasswordResetToken {
 
 /// Insert-only for every runtime DB role. No FKs on purpose: audit rows must never cascade or change.
 model AuditLog {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String?  @map("tenant_id") @db.Uuid
-  actorId        String?  @map("actor_id") @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String?   @map("tenant_id") @db.Uuid
+  actorId        String?   @map("actor_id") @db.Uuid
   actorRole      UserRole? @map("actor_role")
   action         String
   entity         String
-  entityId       String?  @map("entity_id")
-  outcome        String   @default("success")
+  entityId       String?   @map("entity_id")
+  outcome        String    @default("success")
   before         Json?
   after          Json?
   metadata       Json?
-  ipHash         String?  @map("ip_hash")
-  userAgent      String?  @map("user_agent")
-  requestId      String?  @map("request_id")
-  supportGrantId String?  @map("support_grant_id") @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at")
+  ipHash         String?   @map("ip_hash")
+  userAgent      String?   @map("user_agent")
+  requestId      String?   @map("request_id")
+  supportGrantId String?   @map("support_grant_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   @@index([tenantId, createdAt])
   @@index([actorId, createdAt])
   @@map("audit_logs")
+}
+
+// ───────────── Structure (Phase 2) ─────────────
+// Hierarchy (spec §1.1): Tenant → Academic Year → Class → Section. Cross-tenant references are rejected by
+// enforce_same_tenant() triggers (FK checks bypass RLS, so the database checks tenant equality itself).
+
+model AcademicYear {
+  id        String             @id @default(uuid()) @db.Uuid
+  tenantId  String             @map("tenant_id") @db.Uuid
+  name      String
+  startsOn  DateTime           @map("starts_on") @db.Date
+  endsOn    DateTime           @map("ends_on") @db.Date
+  status    AcademicYearStatus @default(PLANNED)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes        Class[]
+  gradingSchemes GradingScheme[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, status])
+  @@map("academic_years")
+}
+
+model Class {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  name           String
+  /// Ordering key: -2 Playgroup, -1 Nursery, 0 Prep/KG, 1..12 grades.
+  gradeLevel     Int      @map("grade_level")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  sections     Section[]
+  subjects     ClassSubject[]
+
+  @@unique([academicYearId, name])
+  @@index([tenantId])
+  @@map("classes")
+}
+
+model Section {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  classId        String   @map("class_id") @db.Uuid
+  name           String
+  capacity       Int?
+  /// Class Incharge (spec §2.5): a designation, not a role.
+  classTeacherId String?  @map("class_teacher_id") @db.Uuid
+  /// Next roll number to hand out. Sequential, never gap-filled (spec §3.3).
+  nextRollNumber Int      @default(1) @map("next_roll_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class        Class               @relation(fields: [classId], references: [id], onDelete: Restrict)
+  classTeacher Teacher?            @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
+  students     Student[]
+  assignments  TeacherAssignment[]
+
+  @@unique([classId, name])
+  @@index([tenantId])
+  @@index([classTeacherId])
+  @@map("sections")
+}
+
+model Subject {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  name       String
+  code       String?
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classes     ClassSubject[]
+  assignments TeacherAssignment[]
+
+  @@unique([tenantId, name])
+  @@map("subjects")
+}
+
+model ClassSubject {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  classId   String @map("class_id") @db.Uuid
+  subjectId String @map("subject_id") @db.Uuid
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([classId, subjectId])
+  @@index([subjectId])
+  @@index([tenantId])
+  @@map("class_subjects")
+}
+
+// ───────────── People (Phase 2) ─────────────
+
+model Teacher {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  userId        String    @unique @map("user_id") @db.Uuid
+  employeeNo    String?   @map("employee_no")
+  phone         String?
+  qualification String?
+  joinedOn      DateTime? @map("joined_on") @db.Date
+  photoKey      String?   @map("photo_key")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments TeacherAssignment[]
+  inchargeOf  Section[]           @relation("ClassTeacher")
+
+  @@unique([tenantId, employeeNo])
+  @@index([tenantId])
+  @@map("teachers")
+}
+
+/// Teacher + section + subject (spec §5.2). Powers every teacher scope check.
+model TeacherAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  teacherId String   @map("teacher_id") @db.Uuid
+  sectionId String   @map("section_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([teacherId, sectionId, subjectId])
+  @@index([sectionId])
+  @@index([subjectId])
+  @@index([tenantId])
+  @@map("teacher_assignments")
+}
+
+model Student {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  userId        String        @unique @map("user_id") @db.Uuid
+  /// Current placement (spec §8 "Placement").
+  sectionId     String?       @map("section_id") @db.Uuid
+  /// Sticky; never renumbered automatically (spec §3.3).
+  rollNumber    Int?          @map("roll_number")
+  admissionNo   String?       @map("admission_no")
+  gender        Gender?
+  dateOfBirth   DateTime?     @map("date_of_birth") @db.Date
+  guardianName  String?       @map("guardian_name")
+  guardianPhone String?       @map("guardian_phone")
+  address       String?
+  photoKey      String?       @map("photo_key")
+  status        StudentStatus @default(ACTIVE)
+  admittedOn    DateTime      @default(now()) @map("admitted_on") @db.Date
+  withdrawnAt   DateTime?     @map("withdrawn_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  @@unique([sectionId, rollNumber])
+  @@unique([tenantId, admissionNo])
+  @@index([tenantId, status])
+  @@index([tenantId, guardianPhone])
+  @@map("students")
+}
+
+// ───────────── Assessment config (Phase 2: defaults; Phase 3 uses them) ─────────────
+
+/// Versioned per academic year (spec §7.2). Bands: [{ grade, min }] in percent, highest first.
+model GradingScheme {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  version        Int      @default(1)
+  bands          Json
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([academicYearId, version])
+  @@index([tenantId])
+  @@map("grading_schemes")
+}
+
+// ───────────── Jobs (decision D4) ─────────────
+
+model Job {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String?   @map("tenant_id") @db.Uuid
+  type       String
+  status     JobStatus @default(QUEUED)
+  payload    Json
+  progress   Json?
+  result     Json?
+  error      String?
+  attempts   Int       @default(0)
+  createdBy  String?   @map("created_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([status])
+  @@map("jobs")
 }

@@ -6,10 +6,9 @@ export default async function StudentLayout({ children }: { children: React.Reac
   return (
     <AppShell
       portal="student"
-      homeHref="/student"
       orgName={ctx.session.tenant?.name ?? ''}
       user={ctx.user}
-      nav={[{ href: '/student', label: 'Home' }]}
+      nav={[{ items: [{ href: '/student', label: 'Home', icon: 'home', exact: true }] }]}
     >
       {children}
     </AppShell>

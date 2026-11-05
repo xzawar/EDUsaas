@@ -25,11 +25,13 @@
     "db:check-rls": "tsx scripts/check-rls.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force --skip-seed && npm run db:roles && npm run db:seed",
-    "vercel-build": "bash scripts/vercel-build.sh"
+    "vercel-build": "bash scripts/vercel-build.sh",
+    "db:new-migration": "bash scripts/new-migration.sh"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
     "@prisma/client": "^6.19.3",
+    "lucide-react": "^0.577.0",
     "next": "^15.5.29",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

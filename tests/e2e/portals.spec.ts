@@ -17,7 +17,7 @@ test('student signs in on the student portal and signs out', async ({ page }) =>
   await signIn(page, '/login', 'BSS-8A-Ahmad-14');
   await expect(page).toHaveURL(/\/student$/);
   await expect(page.getByRole('heading', { name: /Hello, Ahmad/ })).toBeVisible();
-  await expect(page.getByText('bss-8a-ahmad-14')).toBeVisible();
+  await expect(page.getByText('bss-8a-ahmad-14').first()).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/student');
@@ -70,4 +70,40 @@ test('pages send a nonce-based CSP', async ({ page }) => {
   const csp = res?.headers()['content-security-policy'] ?? '';
   expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
   expect(csp).toContain("frame-ancestors 'none'");
+});
+
+test('school admin admits a student and gets a printable login slip', async ({ page }) => {
+  await signIn(page, '/staff/login', 'admin@bss.test');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Students', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Students' })).toBeVisible();
+  await page.getByRole('button', { name: 'Admit student' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Admit a student' });
+  await drawer.getByLabel('Full name').fill('Playwright Test');
+  const option = drawer.locator('#sectionId option', { hasText: /^7-B/ });
+  await drawer.getByLabel('Class & section').selectOption((await option.getAttribute('value'))!);
+  await drawer.getByRole('button', { name: 'Admit student' }).click();
+  const slip = page.getByRole('dialog', { name: 'Login created' });
+  await expect(slip.getByText(/^bss-7b-playwright-\d+$/)).toBeVisible();
+  await expect(slip.getByText('Temporary password')).toBeVisible();
+});
+
+test('teacher sees only their own classes', async ({ page }) => {
+  await signIn(page, '/staff/login', 'bss-t-alikhan-1');
+  await expect(page.getByText('Class Incharge', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/staff$/);
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'My students' }).click();
+  await expect(page.getByRole('heading', { name: 'My students' })).toBeVisible();
+  await page.getByLabel('Search students').fill('Ahmad Raza');
+  await expect(page.getByRole('link', { name: /Ahmad Raza/ })).toBeVisible();
+  await page.goto('/staff/academics');
+  await expect(page).toHaveURL(/\/staff$/);
+});
+
+test('classes & sections page shows the structure and incharge pickers', async ({ page }) => {
+  await signIn(page, '/staff/login', 'admin@bss.test');
+  await expect(page).toHaveURL(/\/staff$/);
+  await page.goto('/staff/academics');
+  await expect(page.getByRole('heading', { name: 'Classes & sections' })).toBeVisible();
+  await expect(page.getByLabel('Class Incharge for 8-A')).toHaveValue(/.+/);
+  await expect(page.getByLabel('Class Incharge for 10-B')).toHaveValue('');
 });

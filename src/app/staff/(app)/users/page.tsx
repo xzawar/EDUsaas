@@ -1,108 +1,89 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
-import { Badge, Card, ROLE_LABELS } from '@/components/ui';
+import { AccountActions, NewStaffButton } from '@/components/people/StaffAccounts';
+import { Avatar, Badge, Card, ROLE_LABELS, TabLinks, Table, Td, Th } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
-import { listSchoolUsers, listUsersQuery } from '@/server/school/users';
+import { listSchoolUsers } from '@/server/school/users';
 
-export const metadata: Metadata = { title: 'People' };
+export const metadata: Metadata = { title: 'Staff accounts' };
 
-const ROLES = ['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'TEACHER', 'STUDENT'] as const;
+const ROLES = ['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'TEACHER'] as const;
 
-export default async function UsersPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const ctx = await requirePortal('STAFF', 'users.read');
   const sp = await searchParams;
-  const parsed = listUsersQuery.safeParse(sp);
-  const query = parsed.success ? parsed.data : listUsersQuery.parse({});
-  const { items, nextCursor } = await listSchoolUsers(ctx, query);
-  const showEmail = ctx.user.role === 'SCHOOL_ADMIN';
-  const link = (extra: Record<string, string | undefined>) => {
-    const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ role: query.role, q: query.q, ...extra })) if (v) p.set(k, v);
-    const s = p.toString();
-    return `/staff/users${s ? `?${s}` : ''}`;
-  };
+  const role = ROLES.find((r) => r === sp.role);
+  const results = await Promise.all((role ? [role] : ROLES).map((r) => listSchoolUsers(ctx, { role: r, limit: 50 })));
+  const items = results.flatMap((r) => r.items);
+  const canManage = ctx.can('users.manage');
+  const fmt = (d: Date | null) =>
+    d ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(d) : 'Never';
 
   return (
     <>
-      <PageHeader title="People" description="Everyone with an account at your school." />
+      <PageHeader
+        title="Staff accounts"
+        description="Everyone who signs in on the Staff Portal. Student accounts are managed from each student’s page."
+        actions={canManage ? <NewStaffButton schoolName={ctx.session.tenant?.name ?? ''} /> : undefined}
+      />
       <Card>
-        <form className="mb-4 flex flex-wrap gap-2" action="/staff/users">
-          <input
-            name="q"
-            defaultValue={query.q}
-            placeholder="Search by name or username"
-            aria-label="Search"
-            className="min-w-48 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        <div className="mb-4">
+          <TabLinks
+            active={role ?? 'ALL'}
+            tabs={[
+              { key: 'ALL', label: 'All staff', href: '/staff/users' },
+              ...ROLES.map((r) => ({ key: r, label: ROLE_LABELS[r]!, href: `/staff/users?role=${r}` })),
+            ]}
           />
-          <select
-            name="role"
-            defaultValue={query.role ?? ''}
-            aria-label="Role"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">All roles</option>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
-          </select>
-          <button className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white">Search</button>
-        </form>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="py-2 pr-4 font-medium">Name</th>
-                <th className="py-2 pr-4 font-medium">Role</th>
-                <th className="py-2 pr-4 font-medium">Sign-in</th>
-                <th className="py-2 pr-4 font-medium">Status</th>
-                <th className="py-2 font-medium">Last sign-in</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {items.map((u) => (
-                <tr key={u.id}>
-                  <td className="py-2.5 pr-4 font-medium">{u.displayName}</td>
-                  <td className="py-2.5 pr-4">{ROLE_LABELS[u.role]}</td>
-                  <td className="py-2.5 pr-4 font-mono text-xs text-slate-600">
-                    {u.username ?? (showEmail && 'email' in u ? (u.email as string | null) : '—')}
-                  </td>
-                  <td className="py-2.5 pr-4">
-                    <Badge tone={u.status === 'ACTIVE' ? 'green' : 'red'}>
-                      {u.status === 'ACTIVE' ? 'Active' : 'Disabled'}
-                    </Badge>
-                  </td>
-                  <td className="py-2.5 text-slate-600">
-                    {u.lastLoginAt ? u.lastLoginAt.toLocaleDateString('en-GB') : 'Never'}
-                  </td>
-                </tr>
-              ))}
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
-                    No one matches that search.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
         </div>
-        {nextCursor && (
-          <div className="mt-4 text-right">
-            <Link
-              href={link({ cursor: nextCursor })}
-              className="text-sm font-medium text-[var(--accent)] hover:underline"
-            >
-              Next page →
-            </Link>
-          </div>
-        )}
+        <Table>
+          <thead>
+            <tr>
+              <Th>Name</Th>
+              <Th>Role</Th>
+              <Th className="hidden md:table-cell">Signs in with</Th>
+              <Th className="hidden sm:table-cell">Last sign-in</Th>
+              {canManage && <Th />}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((u) => (
+              <tr key={u.id}>
+                <Td>
+                  <span className="flex items-center gap-3">
+                    <Avatar name={u.displayName} size="sm" />
+                    <span className="font-medium">
+                      {u.displayName} {u.status !== 'ACTIVE' && <Badge tone="red">Disabled</Badge>}
+                      {u.id === ctx.user.id && <Badge tone="blue">You</Badge>}
+                    </span>
+                  </span>
+                </Td>
+                <Td>{ROLE_LABELS[u.role]}</Td>
+                <Td className="hidden font-mono text-xs text-slate-600 md:table-cell">
+                  {u.username ?? ('email' in u ? (u.email as string | null) : null) ?? '—'}
+                </Td>
+                <Td className="hidden text-slate-600 sm:table-cell">{fmt(u.lastLoginAt)}</Td>
+                {canManage && (
+                  <Td className="text-right">
+                    {u.role === 'TEACHER' ? (
+                      <Link href="/staff/teachers" className="text-sm font-medium text-[var(--accent)] hover:underline">
+                        Manage on Teachers
+                      </Link>
+                    ) : u.role !== 'SCHOOL_ADMIN' ? (
+                      <AccountActions
+                        userId={u.id}
+                        name={u.displayName}
+                        status={u.status}
+                        schoolName={ctx.session.tenant?.name ?? ''}
+                      />
+                    ) : null}
+                  </Td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       </Card>
     </>
   );
