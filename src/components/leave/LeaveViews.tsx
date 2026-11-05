@@ -112,7 +112,13 @@ export function ApplyLeaveButton({ types, today }: { types: { id: string; name: 
 
 export function MyLeaveList({ rows }: { rows: LeaveRow[] }) {
   const { run } = useAction();
-  if (!rows.length) return <EmptyState title="No leave requests yet" />;
+  if (!rows.length)
+    return (
+      <EmptyState
+        title="No leave requests yet"
+        description="Use Apply for leave to ask for days off. You’ll see the decision here, and get a notification."
+      />
+    );
   return (
     <ul className="divide-y divide-slate-100">
       {rows.map((r) => (

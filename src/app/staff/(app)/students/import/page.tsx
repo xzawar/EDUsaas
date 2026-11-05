@@ -2,9 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { ImportWizard } from '@/components/people/ImportWizard';
-import { Badge, Card, Table, Td, Th } from '@/components/ui';
+import { Badge, ButtonLink, Card, EmptyState, Table, Td, Th } from '@/components/ui';
+import { Layers } from 'lucide-react';
 import { requirePortal } from '@/server/auth/page';
 import { recentImports } from '@/server/school/imports';
+import { listSections } from '@/server/school/structure';
 
 export const metadata: Metadata = { title: 'Import students' };
 
@@ -17,7 +19,7 @@ const STATUS = {
 
 export default async function ImportPage() {
   const ctx = await requirePortal('STAFF', 'students.import');
-  const recent = await recentImports(ctx);
+  const [recent, sections] = await Promise.all([recentImports(ctx), listSections(ctx)]);
   return (
     <>
       <PageHeader
@@ -30,7 +32,22 @@ export default async function ImportPage() {
         description="Add many students at once from Excel. Usernames, roll numbers and first-time passwords are created for you."
       />
       <div className="space-y-6">
-        <ImportWizard schoolName={ctx.session.tenant?.name ?? ''} />
+        {sections.length ? (
+          <ImportWizard schoolName={ctx.session.tenant?.name ?? ''} />
+        ) : (
+          <Card>
+            <EmptyState
+              icon={<Layers className="size-5" />}
+              title="Add classes and sections first"
+              description="Each row in the file names a class and section, so those need to exist before you import."
+              action={
+                ctx.can('structure.manage') ? (
+                  <ButtonLink href="/staff/academics">Set up classes</ButtonLink>
+                ) : undefined
+              }
+            />
+          </Card>
+        )}
         {recent.length > 0 && (
           <Card title="Recent imports">
             <Table>

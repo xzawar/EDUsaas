@@ -4,7 +4,7 @@ import { ApplyLeaveButton, ApprovalList, MyLeaveList } from '@/components/leave/
 import { Card, TabLinks } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { inTenant, schoolClock, teacherScope } from '@/server/school/common';
-import { approvalQueue, leaveTypes, myLeave } from '@/server/school/leave';
+import { approvalQueue, leaveTypes, myLeave, pendingApprovals } from '@/server/school/leave';
 
 export const metadata: Metadata = { title: 'Leave' };
 
@@ -17,14 +17,20 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   const canApprove =
     ctx.user.role === 'SCHOOL_ADMIN' || (ctx.user.role === 'PRINCIPAL' && ctx.can('leave.approve')) || isIncharge;
   const canApply = ctx.can('leave.apply');
+  const waiting = canApprove ? await pendingApprovals(ctx) : 0;
+  // With no tab chosen, open on the requests waiting for a decision, if there are any.
   const active =
     tab === 'approve' && canApprove
       ? 'approve'
       : tab === 'history' && canApprove
         ? 'history'
-        : canApply
+        : tab === 'mine' && canApply
           ? 'mine'
-          : 'approve';
+          : !tab && waiting > 0
+            ? 'approve'
+            : canApply
+              ? 'mine'
+              : 'approve';
   const [types, mine, queue, clock] = await Promise.all([
     canApply ? leaveTypes(ctx) : Promise.resolve([]),
     active === 'mine' ? myLeave(ctx) : Promise.resolve([]),
@@ -32,10 +38,10 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
     inTenant(ctx, (tx) => schoolClock(tx)),
   ]);
   const tabs = [
-    ...(canApply ? [{ key: 'mine', label: 'My leave', href: '/staff/leave' }] : []),
+    ...(canApply ? [{ key: 'mine', label: 'My leave', href: '/staff/leave?tab=mine' }] : []),
     ...(canApprove
       ? [
-          { key: 'approve', label: 'To approve', href: '/staff/leave?tab=approve' },
+          { key: 'approve', label: 'To approve', href: '/staff/leave?tab=approve', count: waiting || undefined },
           { key: 'history', label: 'Decided', href: '/staff/leave?tab=history' },
         ]
       : []),
@@ -50,7 +56,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
             : 'Request leave and see the decision here.'
         }
         actions={
-          canApply && active === 'mine' ? (
+          canApply ? (
             <ApplyLeaveButton types={types.map((t) => ({ id: t.id, name: t.name }))} today={clock.today} />
           ) : undefined
         }

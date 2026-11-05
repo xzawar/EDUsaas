@@ -403,6 +403,15 @@ export async function attendanceOverview(ctx: AuthedContext) {
     const submitted = new Set(todayBatches.map((b) => b.sectionId));
     const todayCounts = zero();
     for (const b of todayBatches) for (const r of b.records) todayCounts[r.status]++;
+    const sectionInfo = new Map(sections.map((s) => [s.id, s]));
+    const classToday = new Map<string, { name: string; grade: number; counts: ReturnType<typeof zero> }>();
+    for (const b of todayBatches) {
+      const sec = sectionInfo.get(b.sectionId);
+      if (!sec) continue;
+      const c = classToday.get(sec.class.name) ?? { name: sec.class.name, grade: sec.class.gradeLevel, counts: zero() };
+      for (const r of b.records) c.counts[r.status]++;
+      classToday.set(sec.class.name, c);
+    }
 
     // Daily % for the last 30 school days.
     const since = addDays(clock.today, -42);
@@ -443,6 +452,9 @@ export async function attendanceOverview(ctx: AuthedContext) {
       sectionsSubmitted: submitted.size,
       todayPct: attendancePct(todayCounts),
       todayCounts,
+      todayByClass: [...classToday.values()]
+        .sort((a, b) => a.grade - b.grade)
+        .map((c) => ({ name: c.name, pct: attendancePct(c.counts), absent: c.counts.ABSENT })),
       pending: sections
         .filter((s) => !submitted.has(s.id) && s._count.students > 0)
         .sort((a, b) => a.class.gradeLevel - b.class.gradeLevel || a.name.localeCompare(b.name))

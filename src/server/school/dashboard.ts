@@ -1,6 +1,6 @@
 import 'server-only';
 import type { AuthedContext } from '@/server/http/route';
-import { inTenant, sectionLabel, teacherScope } from '@/server/school/common';
+import { inTenant, schoolClock, sectionLabel, teacherScope, toDate } from '@/server/school/common';
 
 /** School overview for School Admin / Principal / Admissions Officer (fields gated by permission). */
 export async function schoolOverview(ctx: AuthedContext) {
@@ -194,5 +194,72 @@ export async function studentOverview(ctx: AuthedContext) {
         .map((cs) => ({ name: cs.subject.name, teacher: teacherBySubject.get(cs.subject.name) ?? null }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     };
+  });
+}
+
+/**
+ * Admissions desk: seats per section in the current year, and this month's admissions and withdrawals. Only needs
+ * student-level access (no marks or attendance).
+ */
+export async function admissionsOverview(ctx: AuthedContext) {
+  return inTenant(ctx, async (tx) => {
+    const clock = await schoolClock(tx);
+    const monthStart = toDate(`${clock.today.slice(0, 7)}-01`);
+    const year = await tx.academicYear.findFirst({ where: { status: 'CURRENT' } });
+    const [sections, admitted, withdrawn, unplaced] = await Promise.all([
+      year
+        ? tx.section.findMany({
+            where: { class: { academicYearId: year.id } },
+            include: {
+              class: { select: { name: true, gradeLevel: true } },
+              _count: { select: { students: { where: { status: 'ACTIVE' } } } },
+            },
+          })
+        : Promise.resolve([]),
+      tx.student.count({ where: { admittedOn: { gte: monthStart } } }),
+      tx.student.count({ where: { status: 'WITHDRAWN', withdrawnAt: { gte: monthStart } } }),
+      tx.student.count({ where: { status: 'ACTIVE', sectionId: null } }),
+    ]);
+    const seats = sections
+      .sort((a, b) => a.class.gradeLevel - b.class.gradeLevel || a.name.localeCompare(b.name))
+      .map((s) => ({
+        id: s.id,
+        label: sectionLabel(s),
+        students: s._count.students,
+        capacity: s.capacity,
+        left: s.capacity === null ? null : Math.max(0, s.capacity - s._count.students),
+      }));
+    const withCapacity = seats.filter((s) => s.left !== null);
+    return {
+      year: year ? { id: year.id, name: year.name } : null,
+      month: new Date(monthStart).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' }),
+      admitted,
+      withdrawn,
+      unplaced,
+      seats,
+      seatsLeft: withCapacity.length ? withCapacity.reduce((n, s) => n + s.left!, 0) : null,
+      full: withCapacity.filter((s) => s.left === 0).length,
+    };
+  });
+}
+
+/** Principal: how each subject is going (average % on published tests this year). */
+export async function subjectAverages(ctx: AuthedContext) {
+  return inTenant(ctx, async (tx) => {
+    const year = await tx.academicYear.findFirst({ where: { status: 'CURRENT' } });
+    if (!year) return [];
+    const rows = await tx.$queryRaw<{ subject: string; avg: number | null; tests: bigint }[]>`
+      SELECT s.name AS subject,
+             (AVG(m.score / NULLIF(a.max_marks, 0) * 100) FILTER (WHERE NOT m.absent AND m.score IS NOT NULL))::float8 AS avg,
+             COUNT(DISTINCT a.id) AS tests
+      FROM assessments a
+      JOIN subjects s ON s.id = a.subject_id
+      JOIN marks m ON m.assessment_id = a.id
+      WHERE a.academic_year_id = ${year.id}::uuid AND a.status = 'PUBLISHED'
+      GROUP BY s.name
+      ORDER BY s.name`;
+    return rows
+      .filter((r) => r.avg !== null)
+      .map((r) => ({ subject: r.subject, avg: Math.round(r.avg! * 10) / 10, tests: Number(r.tests) }));
   });
 }

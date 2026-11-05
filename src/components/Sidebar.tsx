@@ -76,13 +76,13 @@ function isActive(pathname: string, item: NavItem) {
 function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="space-y-5">
+    <nav aria-label="Main" className="space-y-3">
       {groups.map((g, i) => (
         <div key={g.label ?? i}>
           {g.label && (
-            <p className="mb-1 px-4 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>
+            <p className="mb-0.5 px-4 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>
           )}
-          <ul className="space-y-1">
+          <ul className="space-y-0.5">
             {g.items.map((item) => {
               const Icon = ICONS[item.icon];
               const active = isActive(pathname, item);
@@ -93,7 +93,7 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
                     className={cx(
-                      'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition',
+                      'flex items-center gap-3 rounded-xl px-4 py-1.5 text-sm transition',
                       active
                         ? 'bg-slate-900 font-semibold text-white shadow-sm'
                         : 'font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900',
@@ -120,19 +120,21 @@ type SidebarUser = {
   photoUrl?: string | null;
 };
 
-/** Profile at the top of the sidebar: who is signed in, and where. */
+/** Profile at the top of the sidebar: who is signed in, and where. Compact, so the whole menu fits on a laptop. */
 function Profile({ user, orgName }: { user: SidebarUser; orgName: string }) {
   return (
-    <div className="flex flex-col items-center px-5 pt-7 pb-5 text-center">
-      <Avatar name={user.displayName} size="lg" src={user.photoUrl} />
-      <p className="mt-3 max-w-full truncate text-base font-semibold">{user.displayName}</p>
-      <p className="max-w-full truncate text-xs text-slate-500">
-        {user.username ?? user.email ?? ROLE_LABELS[user.role]}
-      </p>
-      <p className="mt-2 inline-flex max-w-full items-center gap-1 truncate rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-        {ROLE_LABELS[user.role] ?? user.role}
-        {orgName ? ` · ${orgName}` : ''}
-      </p>
+    <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+      <Avatar name={user.displayName} size="md" src={user.photoUrl} />
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold">{user.displayName}</p>
+        {(user.username ?? user.email) && (
+          <p className="truncate font-mono text-[11px] text-slate-500">{user.username ?? user.email}</p>
+        )}
+        <p className="truncate text-xs text-slate-500">
+          {ROLE_LABELS[user.role] ?? user.role}
+          {orgName ? ` · ${orgName}` : ''}
+        </p>
+      </div>
     </div>
   );
 }
@@ -140,9 +142,9 @@ function Profile({ user, orgName }: { user: SidebarUser; orgName: string }) {
 function FooterActions() {
   const [busy, setBusy] = useState(false);
   const row =
-    'flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900';
+    'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900';
   return (
-    <div className="space-y-1 px-3 pt-2 pb-4">
+    <div className="flex gap-1 border-t border-slate-100 px-3 pt-2 pb-3">
       <Link href="/change-password" className={row}>
         <KeyRound className="size-[18px]" aria-hidden /> Password
       </Link>
@@ -238,7 +240,7 @@ export function Sidebar({
                 <X className="size-5" />
               </button>
             </div>
-            <div className="-mt-6">
+            <div className="-mt-4">
               <Profile user={user} orgName={orgName} />
             </div>
             <div className="flex-1 overflow-y-auto px-3 pb-2">

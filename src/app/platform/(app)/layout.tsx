@@ -4,7 +4,7 @@ import { requirePortal } from '@/server/auth/page';
 
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requirePortal('PLATFORM');
-  const items: NavItem[] = [{ href: '/platform', label: 'Schools', icon: 'schools', exact: true }];
+  const items: NavItem[] = [{ href: '/platform', label: 'Overview', icon: 'dashboard', exact: true }];
   if (ctx.can('platform.support.queue') || ctx.can('platform.support.access') || ctx.can('platform.tenants.manage'))
     items.push({ href: '/platform/support', label: 'Support', icon: 'support' });
   if (ctx.can('platform.plans.manage')) items.push({ href: '/platform/plans', label: 'Plans', icon: 'reports' });
