@@ -1,12 +1,13 @@
-import { Download } from 'lucide-react';
+import { BarChart3, Download } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { BarList } from '@/components/charts';
-import { Badge, Card, EmptyState, Stat, TabLinks, Table, Td, Th, cx, formatPhone } from '@/components/ui';
+import { Badge, ButtonLink, Card, EmptyState, Stat, TabLinks, Table, Td, Th, cx, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
+import { AppError } from '@/server/http/errors';
 import { atRiskReport, attendanceReport, marksReport } from '@/server/school/reports';
-import { listSections } from '@/server/school/structure';
+import { currentYear, listSections } from '@/server/school/structure';
 
 export const metadata: Metadata = { title: 'Reports' };
 
@@ -37,7 +38,25 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const tab = sp.tab === 'marks' || sp.tab === 'at-risk' ? sp.tab : 'attendance';
   const sectionId = isUuid(sp.sectionId) ? sp.sectionId : undefined;
-  const sections = await listSections(ctx);
+  const [sections, year] = await Promise.all([listSections(ctx), currentYear(ctx)]);
+  if (!year)
+    return (
+      <>
+        <PageHeader title="Reports" description="Attendance, marks and students who need attention." />
+        <Card>
+          <EmptyState
+            icon={<BarChart3 className="size-5" />}
+            title="Nothing to report yet"
+            description="Reports appear once you have a current academic year with classes, students and some attendance or marks."
+            action={
+              ctx.permissions.has('structure.manage') ? (
+                <ButtonLink href="/staff/academics">Set up classes</ButtonLink>
+              ) : undefined
+            }
+          />
+        </Card>
+      </>
+    );
 
   const filters = (withDates: boolean, from?: string, to?: string) => (
     <form className="mb-4 flex flex-wrap items-end gap-3" action="/staff/reports">
@@ -125,12 +144,19 @@ async function AttendanceTab({
   filters: (from: string, to: string) => React.ReactNode;
 }) {
   const ctx = await requirePortal('STAFF', 'reports.read');
-  const r = await attendanceReport(ctx, {
-    sectionId,
-    from: isDate(sp.from) ? sp.from : undefined,
-    to: isDate(sp.to) ? sp.to : undefined,
-    format: 'json',
+  const query = { sectionId, from: isDate(sp.from) ? sp.from : undefined, to: isDate(sp.to) ? sp.to : undefined };
+  const r = await attendanceReport(ctx, { ...query, format: 'json' }).catch((e) => {
+    if (e instanceof AppError && e.code === 'VALIDATION_FAILED') return e.message;
+    if (e instanceof AppError && e.code === 'NOT_FOUND') return 'That section no longer exists.';
+    throw e;
   });
+  if (typeof r === 'string')
+    return (
+      <>
+        {filters(query.from ?? '', query.to ?? '')}
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{r}</p>
+      </>
+    );
   const csv = `/api/v1/reports/attendance?${qs({ sectionId, from: r.from, to: r.to, format: 'csv' })}`;
   const range = `${new Date(`${r.from}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} – ${new Date(`${r.to}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
   return (

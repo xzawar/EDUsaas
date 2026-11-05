@@ -159,7 +159,8 @@ export function AreaTrend({
         <path d={geo.area} fill={`url(#${gid})`} />
         <path d={geo.line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) =>
-          i % geo.every === 0 || i === points.length - 1 ? (
+          // Regular ticks, plus the last day; a regular tick that would crowd the last label is skipped.
+          i === points.length - 1 || (i % geo.every === 0 && points.length - 1 - i >= geo.every / 2) ? (
             <text key={i} x={geo.pts[i]![0]} y={H - 8} textAnchor="middle" className="fill-slate-400 text-[10px]">
               {p.label}
             </text>

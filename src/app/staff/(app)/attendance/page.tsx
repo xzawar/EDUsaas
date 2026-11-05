@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2, Circle } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
-import { Badge, Card, EmptyState } from '@/components/ui';
+import { Badge, ButtonLink, Card, EmptyState } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { attendanceSections } from '@/server/school/attendance';
 import { redirect } from 'next/navigation';
@@ -27,7 +27,14 @@ export default async function AttendancePage() {
         <Card>
           <EmptyState
             title="No sections to mark"
-            description="You’ll see your sections here once you’re assigned to them."
+            description={
+              ctx.can('attendance.oversee')
+                ? 'Registers appear here once the current year has classes and sections with students.'
+                : 'Your sections appear here once the School Admin makes you a Class Incharge or assigns you to a class.'
+            }
+            action={
+              ctx.can('structure.manage') ? <ButtonLink href="/staff/academics">Set up classes</ButtonLink> : undefined
+            }
           />
         </Card>
       ) : (
