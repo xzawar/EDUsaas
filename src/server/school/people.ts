@@ -7,6 +7,7 @@ import type { AuthedContext } from '@/server/http/route';
 import { generateTemporaryPassword, hashPassword } from '@/server/auth/password';
 import { normalizeUsername, studentUsername, teacherUsername } from '@/server/auth/username';
 import { revokeUserSessions } from '@/server/auth/session';
+import { photoVersion } from '@/server/school/photos';
 import {
   DAY_MS,
   audit,
@@ -183,6 +184,7 @@ export async function getTeacher(ctx: AuthedContext, id: string) {
       employeeNo: t.employeeNo,
       phone: t.phone,
       qualification: t.qualification,
+      photoVersion: photoVersion(t.photoKey),
       joinedOn: isoDate(t.joinedOn),
       assignments: t.assignments
         .map((a) => ({
@@ -472,6 +474,7 @@ export async function listStudents(ctx: AuthedContext, query: z.infer<typeof lis
       guardianPhone: s.guardianPhone,
       status: s.status,
       withdrawnAt: s.withdrawnAt,
+      photoVersion: photoVersion(s.photoKey),
       lastLoginAt: s.user.lastLoginAt,
     }));
     return { items, total, nextCursor: hasMore ? items[items.length - 1]?.id : null };
@@ -533,6 +536,7 @@ export async function getStudent(ctx: AuthedContext, id: string) {
       guardianPhone: s.guardianPhone,
       address: s.address,
       withdrawnAt: s.withdrawnAt,
+      photoVersion: photoVersion(s.photoKey),
       restoreUntil,
       canRestore: s.status === 'WITHDRAWN' && restoreUntil !== null && restoreUntil.getTime() > Date.now(),
       section: s.section

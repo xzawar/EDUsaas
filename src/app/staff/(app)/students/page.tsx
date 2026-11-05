@@ -117,7 +117,11 @@ export default async function StudentsPage({
                 <tr key={s.id} className="hover:bg-slate-50">
                   <Td>
                     <Link href={`/staff/students/${s.id}`} className="flex items-center gap-3">
-                      <Avatar name={s.name} size="sm" />
+                      <Avatar
+                        name={s.name}
+                        size="sm"
+                        src={s.photoVersion ? `/api/v1/students/${s.id}/photo?v=${s.photoVersion}` : null}
+                      />
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-slate-900 hover:text-[var(--accent)]">
                           {s.name}

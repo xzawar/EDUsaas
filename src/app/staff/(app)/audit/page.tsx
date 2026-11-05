@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/AppShell';
 import { Badge, Card, EmptyState, ROLE_LABELS } from '@/components/ui';
 import { actionLabel } from '@/lib/audit-labels';
 import { requirePortal } from '@/server/auth/page';
+import { auditArchiveList } from '@/server/audit/archives';
 import { AUDIT_CATEGORIES, auditActors, auditQuery, listAuditLogs } from '@/server/school/auditlog';
 
 export const metadata: Metadata = { title: 'Audit log' };
@@ -25,7 +26,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const parsed = auditQuery.safeParse(Object.fromEntries(Object.entries(sp).filter(([, v]) => v)));
   const q = parsed.success ? parsed.data : auditQuery.parse({});
-  const [{ items, nextCursor }, actors] = await Promise.all([listAuditLogs(ctx, q), auditActors(ctx)]);
+  const [{ items, nextCursor }, actors, archived] = await Promise.all([
+    listAuditLogs(ctx, q),
+    auditActors(ctx),
+    auditArchiveList(ctx),
+  ]);
   const keep = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== 'cursor') as [string, string][]);
   const olderHref = nextCursor
     ? `/staff/audit?${new URLSearchParams([...keep.entries(), ['cursor', nextCursor]]).toString()}`
@@ -212,6 +217,26 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           </div>
         )}
       </Card>
+      {archived.length > 0 && (
+        <Card
+          className="mt-6"
+          title="Archived months"
+          description="Finished months are moved to secure file storage. Download one to search it."
+        >
+          <ul className="flex flex-wrap gap-2">
+            {archived.map((a) => (
+              <li key={a.month}>
+                <a
+                  href={`/api/v1/audit-logs/archives/${a.month}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-medium ring-1 ring-slate-200 hover:bg-white"
+                >
+                  {a.month} <span className="text-xs text-slate-500">· {a.rows} entries</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </>
   );
 }

@@ -6,7 +6,17 @@
 import 'dotenv/config';
 import { Client } from 'pg';
 
-const DENY_ALL_TABLES = new Set(['sessions', 'password_reset_tokens']);
+// System-role-only tables: the tenant app role has no grants at all (auth secrets, rate limits, platform billing,
+// platform admin grants, audit archive index).
+const DENY_ALL_TABLES = new Set([
+  'sessions',
+  'password_reset_tokens',
+  'rate_limits',
+  'plans',
+  'subscriptions',
+  'platform_permission_grants',
+  'audit_archives',
+]);
 
 async function main() {
   const client = new Client({ connectionString: process.env.DIRECT_URL });

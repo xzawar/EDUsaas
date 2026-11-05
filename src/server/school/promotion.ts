@@ -1,6 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import type { TenantTx } from '@/server/db/client';
+import { YEAR_ARCHIVE, yearArchivePayload } from '@/server/jobs/archive';
 import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { normalizeUsername, studentUsername } from '@/server/auth/username';
@@ -227,7 +228,22 @@ export async function runPromotion(ctx: AuthedContext, input: PromotionInput) {
           status: 'SUCCEEDED',
           finishedAt: new Date(),
           progress: { done: plan.rows.length, total: plan.rows.length },
-          result: { ...summary, archive: 'skipped: report-card storage not configured (D14); raw data retained' },
+          result: { ...summary, archive: 'queued' },
+        },
+      });
+      // Spec §5.4 / §10.2: the closed year's report cards go to storage, then its raw rows are removed (in chunks).
+      await tx.job.create({
+        data: {
+          tenantId: ctx.tenantId!,
+          type: YEAR_ARCHIVE,
+          status: 'QUEUED',
+          payload: yearArchivePayload(
+            plan.from.id,
+            plan.from.name,
+            plan.rows.map((r) => r.studentId),
+          ),
+          progress: { done: 0, archived: 0, failed: [] },
+          createdBy: ctx.user.id,
         },
       });
       await audit(ctx, tx, {

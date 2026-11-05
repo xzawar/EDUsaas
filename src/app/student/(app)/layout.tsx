@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/AppShell';
 import type { NavItem } from '@/components/Sidebar';
 import { requirePortal } from '@/server/auth/page';
+import { myPhotoUrl } from '@/server/school/photos';
 
 const STUDENT_NAV: NavItem[] = [
   { href: '/student', label: 'Home', icon: 'home', exact: true },
@@ -16,7 +17,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
     <AppShell
       portal="student"
       orgName={ctx.session.tenant?.name ?? ''}
-      user={ctx.user}
+      user={{ ...ctx.user, photoUrl: await myPhotoUrl(ctx) }}
       nav={[{ items: STUDENT_NAV }]}
       mobileTabs={STUDENT_NAV}
       tools={{ search: false, notifications: true }}

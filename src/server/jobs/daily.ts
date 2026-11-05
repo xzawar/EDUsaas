@@ -6,6 +6,7 @@ import { recordAudit } from '@/server/audit/audit';
 import { systemDb } from '@/server/db/system';
 import { expireGrants } from '@/server/platform/support';
 import { refreshDemoData } from '@/server/jobs/demo';
+import { archiveAuditMonths, processYearArchives } from '@/server/jobs/archive';
 
 /**
  * Daily maintenance (cron, decision D8). Each step is independent and idempotent, so a missed or repeated run is
@@ -165,10 +166,7 @@ export async function atRiskDigest(now = new Date(), force = false) {
  * Monthly audit archival (plan §8.13) needs object storage (decision D14). Until a bucket is configured the
  * audit log simply stays in the database, which is safe — just larger.
  */
-export function auditArchival() {
-  const configured = !!process.env.STORAGE_BUCKET;
-  return configured ? 'not-implemented' : 'skipped: storage not configured';
-}
+export const auditArchival = (now: Date) => archiveAuditMonths(now);
 
 export async function runDaily(now = new Date()) {
   const results: Record<string, unknown> = {};
@@ -186,7 +184,8 @@ export async function runDaily(now = new Date()) {
   await step('leaveEscalationNotices', () => leaveEscalations(now));
   await step('atRiskDigests', () => atRiskDigest(now));
   await step('studentsAnonymized', () => anonymizeWithdrawn(now));
-  await step('auditArchive', () => auditArchival());
+  await step('auditArchive', () => auditArchival(now));
+  await step('yearArchive', () => processYearArchives(200));
   await step('demoData', () => refreshDemoData(now));
   return results;
 }

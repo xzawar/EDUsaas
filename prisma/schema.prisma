@@ -109,11 +109,25 @@ enum AnnouncementAudience {
 }
 
 enum SupportGrantStatus {
+  AWAITING_OWNER
   PENDING
   ACTIVE
   DENIED
   REVOKED
   EXPIRED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  CLOSED
 }
 
 enum JobStatus {
@@ -162,6 +176,10 @@ model Tenant {
   notifications      Notification[]
   announcements      Announcement[]
   supportGrants      SupportGrant[]
+  subscription       Subscription?
+  supportTickets     SupportTicket[]
+  ticketMessages     TicketMessage[]
+  studentArchives    StudentArchive[]
 
   @@map("tenants")
 }
@@ -221,15 +239,17 @@ model User {
   updatedAt           DateTime   @updatedAt @map("updated_at")
   deletedAt           DateTime?  @map("deleted_at")
 
-  tenant         Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant         Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   sessions       Session[]
   passwordResets PasswordResetToken[]
   teacher        Teacher?
   student        Student?
-  leaveRequests  LeaveRequest[]       @relation("LeaveApplicant")
-  remarks        Remark[]             @relation("RemarkAuthor")
+  leaveRequests  LeaveRequest[]            @relation("LeaveApplicant")
+  remarks        Remark[]                  @relation("RemarkAuthor")
   notifications  Notification[]
   announcements  Announcement[]
+  platformGrants PlatformPermissionGrant[]
+  ticketsCreated SupportTicket[]           @relation("TicketAuthor")
 
   @@index([tenantId, role])
   @@map("users")
@@ -826,6 +846,9 @@ model SupportGrant {
   reason          String
   durationMinutes Int                @map("duration_minutes")
   status          SupportGrantStatus @default(PENDING)
+  /// Set when a Platform Admin asked and the Platform Owner approved (spec §9.6).
+  ownerApprovedBy String?            @map("owner_approved_by") @db.Uuid
+  ticketId        String?            @map("ticket_id") @db.Uuid
   decidedBy       String?            @map("decided_by") @db.Uuid
   decidedAt       DateTime?          @map("decided_at")
   expiresAt       DateTime?          @map("expires_at")
@@ -846,4 +869,124 @@ model RateLimit {
   count       Int
 
   @@map("rate_limits")
+}
+
+// ───────────── SaaS: plans & subscriptions (Phase 6, spec §2.7, §8 "SaaS") ─────────────
+// Platform-level tables (no tenant RLS for the app role; only the system role touches them). Usage is counted live
+// from the tenant's own tables rather than kept in a counter table, so it can never drift.
+
+model Plan {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @unique
+  priceMonthly Int      @default(0) @map("price_monthly")
+  maxStudents  Int?     @map("max_students")
+  maxStaff     Int?     @map("max_staff")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id        String             @id @default(uuid()) @db.Uuid
+  tenantId  String             @unique @map("tenant_id") @db.Uuid
+  planId    String             @map("plan_id") @db.Uuid
+  status    SubscriptionStatus @default(TRIAL)
+  startedOn DateTime           @default(now()) @map("started_on") @db.Date
+  renewsOn  DateTime?          @map("renews_on") @db.Date
+  notes     String?
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+/// Extra permissions the Platform Owner grants to a Platform Admin (spec §2.7, §2.8).
+model PlatformPermissionGrant {
+  userId     String   @map("user_id") @db.Uuid
+  permission String
+  grantedBy  String   @map("granted_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permission])
+  @@map("platform_permission_grants")
+}
+
+// ───────────── Support tickets (spec §2.8 "support ticket queue", §9.6 step 1) ─────────────
+
+model SupportTicket {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  createdBy String       @map("created_by") @db.Uuid
+  subject   String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  author   User            @relation("TicketAuthor", fields: [createdBy], references: [id])
+  messages TicketMessage[]
+
+  @@index([tenantId, createdAt])
+  @@index([status, updatedAt])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  ticketId     String   @map("ticket_id") @db.Uuid
+  authorId     String   @map("author_id") @db.Uuid
+  authorName   String   @map("author_name")
+  fromPlatform Boolean  @default(false) @map("from_platform")
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_messages")
+}
+
+// ───────────── Archival (spec §10) ─────────────
+
+/// A closed year's report card kept in object storage after promotion (spec §5.4, §10.2).
+model StudentArchive {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  studentId      String   @map("student_id") @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  yearName       String   @map("year_name")
+  storageKey     String   @map("storage_key")
+  bytes          Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, academicYearId])
+  @@index([tenantId])
+  @@map("student_archives")
+}
+
+/// One file per school per month of audit logs moved to object storage (spec §10.3).
+model AuditArchive {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String?  @map("tenant_id") @db.Uuid
+  month      String
+  storageKey String   @map("storage_key")
+  rows       Int
+  sha256     String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, month])
+  @@map("audit_archives")
 }

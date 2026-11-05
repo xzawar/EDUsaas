@@ -1,6 +1,8 @@
 import { ClipboardList, FileText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/AppShell';
+import { PastReportCards } from '@/components/student/PastReportCards';
+import { myArchives } from '@/server/school/archives';
 import { Badge, Card, EmptyState, Table, Td, Th } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { studentResults, studentRemarks } from '@/server/school/assessments';
@@ -16,6 +18,7 @@ export default async function StudentMarksPage() {
   const [r, remarks] = me
     ? await Promise.all([studentResults(ctx, me.id), studentRemarks(ctx, me.id, true)])
     : [{ items: [], subjects: [] }, []];
+  const pastCards = await myArchives(ctx);
   return (
     <>
       <PageHeader
@@ -101,6 +104,11 @@ export default async function StudentMarksPage() {
               </li>
             ))}
           </ul>
+        </Card>
+      )}
+      {pastCards.length > 0 && (
+        <Card title="Past report cards" className="mt-6">
+          <PastReportCards items={pastCards} />
         </Card>
       )}
     </>
