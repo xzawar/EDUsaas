@@ -112,13 +112,19 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
   );
 }
 
-type SidebarUser = { displayName: string; role: string; username?: string | null; email?: string | null };
+type SidebarUser = {
+  displayName: string;
+  role: string;
+  username?: string | null;
+  email?: string | null;
+  photoUrl?: string | null;
+};
 
 /** Profile at the top of the sidebar: who is signed in, and where. */
 function Profile({ user, orgName }: { user: SidebarUser; orgName: string }) {
   return (
     <div className="flex flex-col items-center px-5 pt-7 pb-5 text-center">
-      <Avatar name={user.displayName} size="lg" />
+      <Avatar name={user.displayName} size="lg" src={user.photoUrl} />
       <p className="mt-3 max-w-full truncate text-base font-semibold">{user.displayName}</p>
       <p className="max-w-full truncate text-xs text-slate-500">
         {user.username ?? user.email ?? ROLE_LABELS[user.role]}

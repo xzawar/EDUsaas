@@ -286,7 +286,21 @@ const AVATAR_COLORS = [
   'bg-teal-100 text-teal-800',
 ];
 
-export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
+export function Avatar({ name, size = 'md', src }: { name: string; size?: 'sm' | 'md' | 'lg'; src?: string | null }) {
+  if (src)
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- small authenticated thumbnail served by our own API
+      <img
+        src={src}
+        alt=""
+        className={cx(
+          'inline-block shrink-0 rounded-full object-cover',
+          size === 'sm' && 'size-7',
+          size === 'md' && 'size-9',
+          size === 'lg' && 'size-16',
+        )}
+      />
+    );
   const initials = name
     .trim()
     .split(/\s+/)

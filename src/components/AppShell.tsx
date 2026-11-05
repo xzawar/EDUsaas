@@ -16,7 +16,13 @@ export function AppShell({
 }: {
   portal: PortalKey;
   orgName: string;
-  user: { displayName: string; role: string; username?: string | null; email?: string | null };
+  user: {
+    displayName: string;
+    role: string;
+    username?: string | null;
+    email?: string | null;
+    photoUrl?: string | null;
+  };
   nav: NavGroup[];
   mobileTabs?: NavItem[];
   tools?: { search: boolean; notifications: boolean };

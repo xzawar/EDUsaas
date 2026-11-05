@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/AppShell';
 import { AccountActions, AssignmentsEditor, EditTeacherButton } from '@/components/people/TeacherForms';
-import { Avatar, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
+import { PhotoEditor } from '@/components/people/PhotoEditor';
+import { Badge, Card, KeyValue, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { AppError } from '@/server/http/errors';
 import { getTeacher } from '@/server/school/people';
@@ -76,7 +77,12 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
         <div className="space-y-6">
           <Card>
             <div className="flex flex-col items-center py-2 text-center">
-              <Avatar name={teacher.name} size="lg" />
+              <PhotoEditor
+                name={teacher.name}
+                src={teacher.photoVersion ? `/api/v1/teachers/${teacher.id}/photo?v=${teacher.photoVersion}` : null}
+                endpoint={`/teachers/${teacher.id}/photo`}
+                canEdit={ctx.can('teachers.write')}
+              />
               <p className="mt-3 text-lg font-semibold">{teacher.name}</p>
               <p className="text-sm text-slate-600">{teacher.qualification ?? 'Teacher'}</p>
             </div>

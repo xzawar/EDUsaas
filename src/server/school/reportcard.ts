@@ -16,7 +16,7 @@ import { getStudent } from '@/server/school/people';
 // The standard PDF fonts only cover Latin-1; anything else is replaced rather than failing the whole card.
 const latin = (s: string) => s.normalize('NFKD').replace(/[^\x20-\x7E\xA0-\xFF]/g, '?');
 
-type Card = {
+export type Card = {
   school: string;
   year: string | null;
   name: string;

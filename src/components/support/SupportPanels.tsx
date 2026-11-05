@@ -11,13 +11,14 @@ export type Grant = {
   requesterName: string;
   reason: string;
   durationMinutes: number;
-  status: 'PENDING' | 'ACTIVE' | 'DENIED' | 'REVOKED' | 'EXPIRED';
+  status: 'AWAITING_OWNER' | 'PENDING' | 'ACTIVE' | 'DENIED' | 'REVOKED' | 'EXPIRED';
   createdAt: string | Date;
   expiresAt: string | Date | null;
   endedAt: string | Date | null;
 };
 
 const STATUS: Record<Grant['status'], { label: string; tone: 'slate' | 'green' | 'amber' | 'red' | 'blue' }> = {
+  AWAITING_OWNER: { label: 'Waiting for the Platform Owner', tone: 'blue' },
   PENDING: { label: 'Waiting for the school', tone: 'amber' },
   ACTIVE: { label: 'Active', tone: 'green' },
   DENIED: { label: 'Denied', tone: 'slate' },

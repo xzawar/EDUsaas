@@ -9,7 +9,10 @@ import { AddRemarkButton } from '@/components/marks/AddRemark';
 import { AttendanceRing } from '@/components/student/AttendanceRing';
 import { studentAttendance } from '@/server/school/attendance';
 import { canViewMarks, studentRemarks, studentResults } from '@/server/school/assessments';
-import { Alert, Avatar, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
+import { PhotoEditor } from '@/components/people/PhotoEditor';
+import { PastReportCards } from '@/components/student/PastReportCards';
+import { studentArchives } from '@/server/school/archives';
+import { Alert, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { AppError } from '@/server/http/errors';
 import { getStudent } from '@/server/school/people';
@@ -33,6 +36,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     throw e;
   });
   const sections = ctx.can('students.write') ? await listSections(ctx) : [];
+  const pastCards = canViewMarks(ctx) ? await studentArchives(ctx, student.id).catch(() => []) : [];
   const [att, results, remarks] = await Promise.all([
     studentAttendance(ctx, student.id),
     studentResults(ctx, student.id),
@@ -116,7 +120,12 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex flex-col items-center py-2 text-center">
-            <Avatar name={student.name} size="lg" />
+            <PhotoEditor
+              name={student.name}
+              src={student.photoVersion ? `/api/v1/students/${student.id}/photo?v=${student.photoVersion}` : null}
+              endpoint={`/students/${student.id}/photo`}
+              canEdit={ctx.can('students.write') && student.status === 'ACTIVE'}
+            />
             <p className="mt-3 text-lg font-semibold">{student.name}</p>
             <p className="text-sm text-slate-600">
               {student.section
@@ -195,6 +204,11 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               <p className="text-sm text-slate-500">No published marks yet.</p>
             )}
           </Card>
+          {pastCards.length > 0 && (
+            <Card title="Past report cards">
+              <PastReportCards items={pastCards} />
+            </Card>
+          )}
           <Card
             title="Remarks"
             actions={
