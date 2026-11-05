@@ -76,13 +76,13 @@ function isActive(pathname: string, item: NavItem) {
 function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="space-y-6">
+    <nav aria-label="Main" className="space-y-5">
       {groups.map((g, i) => (
         <div key={g.label ?? i}>
           {g.label && (
-            <p className="mb-1.5 px-3 text-xs font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>
+            <p className="mb-1 px-4 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>
           )}
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {g.items.map((item) => {
               const Icon = ICONS[item.icon];
               const active = isActive(pathname, item);
@@ -93,13 +93,13 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
                     className={cx(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                      'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition',
                       active
-                        ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                        ? 'bg-slate-900 font-semibold text-white shadow-sm'
+                        : 'font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900',
                     )}
                   >
-                    <Icon className="size-4.5 shrink-0" aria-hidden />
+                    <Icon className="size-[18px] shrink-0" aria-hidden />
                     {item.label}
                   </Link>
                 </li>
@@ -112,52 +112,47 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
   );
 }
 
-function UserCard({ user }: { user: { displayName: string; role: string } }) {
-  const [busy, setBusy] = useState(false);
+type SidebarUser = { displayName: string; role: string; username?: string | null; email?: string | null };
+
+/** Profile at the top of the sidebar: who is signed in, and where. */
+function Profile({ user, orgName }: { user: SidebarUser; orgName: string }) {
   return (
-    <div className="border-t border-slate-200 p-3">
-      <div className="flex items-center gap-3 px-2 py-2">
-        <Avatar name={user.displayName} size="sm" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{user.displayName}</p>
-          <p className="truncate text-xs text-slate-500">{ROLE_LABELS[user.role] ?? user.role}</p>
-        </div>
-      </div>
-      <div className="mt-1 grid grid-cols-2 gap-1">
-        <Link
-          href="/change-password"
-          className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-        >
-          <KeyRound className="size-3.5" aria-hidden /> Password
-        </Link>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            await clearQueue().catch(() => undefined);
-            const res = await api<{ redirectTo: string }>('/auth/logout', { method: 'POST' });
-            window.location.assign(res.ok ? res.data.redirectTo : '/');
-          }}
-          className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60"
-        >
-          <LogOut className="size-3.5" aria-hidden /> {busy ? 'Signing out…' : 'Sign out'}
-        </button>
-      </div>
+    <div className="flex flex-col items-center px-5 pt-7 pb-5 text-center">
+      <Avatar name={user.displayName} size="lg" />
+      <p className="mt-3 max-w-full truncate text-base font-semibold">{user.displayName}</p>
+      <p className="max-w-full truncate text-xs text-slate-500">
+        {user.username ?? user.email ?? ROLE_LABELS[user.role]}
+      </p>
+      <p className="mt-2 inline-flex max-w-full items-center gap-1 truncate rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+        {ROLE_LABELS[user.role] ?? user.role}
+        {orgName ? ` · ${orgName}` : ''}
+      </p>
     </div>
   );
 }
 
-function Brand({ orgName }: { orgName: string }) {
+function FooterActions() {
+  const [busy, setBusy] = useState(false);
+  const row =
+    'flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900';
   return (
-    <div className="flex items-center gap-2.5 px-5 py-4">
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-sm font-bold text-white">
-        E
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm leading-tight font-semibold">EDUsaas</p>
-        <p className="truncate text-xs text-slate-500">{orgName}</p>
-      </div>
+    <div className="space-y-1 px-3 pt-2 pb-4">
+      <Link href="/change-password" className={row}>
+        <KeyRound className="size-[18px]" aria-hidden /> Password
+      </Link>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await clearQueue().catch(() => undefined);
+          const res = await api<{ redirectTo: string }>('/auth/logout', { method: 'POST' });
+          window.location.assign(res.ok ? res.data.redirectTo : '/');
+        }}
+        className={cx(row, 'disabled:opacity-60')}
+      >
+        <LogOut className="size-[18px]" aria-hidden /> {busy ? 'Signing out…' : 'Sign out'}
+      </button>
     </div>
   );
 }
@@ -171,35 +166,41 @@ export function Sidebar({
 }: {
   groups: NavGroup[];
   orgName: string;
-  user: { displayName: string; role: string };
+  user: SidebarUser;
   mobileTabs?: NavItem[];
-  /** Global search (Ctrl/⌘ K) and the notifications bell. */
+  /** Global search (Ctrl/⌘ K) and the notifications bell (desktop: in the top bar; mobile: in the header). */
   tools?: { search: boolean; notifications: boolean };
 }) {
   const [open, setOpen] = useState(false);
-  const pages = groups.flatMap((g) => g.items.map((i) => ({ href: i.href, label: i.label })));
   const pathname = usePathname();
   useEffect(() => setOpen(false), [pathname]);
+  const pages = groups.flatMap((g) => g.items.map((i) => ({ href: i.href, label: i.label })));
 
   return (
     <>
       {/* Desktop */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
-        <Brand orgName={orgName} />
-        {(tools.search || tools.notifications) && (
-          <div className="flex items-center gap-1 px-3 pb-2">
-            <div className="min-w-0 flex-1">{tools.search && <SearchButton pages={pages} />}</div>
-            {tools.notifications && <NotificationBell />}
-          </div>
-        )}
-        <div className="flex-1 overflow-y-auto px-3 py-2">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-white lg:flex">
+        <Profile user={user} orgName={orgName} />
+        <div className="flex-1 overflow-y-auto px-3 pb-2">
           <NavList groups={groups} />
         </div>
-        <UserCard user={user} />
+        <FooterActions />
       </aside>
 
+      {/* Desktop top bar: search + notifications, top-right of the page */}
+      {(tools.search || tools.notifications) && (
+        <div className="fixed top-0 right-0 left-64 z-10 hidden h-16 items-center justify-end gap-2 bg-[#f4f4f8]/85 px-6 backdrop-blur lg:flex xl:px-8">
+          {tools.search && (
+            <div className="w-72">
+              <SearchButton pages={pages} />
+            </div>
+          )}
+          {tools.notifications && <NotificationBell />}
+        </div>
+      )}
+
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
+      <div className="sticky top-0 z-20 flex items-center gap-1 bg-white/95 px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -208,7 +209,7 @@ export function Sidebar({
         >
           <Menu className="size-5" />
         </button>
-        <p className="min-w-0 flex-1 truncate px-2 text-sm font-semibold">{orgName || 'EDUsaas'}</p>
+        <p className="min-w-0 flex-1 truncate px-1 text-sm font-semibold">{orgName || 'EDUsaas'}</p>
         {tools.search && <SearchButton pages={pages} compact />}
         {tools.notifications && <NotificationBell />}
         {!tools.search && !tools.notifications && <Avatar name={user.displayName} size="sm" />}
@@ -221,8 +222,7 @@ export function Sidebar({
             className="flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pr-3">
-              <Brand orgName={orgName} />
+            <div className="flex justify-end p-2">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -232,10 +232,13 @@ export function Sidebar({
                 <X className="size-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-3 py-2">
+            <div className="-mt-6">
+              <Profile user={user} orgName={orgName} />
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 pb-2">
               <NavList groups={groups} onNavigate={() => setOpen(false)} />
             </div>
-            <UserCard user={user} />
+            <FooterActions />
           </aside>
         </div>
       )}
@@ -244,7 +247,7 @@ export function Sidebar({
       {mobileTabs && mobileTabs.length > 1 && (
         <nav
           aria-label="Quick"
-          className="fixed inset-x-0 bottom-0 z-20 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 grid bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_rgba(15,23,42,0.06)] lg:hidden"
           style={{ gridTemplateColumns: `repeat(${mobileTabs.length}, minmax(0, 1fr))` }}
         >
           {mobileTabs.map((item) => {
@@ -257,10 +260,17 @@ export function Sidebar({
                 aria-current={active ? 'page' : undefined}
                 className={cx(
                   'flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
-                  active ? 'text-[var(--accent)]' : 'text-slate-500',
+                  active ? 'text-slate-900' : 'text-slate-400',
                 )}
               >
-                <Icon className="size-5" aria-hidden />
+                <span
+                  className={cx(
+                    'grid h-7 w-12 place-items-center rounded-full transition',
+                    active && 'bg-slate-900 text-white',
+                  )}
+                >
+                  <Icon className="size-[18px]" aria-hidden />
+                </span>
                 {item.label}
               </Link>
             );
