@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { FileText } from 'lucide-react';
 import { PageHeader } from '@/components/AppShell';
 import { StudentActions } from '@/components/people/StudentActions';
 import { EditStudentButton } from '@/components/people/StudentForm';
 import { AddRemarkButton } from '@/components/marks/AddRemark';
 import { AttendanceRing } from '@/components/student/AttendanceRing';
 import { studentAttendance } from '@/server/school/attendance';
-import { studentRemarks, studentResults } from '@/server/school/assessments';
+import { canViewMarks, studentRemarks, studentResults } from '@/server/school/assessments';
 import { Alert, Avatar, Badge, Card, KeyValue, formatPhone } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { AppError } from '@/server/http/errors';
@@ -57,6 +58,16 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         }
         actions={
           <>
+            {student.status === 'ACTIVE' && canViewMarks(ctx) && (
+              <a
+                href={`/api/v1/students/${student.id}/report-card`}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+              >
+                <FileText className="size-4" /> Report card
+              </a>
+            )}
             {ctx.can('students.write') && (
               <EditStudentButton
                 id={student.id}

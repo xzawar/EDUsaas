@@ -76,6 +76,13 @@ import * as searchRoute from '@/app/api/v1/search/route';
 import * as announcements from '@/app/api/v1/announcements/route';
 import * as announcementById from '@/app/api/v1/announcements/[id]/route';
 import * as auditLogs from '@/app/api/v1/audit-logs/route';
+import * as tenantSupport from '@/app/api/v1/platform/tenants/[id]/support/route';
+import * as tenantSupportView from '@/app/api/v1/platform/tenants/[id]/support/view/route';
+import * as tenantAdminReset from '@/app/api/v1/platform/tenants/[id]/admin-reset/route';
+import * as supportGrants from '@/app/api/v1/support-grants/route';
+import * as supportDecision from '@/app/api/v1/support-grants/[id]/decision/route';
+import * as reportCard from '@/app/api/v1/students/[id]/report-card/route';
+import * as reportCardMe from '@/app/api/v1/report-card/me/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -699,6 +706,60 @@ const MATRIX: Row[] = [
     request: () => ({}),
     expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
   },
+  // ── Phase 5: support access, report cards ─────────────────────────────────
+  {
+    key: 'GET /api/v1/platform/tenants/[id]/support',
+    handler: tenantSupport.GET,
+    request: (f) => ({ params: { id: f.tenantA.id } }),
+    expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/platform/tenants/[id]/support',
+    handler: tenantSupport.POST,
+    request: (f) => ({ params: { id: f.tenantA.id }, body: { reason: 'short', durationMinutes: 60 } }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'DELETE /api/v1/platform/tenants/[id]/support',
+    handler: tenantSupport.DELETE,
+    request: (f) => ({ method: 'DELETE', params: { id: f.tenantA.id } }),
+    expect: only({ PLATFORM_OWNER: 404 }),
+  },
+  {
+    key: 'GET /api/v1/platform/tenants/[id]/support/view',
+    handler: tenantSupportView.GET,
+    // No grant: even the owner is refused. That is the point.
+    request: (f) => ({ params: { id: f.tenantA.id } }),
+    expect: only({}),
+  },
+  {
+    key: 'POST /api/v1/platform/tenants/[id]/admin-reset',
+    handler: tenantAdminReset.POST,
+    request: (f) => ({
+      params: { id: f.tenantA.id },
+      body: { userId: f.a.SCHOOL_ADMIN.id, reason: 'Matrix check only', confirm: 'NO' },
+    }),
+    expect: only({ PLATFORM_OWNER: 422 }),
+  },
+  {
+    key: 'GET /api/v1/support-grants',
+    handler: supportGrants.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/support-grants/[id]/decision',
+    handler: supportDecision.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVE' } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/report-card',
+    handler: reportCard.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
+  { key: 'GET /api/v1/report-card/me', handler: reportCardMe.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */

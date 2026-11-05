@@ -194,3 +194,27 @@ test('reports show attendance and the at-risk list', async ({ page }) => {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Audit log' }).click();
   await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
 });
+
+// ── Phase 5: report cards, support access ───────────────────────────────────
+
+test('student downloads their report card as a PDF', async ({ page }) => {
+  await signIn(page, '/login', 'bss-8a-ahmad-14');
+  await expect(page.getByRole('heading', { name: /^Hello, / })).toBeVisible();
+  await page.goto('/student/marks');
+  await expect(page.getByRole('link', { name: 'Report card (PDF)' })).toBeVisible();
+  const res = await page.request.get('/api/v1/report-card/me');
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toBe('application/pdf');
+  expect((await res.body()).subarray(0, 5).toString()).toBe('%PDF-');
+});
+
+test('platform owner can only ask a school for support access', async ({ page }) => {
+  await signIn(page, '/platform/login', 'owner@edusaas.test');
+  await page.getByRole('link', { name: 'Bright Star School' }).click();
+  await expect(page.getByRole('heading', { name: 'Bright Star School' })).toBeVisible();
+  await expect(page.getByText('You can’t see this school’s data unless its School Admin allows it')).toBeVisible();
+  const view = await page.request.get(
+    page.url().replace('/platform/tenants/', '/api/v1/platform/tenants/') + '/support/view',
+  );
+  expect(view.status()).toBe(403); // no school has approved a request in the seed
+});

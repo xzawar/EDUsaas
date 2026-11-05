@@ -21,6 +21,7 @@ export const AUDIT_CATEGORIES = {
   import: 'Imports',
   announcement: 'Announcements',
   access: 'Blocked access',
+  support: 'EDUsaas support',
 } as const;
 
 const PREFIXES: Record<keyof typeof AUDIT_CATEGORIES, string[]> = {
@@ -38,6 +39,7 @@ const PREFIXES: Record<keyof typeof AUDIT_CATEGORIES, string[]> = {
   import: ['import.'],
   announcement: ['announcement.'],
   access: ['access.'],
+  support: ['support.', 'tenant.'],
 };
 
 export const auditQuery = z.object({

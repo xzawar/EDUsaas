@@ -17,6 +17,8 @@ export type AuditEntry = {
   ipHash?: string | null;
   userAgent?: string | null;
   requestId?: string | null;
+  /** Set when the action happened under a break-glass support grant (shown to the school). */
+  supportGrantId?: string | null;
 };
 
 // Spec §9.7: never log passwords, tokens, session secrets or credentials — even by accident.
@@ -53,6 +55,7 @@ function toData(e: AuditEntry): Prisma.AuditLogUncheckedCreateInput {
     ipHash: e.ipHash ?? null,
     userAgent: e.userAgent ?? null,
     requestId: e.requestId ?? null,
+    supportGrantId: e.supportGrantId ?? null,
   };
 }
 
