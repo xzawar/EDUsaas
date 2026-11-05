@@ -149,3 +149,48 @@ test('school admin dashboard shows today at a glance', async ({ page }) => {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Leave' }).click();
   await expect(page.getByRole('heading', { name: 'Leave' })).toBeVisible();
 });
+
+// ── Phase 4: management ─────────────────────────────────────────────────────
+
+test('search with Ctrl+K opens a student', async ({ page }) => {
+  await signIn(page, '/staff/login', 'admin@bss.test');
+  await expect(page).toHaveURL(/\/staff$/);
+  await expect(page.getByRole('button', { name: /Search/ })).toBeVisible();
+  await page.waitForLoadState('networkidle'); // shortcut listener is attached after hydration
+  await page.keyboard.press('Control+k');
+  await page.getByLabel('Search students, teachers or pages').fill('Ahmad Raza');
+  await page.getByRole('option').filter({ hasText: 'Ahmad Raza' }).first().click();
+  await expect(page).toHaveURL(/\/staff\/students\/[0-9a-f-]{36}$/);
+});
+
+test('school admin imports students from a file and gets their logins', async ({ page }) => {
+  await signIn(page, '/staff/login', 'admin@bss.test');
+  await expect(page).toHaveURL(/\/staff$/);
+  await page.goto('/staff/students/import');
+  const n = Date.now() % 100000;
+  const csv = [
+    'Student name,Class,Section,Admission no,Gender,Date of birth,Guardian name,Guardian phone,Address',
+    `Import Test ${n},7,B,,Female,,,,`,
+    `Import Two ${n},7,B,,Male,,,,`,
+    'Nobody,99,Z,,,,,,',
+  ].join('\n');
+  await page
+    .getByLabel('Choose a file to import')
+    .setInputFiles({ name: 'students.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('Ready to import')).toBeVisible();
+  await expect(page.getByText('No section 99-Z this year')).toBeVisible();
+  await page.getByRole('button', { name: 'Import 2 students' }).click();
+  await expect(page.getByText('2 students added.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Download logins/ })).toBeVisible();
+});
+
+test('reports show attendance and the at-risk list', async ({ page }) => {
+  await signIn(page, '/staff/login', 'principal@bss.test');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports' }).click();
+  await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download CSV' })).toBeVisible();
+  await page.getByRole('link', { name: 'At risk' }).click();
+  await expect(page.getByText(/below 75% attendance/)).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Audit log' }).click();
+  await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
+});

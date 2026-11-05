@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { LatestAnnouncements } from '@/components/comms/LatestAnnouncements';
 import { PageHeader } from '@/components/AppShell';
 import { TodayLessons } from '@/components/dashboard/TodayLessons';
 import { AttendanceRing } from '@/components/student/AttendanceRing';
@@ -32,6 +33,7 @@ export default async function StudentHome() {
         title={`Hello, ${ctx.user.displayName.split(' ')[0]}`}
         description={`${d?.section ? `Class ${d.section}` : ctx.session.tenant?.name}${d?.rollNumber ? ` · Roll no. ${d.rollNumber}` : ''}`}
       />
+      <LatestAnnouncements ctx={ctx} />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card
           title="Attendance"

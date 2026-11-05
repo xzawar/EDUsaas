@@ -42,6 +42,12 @@ export const ACTION_LABELS: Record<string, string> = {
   'timetable.set': 'Timetable changed',
   'timetable.clear': 'Lesson removed',
   'timetable.periods': 'School periods changed',
+  'import.preview': 'Student file checked',
+  'import.commit': 'Students imported',
+  'announcement.create': 'Announcement posted',
+  'announcement.delete': 'Announcement removed',
+  'support.grant': 'Support access granted',
+  'support.revoke': 'Support access ended',
 };
 
 export function actionLabel(action: string): string {

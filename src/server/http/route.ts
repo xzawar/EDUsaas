@@ -50,6 +50,8 @@ type AuthedRoute<I, Q> = {
   portals?: Portal[];
   /** Routes reachable while a forced password change is pending (change-password, logout, me). */
   allowPendingPasswordChange?: boolean;
+  /** Raise the 1 MB JSON body cap for this route (e.g. file uploads sent as base64). */
+  maxBodyBytes?: number;
   input?: ZodType<I>;
   query?: ZodType<Q>;
   handler: (ctx: AuthedContext, args: HandlerArgs<I, Q>) => Promise<HandlerResult>;
@@ -66,14 +68,14 @@ export function errorResponse(err: AppError, requestId?: string) {
   return json({ error: { code: err.code, message: err.message, details: err.details, requestId } }, err.status);
 }
 
-async function parseInput<I>(req: Request, schema: ZodType<I> | undefined): Promise<I> {
+async function parseInput<I>(req: Request, schema: ZodType<I> | undefined, max = MAX_BODY_BYTES): Promise<I> {
   if (!schema) return undefined as I;
   const len = Number(req.headers.get('content-length') ?? '0');
-  if (len > MAX_BODY_BYTES) throw new AppError('BAD_REQUEST', 'Request body too large');
+  if (len > max) throw new AppError('BAD_REQUEST', 'Request body too large');
   let raw: unknown;
   try {
     const text = await req.text();
-    if (text.length > MAX_BODY_BYTES) throw new AppError('BAD_REQUEST', 'Request body too large');
+    if (text.length > max) throw new AppError('BAD_REQUEST', 'Request body too large');
     raw = text ? JSON.parse(text) : {};
   } catch (e) {
     if (e instanceof AppError) throw e;
@@ -156,7 +158,7 @@ export function defineRoute<I = undefined, Q = undefined>(def: PublicRoute<I, Q>
         throw new AppError('FORBIDDEN', 'You do not have permission to do this');
       }
 
-      const input = await parseInput(req, def.input);
+      const input = await parseInput(req, def.input, def.maxBodyBytes);
       const res = toResponse(await def.handler(ctx, { req, input, query, params }));
       if (session.renewed && res instanceof NextResponse && !res.cookies.get(SESSION_COOKIE)) {
         res.cookies.set(sessionCookie(readCookie(req, SESSION_COOKIE)!, session.expiresAt));

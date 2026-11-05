@@ -22,6 +22,7 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
     daily.push({ href: '/staff/leave', label: 'Leave', icon: 'leave' });
   if (ctx.can('timetable.view') || ctx.can('timetable.manage'))
     daily.push({ href: '/staff/timetable', label: 'Timetable', icon: 'timetable' });
+  daily.push({ href: '/staff/announcements', label: 'Announcements', icon: 'announcements' });
   if (daily.length) groups.push({ label: 'Daily', items: daily });
 
   const people: NavItem[] = [];
@@ -39,8 +40,11 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   if (ctx.can('promotion.run')) academics.push({ href: '/staff/promotion', label: 'Promotion', icon: 'promotion' });
   if (academics.length) groups.push({ label: 'Academics', items: academics });
 
-  if (ctx.can('settings.manage'))
-    groups.push({ label: 'School', items: [{ href: '/staff/settings', label: 'Settings', icon: 'settings' }] });
+  const school: NavItem[] = [];
+  if (ctx.can('reports.read')) school.push({ href: '/staff/reports', label: 'Reports', icon: 'reports' });
+  if (ctx.can('audit.read')) school.push({ href: '/staff/audit', label: 'Audit log', icon: 'audit' });
+  if (ctx.can('settings.manage')) school.push({ href: '/staff/settings', label: 'Settings', icon: 'settings' });
+  if (school.length) groups.push({ label: 'School', items: school });
 
   const mobileTabs = isTeacher
     ? ([

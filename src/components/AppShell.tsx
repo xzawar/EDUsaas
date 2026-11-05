@@ -11,6 +11,7 @@ export function AppShell({
   user,
   nav,
   mobileTabs,
+  tools,
   children,
 }: {
   portal: PortalKey;
@@ -18,13 +19,14 @@ export function AppShell({
   user: { displayName: string; role: string };
   nav: NavGroup[];
   mobileTabs?: NavItem[];
+  tools?: { search: boolean; notifications: boolean };
   children: ReactNode;
 }) {
   return (
     <div style={accentStyle(portal)} className="min-h-screen">
       <ToastProvider>
         <OfflineSync />
-        <Sidebar groups={nav} orgName={orgName} user={user} mobileTabs={mobileTabs} />
+        <Sidebar groups={nav} orgName={orgName} user={user} mobileTabs={mobileTabs} tools={tools} />
         <main
           aria-label={PORTAL_THEME[portal].name}
           className={cx('lg:pl-64', mobileTabs && mobileTabs.length > 1 ? 'pb-20 lg:pb-0' : '')}
