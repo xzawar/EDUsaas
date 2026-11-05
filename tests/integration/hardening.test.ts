@@ -14,6 +14,7 @@ import * as users from '@/app/api/v1/users/route';
 import { GET as cron } from '@/app/api/internal/cron/daily/route';
 import { systemDb } from '@/server/db/system';
 import { anonymizeWithdrawn, atRiskDigest, leaveEscalations } from '@/server/jobs/daily';
+import { refreshDemoData } from '@/server/jobs/demo';
 import { PASSWORD, cookieFor, seedFixtures, type Fixtures } from './helpers/fixtures';
 import { call } from './helpers/http';
 
@@ -228,6 +229,33 @@ describe('retention and scheduled jobs', () => {
     expect(n.title).toBe('1 student in 8-A below 75%');
   });
 
+  it('demo refresh fills missed school days once, and only on demo deployments', async () => {
+    const before = process.env.DEMO_SEED;
+    try {
+      delete process.env.DEMO_SEED;
+      expect(await refreshDemoData(new Date(), ['sca'])).toMatch(/^skipped/);
+      process.env.DEMO_SEED = 'true';
+      const first = (await refreshDemoData(new Date(), ['sca'])) as Record<
+        string,
+        { registers: number; checkIns: number }
+      >;
+      expect(first.sca!.registers).toBeGreaterThan(20); // ~30 days minus Sundays, for 8-A (8-B has no students)
+      expect(await systemDb().attendanceBatch.count({ where: { sectionId: f.s.sectionA8B } })).toBe(0);
+      expect(await systemDb().attendanceRecord.count({ where: { studentId: f.s.studentA } })).toBe(
+        first.sca!.registers,
+      );
+      const again = (await refreshDemoData(new Date(), ['sca'])) as Record<
+        string,
+        { registers: number; checkIns: number }
+      >;
+      expect(again.sca).toEqual({ registers: 0, checkIns: 0 });
+      expect(await systemDb().attendanceBatch.count({ where: { tenantId: f.tenantB.id } })).toBe(0);
+    } finally {
+      if (before === undefined) delete process.env.DEMO_SEED;
+      else process.env.DEMO_SEED = before;
+    }
+  });
+
   it('the cron endpoint runs every step and reports each one', async () => {
     const r = await call(cron, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
     expect(r.status).toBe(200);
@@ -239,6 +267,7 @@ describe('retention and scheduled jobs', () => {
       'atRiskDigests',
       'studentsAnonymized',
       'auditArchive',
+      'demoData',
     ]);
     expect(JSON.stringify(r.json.results)).not.toContain('error');
   });

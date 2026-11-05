@@ -211,6 +211,7 @@ export async function todayLessons(ctx: AuthedContext) {
   const [grid, clock] = await Promise.all([myTimetable(ctx), inTenant(ctx, (tx) => schoolClock(tx))]);
   const day = weekday(clock.today);
   return {
+    today: clock.today,
     dayName: DAY_NAMES[day]!,
     schoolDay: grid.days.some((d) => d.day === day),
     now: clock.time,

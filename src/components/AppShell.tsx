@@ -16,7 +16,7 @@ export function AppShell({
 }: {
   portal: PortalKey;
   orgName: string;
-  user: { displayName: string; role: string };
+  user: { displayName: string; role: string; username?: string | null; email?: string | null };
   nav: NavGroup[];
   mobileTabs?: NavItem[];
   tools?: { search: boolean; notifications: boolean };
@@ -29,9 +29,13 @@ export function AppShell({
         <Sidebar groups={nav} orgName={orgName} user={user} mobileTabs={mobileTabs} tools={tools} />
         <main
           aria-label={PORTAL_THEME[portal].name}
-          className={cx('lg:pl-64', mobileTabs && mobileTabs.length > 1 ? 'pb-20 lg:pb-0' : '')}
+          className={cx(
+            'lg:pl-64',
+            tools && (tools.search || tools.notifications) ? 'lg:pt-16' : 'lg:pt-4',
+            mobileTabs && mobileTabs.length > 1 ? 'pb-20 lg:pb-0' : '',
+          )}
         >
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+          <div className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6 lg:px-6 lg:pt-2 lg:pb-8 xl:px-8">{children}</div>
         </main>
       </ToastProvider>
     </div>

@@ -54,8 +54,10 @@ export function CheckInCard({
 
   if (state.status)
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <CheckCircle2 className="size-6 shrink-0 text-emerald-600" aria-hidden />
+      <div className="flex h-full items-center gap-4 rounded-2xl bg-[#dcf5ea] px-5 py-5">
+        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white">
+          <CheckCircle2 className="size-7 text-emerald-600" aria-hidden />
+        </span>
         <p className="text-sm">
           <span className="font-semibold text-emerald-900">
             {state.status === 'QUEUED'
@@ -69,15 +71,17 @@ export function CheckInCard({
       </div>
     );
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <Clock className="size-6 text-[var(--accent)]" aria-hidden />
+    <div className="flex h-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#ecebff] px-5 py-5">
+      <div className="flex items-center gap-4">
+        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white">
+          <Clock className="size-7 text-[var(--accent)]" aria-hidden />
+        </span>
         <div>
           <p className="font-semibold">Good to see you</p>
           <p className="text-sm text-slate-500">Check in for today.</p>
         </div>
       </div>
-      <Button disabled={busy} onClick={checkIn}>
+      <Button disabled={busy} onClick={checkIn} className="!bg-slate-900 hover:!bg-slate-800">
         {busy ? 'Checking in…' : 'Check in'}
       </Button>
     </div>
