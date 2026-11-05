@@ -2,6 +2,17 @@
 
 import {
   BookOpen,
+  CalendarCheck,
+  CalendarClock,
+  ClipboardList,
+  Clock,
+  Plane,
+  BarChart3,
+  Bell,
+  Megaphone,
+  Upload,
+  ScrollText,
+  LifeBuoy,
   CalendarRange,
   ClipboardCheck,
   GraduationCap,
@@ -23,6 +34,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/client/api';
+import { clearQueue } from '@/client/offline';
 import { Avatar, ROLE_LABELS, cx } from '@/components/ui';
 
 const ICONS = {
@@ -38,6 +50,17 @@ const ICONS = {
   settings: Settings,
   schools: School,
   health: ShieldCheck,
+  attendance: CalendarCheck,
+  checkin: Clock,
+  marks: ClipboardList,
+  leave: Plane,
+  timetable: CalendarClock,
+  reports: BarChart3,
+  notifications: Bell,
+  announcements: Megaphone,
+  import: Upload,
+  audit: ScrollText,
+  support: LifeBuoy,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
@@ -111,6 +134,7 @@ function UserCard({ user }: { user: { displayName: string; role: string } }) {
           disabled={busy}
           onClick={async () => {
             setBusy(true);
+            await clearQueue().catch(() => undefined);
             const res = await api<{ redirectTo: string }>('/auth/logout', { method: 'POST' });
             window.location.assign(res.ok ? res.data.redirectTo : '/');
           }}

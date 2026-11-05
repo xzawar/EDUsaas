@@ -72,3 +72,59 @@ export function Meter({ value, max, label }: { value: number; max: number; label
     </div>
   );
 }
+
+/**
+ * Single-series daily columns (0–100%) with a dashed target line. One hue; values below target use the
+ * "serious" status colour and are also listed in the tooltip, so colour is never the only signal.
+ */
+export function TrendColumns({
+  points,
+  target,
+  caption,
+}: {
+  points: { day: string; pct: number }[];
+  target: number;
+  caption: string;
+}) {
+  if (!points.length)
+    return <p className="text-sm text-slate-500">No attendance recorded in the last 30 school days.</p>;
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return (
+    <figure>
+      <figcaption className="sr-only">{caption}</figcaption>
+      <div className="relative h-36">
+        <div
+          className="absolute inset-x-0 border-t border-dashed border-slate-400"
+          style={{ bottom: `${target}%` }}
+          aria-hidden
+        >
+          <span className="absolute -top-4 right-0 text-[10px] text-slate-500">target {target}%</span>
+        </div>
+        <ul className="absolute inset-0 flex items-end gap-[2px]">
+          {points.map((p) => (
+            <li
+              key={p.day}
+              tabIndex={0}
+              title={`${fmt(p.day)}: ${p.pct}%${p.pct < target ? ' (below target)' : ''}`}
+              aria-label={`${fmt(p.day)}: ${p.pct}%`}
+              className="group relative flex h-full flex-1 items-end outline-none"
+            >
+              <span
+                className={cx(
+                  'w-full rounded-t-[3px] transition-opacity group-hover:opacity-80 group-focus-visible:ring-2 group-focus-visible:ring-[var(--accent)]/40',
+                  p.pct < target ? 'bg-red-600' : 'bg-[var(--accent)]',
+                )}
+                style={{ height: `${Math.max(p.pct, 1)}%` }}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+        <span>{fmt(points[0]!.day)}</span>
+        <span>{fmt(points[points.length - 1]!.day)}</span>
+      </div>
+    </figure>
+  );
+}

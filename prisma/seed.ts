@@ -543,6 +543,287 @@ async function seedGreenValley() {
   console.log('Green Valley School: 1 class, 6 students.');
 }
 
+// ── Phase 3 demo history: timetable, attendance, check-ins, tests & marks, leave, remarks ─────────────
+
+function dayInKarachi(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+function addDaysIso(iso: string, n: number) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+const isSchoolDay = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay() !== 0; // Mon–Sat
+async function chunked<T>(rows: T[], size: number, fn: (part: T[]) => Promise<unknown>) {
+  for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size));
+}
+
+async function seedOperations(prefix: string) {
+  const tenant = await db.tenant.findUnique({ where: { prefix } });
+  if (!tenant) return;
+  const t = tenant.id;
+  const year = await db.academicYear.findFirst({ where: { tenantId: t, status: 'CURRENT' } });
+  if (!year) return;
+  if ((await db.attendanceBatch.count({ where: { tenantId: t } })) > 0) {
+    console.log(`${tenant.name}: operations history already present.`);
+    return;
+  }
+  const today = dayInKarachi();
+  const sections = await db.section.findMany({
+    where: { tenantId: t, class: { academicYearId: year.id } },
+    include: {
+      class: { include: { subjects: true } },
+      students: { where: { status: 'ACTIVE' }, include: { user: true }, orderBy: { rollNumber: 'asc' } },
+      assignments: true,
+    },
+  });
+  const teachers = await db.teacher.findMany({ where: { tenantId: t }, include: { user: true } });
+  const admin = await db.user.findFirstOrThrow({ where: { tenantId: t, role: 'SCHOOL_ADMIN' } });
+
+  // Timetable: default Mon–Sat, 8 periods + break; fill each section round-robin from its subjects without teacher clashes.
+  const periods: { periodNo: number; startsAt: string; endsAt: string; isBreak: boolean }[] = [];
+  let m = 8 * 60;
+  const hhmm = (x: number) => `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`;
+  for (let p = 1; p <= 9; p++) {
+    const len = p === 5 ? 20 : 40;
+    periods.push({ periodNo: p, startsAt: hhmm(m), endsAt: hhmm(m + len), isBreak: p === 5 });
+    m += len;
+  }
+  await db.timetableSlot.createMany({
+    data: [1, 2, 3, 4, 5, 6].flatMap((d) => periods.map((p) => ({ ...p, dayOfWeek: d, tenantId: t }))),
+    skipDuplicates: true,
+  });
+  const slots = await db.timetableSlot.findMany({ where: { tenantId: t } });
+  const busy = new Set<string>();
+  const entries: Prisma.TimetableEntryCreateManyInput[] = [];
+  for (const [si, s] of sections.entries()) {
+    const subs = s.class.subjects.map((x) => x.subjectId);
+    if (!subs.length) continue;
+    let k = si;
+    let day = 0;
+    for (const slot of slots
+      .filter((x) => !x.isBreak)
+      .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.periodNo - b.periodNo)) {
+      // Shift the rotation each day so a subject isn't in the same period all week.
+      if (slot.dayOfWeek !== day) {
+        day = slot.dayOfWeek;
+        k += 1;
+      }
+      for (let tries = 0; tries < subs.length; tries++) {
+        const subjectId = subs[(k + tries) % subs.length]!;
+        const teacherId = s.assignments.find((a) => a.subjectId === subjectId)?.teacherId ?? null;
+        if (teacherId && busy.has(`${teacherId}:${slot.id}`)) continue;
+        if (teacherId) busy.add(`${teacherId}:${slot.id}`);
+        entries.push({ tenantId: t, sectionId: s.id, slotId: slot.id, subjectId, teacherId });
+        k = k + tries + 1;
+        break;
+      }
+    }
+  }
+  await chunked(entries, 1000, (part) => db.timetableEntry.createMany({ data: part, skipDuplicates: true }));
+
+  // Attendance: ~12 weeks of school days. Most students ~94%; a few (every 23rd) ~68% so "at risk" has entries.
+  const days: string[] = [];
+  for (let d = addDaysIso(today, -84); d < today; d = addDaysIso(d, 1))
+    if (isSchoolDay(d) && d >= year.startsOn.toISOString().slice(0, 10)) days.push(d);
+  const batches: Prisma.AttendanceBatchCreateManyInput[] = [];
+  const records: Prisma.AttendanceRecordCreateManyInput[] = [];
+  const statusFor = (risky: boolean): 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE' => {
+    const r = rand();
+    if (risky) return r < 0.62 ? 'PRESENT' : r < 0.68 ? 'LATE' : r < 0.97 ? 'ABSENT' : 'LEAVE';
+    return r < 0.9 ? 'PRESENT' : r < 0.95 ? 'LATE' : r < 0.985 ? 'ABSENT' : 'LEAVE';
+  };
+  // Today: about two thirds of registers already taken (so "registers not taken" has something to show).
+  const todayDone = new Set(sections.filter((_, i) => i % 3 !== 2).map((s) => s.id));
+  for (const s of sections) {
+    const submitter = s.classTeacherId ? teachers.find((x) => x.id === s.classTeacherId)!.userId : admin.id;
+    for (const d of isSchoolDay(today) && todayDone.has(s.id) ? [...days, today] : days) {
+      const id = crypto.randomUUID();
+      batches.push({
+        id,
+        tenantId: t,
+        sectionId: s.id,
+        date: new Date(`${d}T00:00:00Z`),
+        period: 1,
+        submittedBy: submitter,
+        clientUuid: crypto.randomUUID(),
+        serverReceivedAt: new Date(`${d}T03:15:00Z`),
+      });
+      for (const st of s.students)
+        records.push({
+          tenantId: t,
+          batchId: id,
+          studentId: st.id,
+          status: statusFor((st.rollNumber ?? 0) % 23 === 7),
+        });
+    }
+  }
+  await chunked(batches, 1000, (part) => db.attendanceBatch.createMany({ data: part }));
+  await chunked(records, 3000, (part) => db.attendanceRecord.createMany({ data: part }));
+
+  // Teacher check-ins: last 30 school days, plus most teachers today.
+  const checkins: Prisma.TeacherAttendanceCreateManyInput[] = [];
+  for (const d of days.slice(-30)) {
+    for (const tch of teachers) {
+      const r = rand();
+      const status = r < 0.88 ? 'PRESENT' : r < 0.95 ? 'LATE' : 'ABSENT';
+      checkins.push({
+        tenantId: t,
+        teacherId: tch.id,
+        date: new Date(`${d}T00:00:00Z`),
+        status,
+        checkedInAt:
+          status === 'ABSENT' ? null : new Date(`${d}T0${status === 'LATE' ? '3:25' : '2:5' + between(0, 9)}:00Z`),
+      });
+    }
+  }
+  if (isSchoolDay(today)) {
+    for (const [i, tch] of teachers.entries()) {
+      if (i % 4 === 3 || tch.user.username === 'bss-t-alikhan-1') continue; // a few (incl. the demo teacher) haven't checked in yet
+      checkins.push({
+        tenantId: t,
+        teacherId: tch.id,
+        date: new Date(`${today}T00:00:00Z`),
+        status: i % 7 === 5 ? 'LATE' : 'PRESENT',
+        checkedInAt: new Date(`${today}T02:5${i % 10}:00Z`),
+      });
+    }
+  }
+  await chunked(checkins, 2000, (part) => db.teacherAttendance.createMany({ data: part, skipDuplicates: true }));
+
+  // Tests & marks: per section, Mathematics & English "Unit Test 1" (published), "Unit Test 2" (submitted, waiting to publish).
+  const scheme = await db.gradingScheme.findFirstOrThrow({
+    where: { academicYearId: year.id },
+    orderBy: { version: 'desc' },
+  });
+  const marks: Prisma.MarkCreateManyInput[] = [];
+  const subjectsByName = new Map((await db.subject.findMany({ where: { tenantId: t } })).map((x) => [x.name, x.id]));
+  for (const s of sections) {
+    for (const subjName of ['Mathematics', 'English']) {
+      const subjectId = subjectsByName.get(subjName);
+      const teacherAssign = s.assignments.find((a) => a.subjectId === subjectId);
+      if (!subjectId || !teacherAssign) continue;
+      const teacherUser = teachers.find((x) => x.id === teacherAssign.teacherId)!.userId;
+      for (const [n, status, ago] of [
+        [1, 'PUBLISHED', 40],
+        [2, 'SUBMITTED', 6],
+      ] as const) {
+        const id = crypto.randomUUID();
+        const heldOn = addDaysIso(today, -ago);
+        await db.assessment.create({
+          data: {
+            id,
+            tenantId: t,
+            academicYearId: year.id,
+            sectionId: s.id,
+            subjectId,
+            gradingSchemeId: scheme.id,
+            name: `Unit Test ${n}`,
+            maxMarks: 25,
+            heldOn: new Date(`${heldOn}T00:00:00Z`),
+            status,
+            createdBy: teacherUser,
+            submittedBy: teacherUser,
+            submittedAt: new Date(`${addDaysIso(heldOn, 2)}T09:00:00Z`),
+            publishedBy: status === 'PUBLISHED' ? admin.id : null,
+            publishedAt: status === 'PUBLISHED' ? new Date(`${addDaysIso(heldOn, 4)}T09:00:00Z`) : null,
+          },
+        });
+        for (const st of s.students) {
+          const absent = rand() < 0.03;
+          const ability = 0.55 + (((st.rollNumber ?? 1) * 37) % 40) / 100;
+          const score = absent
+            ? null
+            : Math.max(0, Math.min(25, Math.round((ability * 25 + (rand() - 0.5) * 6) * 2) / 2));
+          marks.push({ tenantId: t, assessmentId: id, studentId: st.id, score, absent, updatedBy: teacherUser });
+        }
+      }
+    }
+  }
+  await chunked(marks, 3000, (part) => db.mark.createMany({ data: part }));
+
+  // Leave & remarks around the demo section (8-A for Bright Star, first section otherwise).
+  const focus = sections.find((s) => s.class.name === '8' && s.name === 'A') ?? sections[0];
+  if (focus) {
+    const types = await Promise.all(
+      ['Sick leave', 'Casual leave', 'Family emergency', 'Official duty'].map((name, i) =>
+        db.leaveType.upsert({
+          where: { tenantId_name: { tenantId: t, name } },
+          create: { tenantId: t, name, forStudents: i < 3, forStaff: true },
+          update: {},
+        }),
+      ),
+    );
+    const kids = focus.students.filter((s) => s.rollNumber !== 14).slice(0, 4);
+    for (const [i, k] of kids.entries()) {
+      const from = addDaysIso(today, i + 1);
+      await db.leaveRequest.create({
+        data: {
+          tenantId: t,
+          applicantId: k.userId,
+          studentId: k.id,
+          typeId: types[i % 2]!.id,
+          fromDate: new Date(`${from}T00:00:00Z`),
+          toDate: new Date(`${addDaysIso(from, i % 2)}T00:00:00Z`),
+          reason: [
+            'Fever and flu, doctor advised rest.',
+            'Cousin’s wedding in Multan.',
+            'Dental appointment.',
+            'Family travel.',
+          ][i]!,
+          status: i === 3 ? 'APPROVED' : 'PENDING',
+          decidedBy:
+            i === 3 && focus.classTeacherId ? teachers.find((x) => x.id === focus.classTeacherId)!.userId : null,
+          decidedAt: i === 3 ? new Date() : null,
+        },
+      });
+    }
+    const someTeacher = teachers.find((x) => x.user.username !== 'bss-t-alikhan-1') ?? teachers[0];
+    if (someTeacher) {
+      await db.leaveRequest.create({
+        data: {
+          tenantId: t,
+          applicantId: someTeacher.userId,
+          typeId: types[1]!.id,
+          fromDate: new Date(`${addDaysIso(today, 3)}T00:00:00Z`),
+          toDate: new Date(`${addDaysIso(today, 4)}T00:00:00Z`),
+          reason: 'Attending a training workshop.',
+        },
+      });
+    }
+    const author = focus.assignments[0]
+      ? teachers.find((x) => x.id === focus.assignments[0]!.teacherId)!.userId
+      : admin.id;
+    const notes = [
+      'Very attentive in class and asks good questions.',
+      'Needs to complete homework on time.',
+      'Excellent improvement in mathematics this term.',
+    ];
+    for (const [i, k] of focus.students.slice(0, 3).entries()) {
+      await db.remark.create({
+        data: {
+          tenantId: t,
+          studentId: k.id,
+          authorId: author,
+          subjectName: 'Mathematics',
+          text: notes[i]!,
+          status: i === 0 ? 'APPROVED' : 'PENDING',
+          moderatedBy: i === 0 ? admin.id : null,
+          moderatedAt: i === 0 ? new Date() : null,
+        },
+      });
+    }
+  }
+  console.log(
+    `${tenant.name}: ${entries.length} timetable entries, ${batches.length} registers, ${records.length} attendance records, ${marks.length} marks.`,
+  );
+}
+
 async function main() {
   if (process.env.NODE_ENV === 'production' && process.env.DEMO_SEED !== 'true') {
     throw new Error('Refusing to seed demo accounts in production (set DEMO_SEED=true for a demo deployment)');
@@ -551,6 +832,8 @@ async function main() {
   for (const u of PLATFORM_USERS) await upsertUser(u, null);
   await seedBrightStar();
   await seedGreenValley();
+  await seedOperations('bss');
+  await seedOperations('gvs');
   console.log(`Seed complete. Demo password for every account: ${DEMO_PASSWORD}`);
 }
 
