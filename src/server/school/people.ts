@@ -7,6 +7,8 @@ import type { AuthedContext } from '@/server/http/route';
 import { generateTemporaryPassword, hashPassword } from '@/server/auth/password';
 import { normalizeUsername, studentUsername, teacherUsername } from '@/server/auth/username';
 import { revokeUserSessions } from '@/server/auth/session';
+import { photoVersion } from '@/server/school/photos';
+import { assertWithinPlan } from '@/server/platform/plans';
 import {
   DAY_MS,
   audit,
@@ -29,16 +31,18 @@ const phone = z
 const optional = <T extends z.ZodTypeAny>(s: T) => s.nullable().optional();
 export const RESTORE_WINDOW_DAYS = 30;
 
-async function tenantPrefix(tx: TenantTx) {
+export async function tenantPrefix(tx: TenantTx) {
   return (await tx.tenant.findFirstOrThrow({ select: { prefix: true } })).prefix;
 }
 
 /** Creates a login with a one-time temporary password (forced change at first sign-in, spec §9.3). */
-async function createLogin(
+export async function createLogin(
   tx: TenantTx,
   data: { tenantId: string; role: UserRole; displayName: string; username?: string; email?: string },
+  /** Pre-generated credential (bulk import hashes in parallel before the transaction). */
+  pre?: { temporaryPassword: string; passwordHash: string },
 ) {
-  const temporaryPassword = generateTemporaryPassword();
+  const temporaryPassword = pre?.temporaryPassword ?? generateTemporaryPassword();
   const user = await tx.user.create({
     data: {
       tenantId: data.tenantId,
@@ -47,7 +51,7 @@ async function createLogin(
       username: data.username ?? null,
       usernameNormalized: data.username ? normalizeUsername(data.username) : null,
       email: data.email?.toLowerCase() ?? null,
-      passwordHash: await hashPassword(temporaryPassword),
+      passwordHash: pre?.passwordHash ?? (await hashPassword(temporaryPassword)),
       mustChangePassword: true,
     },
   });
@@ -181,6 +185,7 @@ export async function getTeacher(ctx: AuthedContext, id: string) {
       employeeNo: t.employeeNo,
       phone: t.phone,
       qualification: t.qualification,
+      photoVersion: photoVersion(t.photoKey),
       joinedOn: isoDate(t.joinedOn),
       assignments: t.assignments
         .map((a) => ({
@@ -200,6 +205,7 @@ export async function getTeacher(ctx: AuthedContext, id: string) {
 }
 
 export async function createTeacher(ctx: AuthedContext, input: z.infer<typeof createTeacherSchema>) {
+  await assertWithinPlan(ctx.tenantId!, 'staff');
   try {
     return await inTenant(ctx, async (tx) => {
       const username = await nextTeacherUsername(tx, await tenantPrefix(tx), input.displayName);
@@ -322,6 +328,7 @@ export const createStaffSchema = z.object({
 });
 
 export async function createStaff(ctx: AuthedContext, input: z.infer<typeof createStaffSchema>) {
+  await assertWithinPlan(ctx.tenantId!, 'staff');
   try {
     return await inTenant(ctx, async (tx) => {
       const { user, temporaryPassword } = await createLogin(tx, {
@@ -377,6 +384,7 @@ export async function resetUserPassword(ctx: AuthedContext, userId: string) {
 export const setUserStatusSchema = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) });
 
 export async function setUserStatus(ctx: AuthedContext, userId: string, input: z.infer<typeof setUserStatusSchema>) {
+  if (input.status === 'ACTIVE') await assertWithinPlan(ctx.tenantId!, 'staff');
   if (userId === ctx.user.id) throw new AppError('VALIDATION_FAILED', 'You cannot change your own account status');
   await inTenant(ctx, async (tx) => {
     const target = await tx.user.findFirst({ where: { id: userId, deletedAt: null } });
@@ -470,6 +478,7 @@ export async function listStudents(ctx: AuthedContext, query: z.infer<typeof lis
       guardianPhone: s.guardianPhone,
       status: s.status,
       withdrawnAt: s.withdrawnAt,
+      photoVersion: photoVersion(s.photoKey),
       lastLoginAt: s.user.lastLoginAt,
     }));
     return { items, total, nextCursor: hasMore ? items[items.length - 1]?.id : null };
@@ -531,6 +540,7 @@ export async function getStudent(ctx: AuthedContext, id: string) {
       guardianPhone: s.guardianPhone,
       address: s.address,
       withdrawnAt: s.withdrawnAt,
+      photoVersion: photoVersion(s.photoKey),
       restoreUntil,
       canRestore: s.status === 'WITHDRAWN' && restoreUntil !== null && restoreUntil.getTime() > Date.now(),
       section: s.section
@@ -563,7 +573,7 @@ export const createStudentSchema = z.object({
 
 export const updateStudentSchema = createStudentSchema.omit({ sectionId: true }).partial().strict();
 
-async function placeInSection(tx: TenantTx, sectionId: string) {
+export async function placeInSection(tx: TenantTx, sectionId: string) {
   const section = await tx.section.findUnique({
     where: { id: sectionId },
     include: { class: { include: { academicYear: { select: { status: true } } } } },
@@ -577,6 +587,7 @@ async function placeInSection(tx: TenantTx, sectionId: string) {
 }
 
 export async function createStudent(ctx: AuthedContext, input: z.infer<typeof createStudentSchema>) {
+  await assertWithinPlan(ctx.tenantId!, 'students');
   try {
     return await inTenant(ctx, async (tx) => {
       const prefix = await tenantPrefix(tx);
@@ -744,6 +755,7 @@ export async function withdrawStudent(ctx: AuthedContext, id: string) {
 }
 
 export async function restoreStudent(ctx: AuthedContext, id: string) {
+  await assertWithinPlan(ctx.tenantId!, 'students');
   return inTenant(ctx, async (tx) => {
     const s = await tx.student.findUnique({ where: { id } });
     if (!s) throw notFound('Student');

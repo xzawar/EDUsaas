@@ -6,14 +6,14 @@ export const PORTAL_THEME: Record<PortalKey, { name: string; tagline: string; ac
   student: {
     name: 'Student Portal',
     tagline: 'See your attendance, marks, timetable and announcements.',
-    accent: '#4f46e5',
-    panel: 'from-indigo-600 to-violet-700',
+    accent: '#6c5ce7',
+    panel: 'from-fuchsia-500 to-violet-600',
   },
   staff: {
     name: 'Staff Portal',
     tagline: 'For teachers, principals, admissions and school administrators.',
-    accent: '#0f766e',
-    panel: 'from-teal-700 to-emerald-800',
+    accent: '#6c5ce7',
+    panel: 'from-violet-600 to-indigo-700',
   },
   platform: {
     name: 'Platform Console',

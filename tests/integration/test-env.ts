@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import os from 'node:os';
+import path from 'node:path';
 
 /** Integration tests run against `<db>_test`, never the dev database. */
 function toTestDb(url: string | undefined, name: string): string {
@@ -17,5 +19,7 @@ export function testEnv() {
     APP_URL: 'http://localhost:3000',
     CRON_SECRET: 'integration-test-cron-secret-000000000000',
     SESSION_TTL_DAYS: '60',
+    STORAGE_DRIVER: 'local',
+    STORAGE_LOCAL_DIR: path.join(os.tmpdir(), `edusaas-test-storage-${process.pid}`),
   };
 }

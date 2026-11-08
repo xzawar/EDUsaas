@@ -1,10 +1,22 @@
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, Upload } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHeader } from '@/components/AppShell';
 import { NewStudentButton } from '@/components/people/StudentForm';
 import { StudentFilters } from '@/components/people/StudentFilters';
-import { Avatar, Badge, Card, EmptyState, Pager, TabLinks, Table, Td, Th, formatPhone } from '@/components/ui';
+import {
+  Avatar,
+  Badge,
+  ButtonLink,
+  Card,
+  EmptyState,
+  Pager,
+  TabLinks,
+  Table,
+  Td,
+  Th,
+  formatPhone,
+} from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { listStudents, listStudentsQuery } from '@/server/school/people';
 import { listSections } from '@/server/school/structure';
@@ -45,12 +57,21 @@ export default async function StudentsPage({
             : `${result.total.toLocaleString()} ${query.status.toLowerCase()} student${result.total === 1 ? '' : 's'}${activeSection ? ` in ${activeSection.label}` : ''}`
         }
         actions={
-          canWrite ? (
-            <NewStudentButton
-              sections={allSections}
-              schoolName={ctx.session.tenant?.name ?? ''}
-              defaultSectionId={query.sectionId}
-            />
+          canWrite || ctx.can('students.import') ? (
+            <>
+              {ctx.can('students.import') && (
+                <ButtonLink href="/staff/students/import" variant="secondary">
+                  <Upload className="size-4" /> Import from Excel
+                </ButtonLink>
+              )}
+              {canWrite && (
+                <NewStudentButton
+                  sections={allSections}
+                  schoolName={ctx.session.tenant?.name ?? ''}
+                  defaultSectionId={query.sectionId}
+                />
+              )}
+            </>
           ) : undefined
         }
       />
@@ -96,7 +117,11 @@ export default async function StudentsPage({
                 <tr key={s.id} className="hover:bg-slate-50">
                   <Td>
                     <Link href={`/staff/students/${s.id}`} className="flex items-center gap-3">
-                      <Avatar name={s.name} size="sm" />
+                      <Avatar
+                        name={s.name}
+                        size="sm"
+                        src={s.photoVersion ? `/api/v1/students/${s.id}/photo?v=${s.photoVersion}` : null}
+                      />
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-slate-900 hover:text-[var(--accent)]">
                           {s.name}
