@@ -117,6 +117,16 @@ import * as feeOverrides from '@/app/api/v1/students/[id]/fees/overrides/route';
 import * as feeOverrideById from '@/app/api/v1/students/[id]/fees/overrides/[overrideId]/route';
 import * as feeDiscounts from '@/app/api/v1/students/[id]/fees/discounts/route';
 import * as feeDiscountById from '@/app/api/v1/students/[id]/fees/discounts/[discountId]/route';
+import * as invGenerate from '@/app/api/v1/invoices/generate/route';
+import * as invList from '@/app/api/v1/invoices/route';
+import * as invById from '@/app/api/v1/invoices/[id]/route';
+import * as invVoid from '@/app/api/v1/invoices/[id]/void/route';
+import * as invWaive from '@/app/api/v1/invoices/[id]/waive-late-fee/route';
+import * as studentFeesRoute from '@/app/api/v1/students/[id]/fees/route';
+import * as meFeesRoute from '@/app/api/v1/me/fees/route';
+import * as paymentsRoute from '@/app/api/v1/payments/route';
+import * as receiptRoute from '@/app/api/v1/payments/[id]/receipt/route';
+import * as reverseRoute from '@/app/api/v1/payments/[id]/reverse/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -152,6 +162,7 @@ const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect
 /** Finance reads: Accountant, School Admin and the Principal (finance.read toggle, default on). */
 const FINANCE_READ = only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200 });
 const FEES_MANAGE = (ok: number) => only({ ACCOUNTANT: ok, SCHOOL_ADMIN: ok });
+const FEES_COLLECT = FEES_MANAGE;
 const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, ACCOUNTANT: 200, TEACHER: 200 });
 let prefixCounter = 0;
 let n = 0;
@@ -1141,6 +1152,65 @@ const MATRIX: Row[] = [
     handler: feeDiscountById.DELETE,
     request: () => ({ method: 'DELETE', params: { id: MISSING, discountId: MISSING } }),
     expect: FEES_MANAGE(404),
+  },
+  // ── Finance: invoices & payments ──
+  {
+    key: 'POST /api/v1/invoices/generate',
+    handler: invGenerate.POST,
+    request: () => ({ body: { period: '2030-01', studentId: MISSING } }),
+    expect: FEES_COLLECT(200),
+  },
+  { key: 'GET /api/v1/invoices', handler: invList.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'GET /api/v1/invoices/[id]',
+    handler: invById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+  },
+  {
+    key: 'POST /api/v1/invoices/[id]/void',
+    handler: invVoid.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Duplicate' } }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'POST /api/v1/invoices/[id]/waive-late-fee',
+    handler: invWaive.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Hardship' } }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/fees',
+    handler: studentFeesRoute.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: FINANCE_READ,
+  },
+  { key: 'GET /api/v1/me/fees', handler: meFeesRoute.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
+  {
+    key: 'POST /api/v1/payments',
+    handler: paymentsRoute.POST,
+    request: () => ({
+      body: {
+        studentId: MISSING,
+        amountPaisa: 100,
+        method: 'CASH',
+        receivedOn: '2026-01-01',
+        clientKey: '33333333-3333-4333-8333-333333333333',
+      },
+    }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'GET /api/v1/payments/[id]/receipt',
+    handler: receiptRoute.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+  },
+  {
+    key: 'POST /api/v1/payments/[id]/reverse',
+    handler: reverseRoute.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Mistake' } }),
+    expect: FEES_COLLECT(404),
   },
 ];
 

@@ -189,6 +189,7 @@ model Tenant {
   invoices           Invoice[]
   invoiceLines       InvoiceLine[]
   payments           Payment[]
+  paymentAllocations PaymentAllocation[]
   paymentClaims      PaymentClaim[]
   expenseCategories  ExpenseCategory[]
   expenses           Expense[]
@@ -1220,12 +1221,13 @@ model Invoice {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student      Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student      Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear        @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
   lines        InvoiceLine[]
   payments     Payment[]
   claims       PaymentClaim[]
+  allocations  PaymentAllocation[]
 
   @@unique([studentId, period])
   @@unique([tenantId, number])
@@ -1275,18 +1277,38 @@ model Payment {
   reversalReason      String?       @map("reversal_reason")
   createdAt           DateTime      @default(now()) @map("created_at")
 
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  invoice    Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  reverses   Payment?       @relation("PaymentReversal", fields: [reversesPaymentId], references: [id], onDelete: Restrict)
-  reversedBy Payment?       @relation("PaymentReversal")
-  claims     PaymentClaim[]
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student     Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoice     Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  reverses    Payment?            @relation("PaymentReversal", fields: [reversesPaymentId], references: [id], onDelete: Restrict)
+  reversedBy  Payment?            @relation("PaymentReversal")
+  claims      PaymentClaim[]
+  allocations PaymentAllocation[]
 
   @@unique([tenantId, receiptNumber])
   @@unique([tenantId, clientKey])
   @@index([tenantId, receivedOn])
   @@index([studentId])
   @@map("payments")
+}
+
+/// How a payment's money is spread over invoices. A payment's unallocated remainder is the student's advance.
+model PaymentAllocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  paymentId   String   @map("payment_id") @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  amountPaisa BigInt   @map("amount_paisa")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([paymentId])
+  @@map("payment_allocations")
 }
 
 model PaymentClaim {
