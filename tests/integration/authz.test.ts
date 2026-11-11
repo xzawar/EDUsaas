@@ -127,6 +127,15 @@ import * as meFeesRoute from '@/app/api/v1/me/fees/route';
 import * as paymentsRoute from '@/app/api/v1/payments/route';
 import * as receiptRoute from '@/app/api/v1/payments/[id]/receipt/route';
 import * as reverseRoute from '@/app/api/v1/payments/[id]/reverse/route';
+import * as meClaimsRoute from '@/app/api/v1/me/fees/claims/route';
+import * as claimsRoute from '@/app/api/v1/fees/claims/route';
+import * as claimDecide from '@/app/api/v1/fees/claims/[id]/decide/route';
+import * as claimProofRoute from '@/app/api/v1/fees/claims/[id]/proof/route';
+import * as expCategories from '@/app/api/v1/expenses/categories/route';
+import * as expCategoryById from '@/app/api/v1/expenses/categories/[id]/route';
+import * as expensesRoute from '@/app/api/v1/expenses/route';
+import * as expenseReverse from '@/app/api/v1/expenses/[id]/reverse/route';
+import * as expenseReceiptRoute from '@/app/api/v1/expenses/[id]/receipt/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -163,6 +172,7 @@ const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect
 const FINANCE_READ = only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200 });
 const FEES_MANAGE = (ok: number) => only({ ACCOUNTANT: ok, SCHOOL_ADMIN: ok });
 const FEES_COLLECT = FEES_MANAGE;
+const FINANCE_READ_404 = only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404 });
 const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, ACCOUNTANT: 200, TEACHER: 200 });
 let prefixCounter = 0;
 let n = 0;
@@ -1211,6 +1221,84 @@ const MATRIX: Row[] = [
     handler: reverseRoute.POST,
     request: () => ({ params: { id: MISSING }, body: { reason: 'Mistake' } }),
     expect: FEES_COLLECT(404),
+  },
+  // ── Finance: claims & expenses ──
+  {
+    key: 'GET /api/v1/me/fees/claims',
+    handler: meClaimsRoute.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200 }),
+  },
+  {
+    key: 'POST /api/v1/me/fees/claims',
+    handler: meClaimsRoute.POST,
+    request: () => ({
+      body: {
+        invoiceId: MISSING,
+        amountPaisa: 100,
+        method: 'BANK',
+        reference: 'TX',
+        paidOn: '2026-01-01',
+        clientKey: '55555555-5555-4555-8555-555555555555',
+        proof: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      },
+    }),
+    // The bill does not exist (404) once storage is configured for the test environment.
+    expect: only({ STUDENT: 404 }),
+  },
+  { key: 'GET /api/v1/fees/claims', handler: claimsRoute.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/fees/claims/[id]/decide',
+    handler: claimDecide.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'REJECT', note: 'No' } }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'GET /api/v1/fees/claims/[id]/proof',
+    handler: claimProofRoute.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+  },
+  { key: 'GET /api/v1/expenses/categories', handler: expCategories.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/expenses/categories',
+    handler: expCategories.POST,
+    request: () => ({ body: { name: `Category ${++n}` } }),
+    expect: FEES_MANAGE(201),
+  },
+  {
+    key: 'PATCH /api/v1/expenses/categories/[id]',
+    handler: expCategoryById.PATCH,
+    request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: true } }),
+    expect: FEES_MANAGE(404),
+  },
+  { key: 'GET /api/v1/expenses', handler: expensesRoute.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/expenses',
+    handler: expensesRoute.POST,
+    request: () => ({
+      body: {
+        categoryId: MISSING,
+        amountPaisa: 100,
+        spentOn: '2026-01-01',
+        paidTo: 'Someone',
+        method: 'CASH',
+        clientKey: '66666666-6666-4666-8666-666666666666',
+      },
+    }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/expenses/[id]/reverse',
+    handler: expenseReverse.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Mistake' } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'GET /api/v1/expenses/[id]/receipt',
+    handler: expenseReceiptRoute.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: FINANCE_READ_404,
   },
 ];
 
