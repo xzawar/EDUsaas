@@ -22,6 +22,7 @@ export const AUDIT_CATEGORIES = {
   announcement: 'Announcements',
   access: 'Blocked access',
   support: 'EDUsaas support',
+  finance: 'Fees & money',
 } as const;
 
 const PREFIXES: Record<keyof typeof AUDIT_CATEGORIES, string[]> = {
@@ -40,6 +41,20 @@ const PREFIXES: Record<keyof typeof AUDIT_CATEGORIES, string[]> = {
   announcement: ['announcement.'],
   access: ['access.'],
   support: ['support.', 'tenant.', 'ticket.', 'subscription.'],
+  finance: [
+    'fee_head.',
+    'fee_structure.',
+    'fee_override.',
+    'late_fee.',
+    'discount.',
+    'invoice.',
+    'payment.',
+    'claim.',
+    'expense.',
+    'expense_category.',
+    'salary.',
+    'payroll.',
+  ],
 };
 
 export const auditQuery = z.object({

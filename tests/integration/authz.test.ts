@@ -109,6 +109,14 @@ import * as sTickets from '@/app/api/v1/support/tickets/route';
 import * as sTicketReply from '@/app/api/v1/support/tickets/[id]/reply/route';
 import * as sTicketClose from '@/app/api/v1/support/tickets/[id]/close/route';
 import * as leaveTypeById from '@/app/api/v1/leave/types/[id]/route';
+import * as feeHeads from '@/app/api/v1/fees/heads/route';
+import * as feeHeadById from '@/app/api/v1/fees/heads/[id]/route';
+import * as feeStructures from '@/app/api/v1/fees/structures/route';
+import * as feeLateFee from '@/app/api/v1/fees/late-fee/route';
+import * as feeOverrides from '@/app/api/v1/students/[id]/fees/overrides/route';
+import * as feeOverrideById from '@/app/api/v1/students/[id]/fees/overrides/[overrideId]/route';
+import * as feeDiscounts from '@/app/api/v1/students/[id]/fees/discounts/route';
+import * as feeDiscountById from '@/app/api/v1/students/[id]/fees/discounts/[discountId]/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -141,6 +149,9 @@ const only = (allowed: Partial<Record<UserRole, Expect>>, otherwise: number = 40
   Object.fromEntries(ROLES.map((r) => [r, allowed[r] ?? otherwise])) as Record<UserRole, Expect>;
 const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect>;
 
+/** Finance reads: Accountant, School Admin and the Principal (finance.read toggle, default on). */
+const FINANCE_READ = only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200 });
+const FEES_MANAGE = (ok: number) => only({ ACCOUNTANT: ok, SCHOOL_ADMIN: ok });
 const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, ACCOUNTANT: 200, TEACHER: 200 });
 let prefixCounter = 0;
 let n = 0;
@@ -1053,6 +1064,83 @@ const MATRIX: Row[] = [
     handler: leaveTypeById.PATCH,
     request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: false } }),
     expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  // ── Finance: fee setup ──
+  { key: 'GET /api/v1/fees/heads', handler: feeHeads.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/fees/heads',
+    handler: feeHeads.POST,
+    request: () => ({ body: { name: `Head ${++n}`, kind: 'MONTHLY' } }),
+    expect: FEES_MANAGE(201),
+  },
+  {
+    key: 'PATCH /api/v1/fees/heads/[id]',
+    handler: feeHeadById.PATCH,
+    request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: true } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'GET /api/v1/fees/structures',
+    handler: feeStructures.GET,
+    request: (f) => ({ path: `/api/v1/fees/structures?yearId=${f.s.yearA}` }),
+    expect: FINANCE_READ,
+  },
+  {
+    key: 'PUT /api/v1/fees/structures',
+    handler: feeStructures.PUT,
+    request: (f) => ({ method: 'PUT', path: `/api/v1/fees/structures?yearId=${f.s.yearA}`, body: { rows: [] } }),
+    expect: FEES_MANAGE(200),
+  },
+  {
+    key: 'POST /api/v1/fees/structures',
+    handler: feeStructures.POST,
+    request: (f) => ({ path: `/api/v1/fees/structures?yearId=${f.s.yearA2}`, body: { fromYearId: f.s.yearA } }),
+    expect: FEES_MANAGE(200),
+  },
+  {
+    key: 'GET /api/v1/fees/late-fee',
+    handler: feeLateFee.GET,
+    request: (f) => ({ path: `/api/v1/fees/late-fee?yearId=${f.s.yearA}` }),
+    expect: FINANCE_READ,
+  },
+  {
+    key: 'PUT /api/v1/fees/late-fee',
+    handler: feeLateFee.PUT,
+    request: (f) => ({ method: 'PUT', path: `/api/v1/fees/late-fee?yearId=${f.s.yearA}`, body: { value: 0 } }),
+    expect: FEES_MANAGE(200),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/fees/overrides',
+    handler: feeOverrides.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: FINANCE_READ,
+  },
+  {
+    key: 'POST /api/v1/students/[id]/fees/overrides',
+    handler: feeOverrides.POST,
+    request: () => ({ params: { id: MISSING }, body: { feeHeadId: MISSING, amountPaisa: 100 } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'DELETE /api/v1/students/[id]/fees/overrides/[overrideId]',
+    handler: feeOverrideById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING, overrideId: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/students/[id]/fees/discounts',
+    handler: feeDiscounts.POST,
+    request: () => ({
+      params: { id: MISSING },
+      body: { kind: 'FIXED', value: 100, reason: 'Test', validFrom: '2026-04-01' },
+    }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'DELETE /api/v1/students/[id]/fees/discounts/[discountId]',
+    handler: feeDiscountById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING, discountId: MISSING } }),
+    expect: FEES_MANAGE(404),
   },
 ];
 
