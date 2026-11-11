@@ -131,6 +131,7 @@ const ROLES: UserRole[] = [
   'STUDENT',
   'TEACHER',
   'ADMISSIONS_OFFICER',
+  'ACCOUNTANT',
   'PRINCIPAL',
   'SCHOOL_ADMIN',
   'PLATFORM_ADMIN',
@@ -140,7 +141,7 @@ const only = (allowed: Partial<Record<UserRole, Expect>>, otherwise: number = 40
   Object.fromEntries(ROLES.map((r) => [r, allowed[r] ?? otherwise])) as Record<UserRole, Expect>;
 const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect>;
 
-const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 });
+const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, ACCOUNTANT: 200, TEACHER: 200 });
 let prefixCounter = 0;
 let n = 0;
 const MISSING = '00000000-0000-4000-8000-000000000000';
@@ -376,7 +377,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/students',
     handler: students.GET,
     request: () => ({}),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
+    expect: only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
   },
   {
     key: 'POST /api/v1/students',
@@ -389,7 +390,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/students/[id]',
     handler: studentById.GET,
     request: (f) => ({ params: { id: f.s.studentA } }),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
+    expect: only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
   },
   {
     key: 'PATCH /api/v1/students/[id]',
@@ -448,7 +449,7 @@ const MATRIX: Row[] = [
     handler: attSheet.GET,
     request: (f) => ({ path: `/api/v1/attendance/sheet?sectionId=${f.s.sectionA8A}` }),
     // Admissions has neither attendance.submit nor attendance.oversee: the section is invisible to them.
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
   },
   {
     key: 'POST /api/v1/attendance/batches',
@@ -468,7 +469,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/attendance/grid',
     handler: attGrid.GET,
     request: (f) => ({ path: `/api/v1/attendance/grid?sectionId=${f.s.sectionA8A}&month=2026-09` }),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
   },
   {
     key: 'POST /api/v1/attendance/records',
@@ -477,7 +478,7 @@ const MATRIX: Row[] = [
     request: (f) => ({
       body: { sectionId: f.s.sectionA8A, date: '2026-04-02', studentId: f.s.studentA, status: 'LATE' },
     }),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 403, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 403, ADMISSIONS_OFFICER: 404 }),
   },
   { key: 'GET /api/v1/attendance/me', handler: attMe.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
   {
@@ -518,7 +519,14 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/leave/types',
     handler: leaveTypes.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'POST /api/v1/leave/types',
@@ -531,7 +539,7 @@ const MATRIX: Row[] = [
     key: 'POST /api/v1/leave/[id]/decision',
     handler: leaveDecision.POST,
     request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVED' } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'POST /api/v1/leave/[id]/cancel',
@@ -565,19 +573,19 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/assessments/[id]',
     handler: assessmentById.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'DELETE /api/v1/assessments/[id]',
     handler: assessmentById.DELETE,
     request: () => ({ method: 'DELETE', params: { id: MISSING } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'PUT /api/v1/assessments/[id]/marks',
     handler: assessmentMarks.PUT,
     request: () => ({ method: 'PUT', params: { id: MISSING }, body: { marks: [], submit: false } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'POST /api/v1/assessments/[id]/publish',
@@ -605,14 +613,21 @@ const MATRIX: Row[] = [
     key: 'POST /api/v1/remarks/[id]/moderate',
     handler: remarkModerate.POST,
     request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVED' } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   // ── Phase 3: timetable & notifications ────────────────────────────────────
   {
     key: 'GET /api/v1/timetable/periods',
     handler: ttPeriods.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'PUT /api/v1/timetable/periods',
@@ -642,13 +657,27 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/notifications',
     handler: notifications.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'POST /api/v1/notifications',
     handler: notifications.POST,
     request: () => ({ body: {} }),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   // ── Phase 4: import, reports, search, announcements, audit ────────────────
   {
@@ -706,13 +735,20 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/search',
     handler: searchRoute.GET,
     request: () => ({ path: '/api/v1/search?q=student' }),
-    expect: only({ TEACHER: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, SCHOOL_ADMIN: 200 }),
+    expect: only({ ACCOUNTANT: 200, TEACHER: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, SCHOOL_ADMIN: 200 }),
   },
   {
     key: 'GET /api/v1/announcements',
     handler: announcements.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'POST /api/v1/announcements',
@@ -791,7 +827,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/students/[id]/photo',
     handler: studentPhoto.GET,
     request: (f) => ({ params: { id: f.s.studentA } }),
-    expect: only({ TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }), // no photo yet
+    expect: only({ ACCOUNTANT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }), // no photo yet
   },
   {
     key: 'PUT /api/v1/students/[id]/photo',
@@ -813,7 +849,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/teachers/[id]/photo',
     handler: teacherPhoto.GET,
     request: (f) => ({ params: { id: f.s.teacherA } }),
-    expect: only({ TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
   },
   {
     key: 'PUT /api/v1/teachers/[id]/photo',
@@ -835,7 +871,14 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/me/photo',
     handler: mePhoto.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+    expect: only({
+      ACCOUNTANT: 404,
+      STUDENT: 404,
+      TEACHER: 404,
+      PRINCIPAL: 404,
+      SCHOOL_ADMIN: 404,
+      ADMISSIONS_OFFICER: 404,
+    }),
   },
   {
     key: 'GET /api/v1/promotions/archive',
@@ -860,7 +903,14 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/archives/[id]',
     handler: archiveById.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+    expect: only({
+      ACCOUNTANT: 404,
+      STUDENT: 404,
+      TEACHER: 404,
+      PRINCIPAL: 404,
+      SCHOOL_ADMIN: 404,
+      ADMISSIONS_OFFICER: 404,
+    }),
   },
   {
     key: 'GET /api/v1/report-card/archives',

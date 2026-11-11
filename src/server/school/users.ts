@@ -7,7 +7,7 @@ import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 
 export const listUsersQuery = z.object({
-  role: z.enum(['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'TEACHER', 'STUDENT']).optional(),
+  role: z.enum(['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT', 'TEACHER', 'STUDENT']).optional(),
   q: z.string().trim().max(100).optional(),
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),

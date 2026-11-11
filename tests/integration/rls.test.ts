@@ -35,7 +35,7 @@ describe('RLS with the app role (edusaas_app)', () => {
     const users = await withTenant({ tenantId: f.tenantA.id }, (tx) =>
       tx.user.findMany({ select: { tenantId: true } }),
     );
-    expect(users.length).toBe(5);
+    expect(users.length).toBe(6);
     expect(new Set(users.map((u) => u.tenantId))).toEqual(new Set([f.tenantA.id]));
     const tenants = await withTenant({ tenantId: f.tenantA.id }, (tx) => tx.tenant.findMany());
     expect(tenants.map((t) => t.id)).toEqual([f.tenantA.id]);
@@ -157,5 +157,75 @@ describe('integrity constraints', () => {
         ),
       ).rejects.toThrow(/users_tenant_matches_role/);
     });
+  });
+});
+
+describe('finance tables (spec §2.2): tenant-owned, money rows immutable', () => {
+  it('a fee head cannot be written into another school, and the ledger is append-only', async () => {
+    await expect(
+      withTenant({ tenantId: f.tenantA.id }, (tx) =>
+        tx.feeHead.create({ data: { tenantId: f.tenantB.id, name: 'Tuition', kind: 'MONTHLY' } }),
+      ),
+    ).rejects.toThrow();
+    const entry = await withTenant({ tenantId: f.tenantA.id }, (tx) =>
+      tx.ledgerEntry.create({
+        data: {
+          tenantId: f.tenantA.id,
+          entryOn: new Date('2026-11-01'),
+          kind: 'FEE',
+          direction: 'IN',
+          amountPaisa: 100n,
+          refTable: 'payments',
+          refId: f.a.STUDENT.id,
+        },
+      }),
+    );
+    await expect(
+      withTenant({ tenantId: f.tenantA.id }, (tx) =>
+        tx.ledgerEntry.update({ where: { id: entry.id }, data: { amountPaisa: 200n } }),
+      ),
+    ).rejects.toThrow(/append-only|denied/);
+    await expect(
+      withTenant({ tenantId: f.tenantA.id }, (tx) => tx.ledgerEntry.delete({ where: { id: entry.id } })),
+    ).rejects.toThrow(/append-only|denied/);
+    // School B never sees it.
+    const seen = await withTenant({ tenantId: f.tenantB.id }, (tx) => tx.ledgerEntry.count());
+    expect(seen).toBe(0);
+  });
+
+  it('a payment cannot reference another school’s invoice', async () => {
+    const yearA = await withTenant({ tenantId: f.tenantA.id }, (tx) =>
+      tx.academicYear.findFirstOrThrow({ where: { status: 'CURRENT' } }),
+    );
+    const inv = await withTenant({ tenantId: f.tenantA.id }, (tx) =>
+      tx.invoice.create({
+        data: {
+          tenantId: f.tenantA.id,
+          studentId: f.s.studentA,
+          academicYearId: yearA.id,
+          period: '2026-11',
+          number: 'I-000001',
+          issuedOn: new Date('2026-11-01'),
+          dueOn: new Date('2026-11-10'),
+          subtotalPaisa: 1000n,
+        },
+      }),
+    );
+    await expect(
+      withTenant({ tenantId: f.tenantB.id }, (tx) =>
+        tx.payment.create({
+          data: {
+            tenantId: f.tenantB.id,
+            studentId: f.s.studentB,
+            invoiceId: inv.id,
+            amountPaisa: 1000n,
+            method: 'CASH',
+            receivedOn: new Date('2026-11-02'),
+            receivedBy: f.b.SCHOOL_ADMIN.id,
+            receiptNumber: 'R-000001',
+          },
+        }),
+      ),
+    ).rejects.toThrow();
   });
 });

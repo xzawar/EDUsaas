@@ -24,6 +24,7 @@ enum UserRole {
   SCHOOL_ADMIN
   PRINCIPAL
   ADMISSIONS_OFFICER
+  ACCOUNTANT
   TEACHER
   STUDENT
 }
@@ -180,6 +181,22 @@ model Tenant {
   supportTickets     SupportTicket[]
   ticketMessages     TicketMessage[]
   studentArchives    StudentArchive[]
+  feeHeads           FeeHead[]
+  feeStructures      FeeStructure[]
+  feeOverrides       StudentFeeOverride[]
+  feeDiscounts       FeeDiscount[]
+  lateFeeRules       LateFeeRule[]
+  invoices           Invoice[]
+  invoiceLines       InvoiceLine[]
+  payments           Payment[]
+  paymentClaims      PaymentClaim[]
+  expenseCategories  ExpenseCategory[]
+  expenses           Expense[]
+  salaryStructures   SalaryStructure[]
+  payrollRuns        PayrollRun[]
+  payslips           Payslip[]
+  ledgerEntries      LedgerEntry[]
+  financeSequences   FinanceSequence[]
 
   @@map("tenants")
 }
@@ -191,6 +208,11 @@ model TenantSettings {
   atRiskThreshold  Int            @default(75) @map("at_risk_threshold")
   marksPublisher   MarksPublisher @default(SCHOOL_ADMIN) @map("marks_publisher")
   leaveAgeOutHours Int            @default(48) @map("leave_age_out_hours")
+  /// Finance: day of month invoices are generated, days until due, term start months, receipt footer.
+  invoiceDay       Int            @default(1) @map("invoice_day")
+  feeDueDays       Int            @default(10) @map("fee_due_days")
+  termStartMonths  Int[]          @default([4, 9, 1]) @map("term_start_months")
+  receiptFooter    String?        @map("receipt_footer")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -239,17 +261,19 @@ model User {
   updatedAt           DateTime   @updatedAt @map("updated_at")
   deletedAt           DateTime?  @map("deleted_at")
 
-  tenant         Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  sessions       Session[]
-  passwordResets PasswordResetToken[]
-  teacher        Teacher?
-  student        Student?
-  leaveRequests  LeaveRequest[]            @relation("LeaveApplicant")
-  remarks        Remark[]                  @relation("RemarkAuthor")
-  notifications  Notification[]
-  announcements  Announcement[]
-  platformGrants PlatformPermissionGrant[]
-  ticketsCreated SupportTicket[]           @relation("TicketAuthor")
+  tenant           Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sessions         Session[]
+  passwordResets   PasswordResetToken[]
+  teacher          Teacher?
+  student          Student?
+  leaveRequests    LeaveRequest[]            @relation("LeaveApplicant")
+  remarks          Remark[]                  @relation("RemarkAuthor")
+  notifications    Notification[]
+  announcements    Announcement[]
+  platformGrants   PlatformPermissionGrant[]
+  ticketsCreated   SupportTicket[]           @relation("TicketAuthor")
+  salaryStructures SalaryStructure[]
+  payslips         Payslip[]
 
   @@index([tenantId, role])
   @@map("users")
@@ -333,6 +357,9 @@ model AcademicYear {
   classes        Class[]
   gradingSchemes GradingScheme[]
   assessments    Assessment[]
+  feeStructures  FeeStructure[]
+  lateFeeRules   LateFeeRule[]
+  invoices       Invoice[]
 
   @@unique([tenantId, name])
   @@index([tenantId, status])
@@ -349,10 +376,11 @@ model Class {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-  sections     Section[]
-  subjects     ClassSubject[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear  AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  sections      Section[]
+  subjects      ClassSubject[]
+  feeStructures FeeStructure[]
 
   @@unique([academicYearId, name])
   @@index([tenantId])
@@ -491,13 +519,19 @@ model Student {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  section    Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  attendance AttendanceRecord[]
-  marks      Mark[]
-  remarks    Remark[]
-  leaves     LeaveRequest[]
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section       Section?             @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  attendance    AttendanceRecord[]
+  marks         Mark[]
+  remarks       Remark[]
+  leaves        LeaveRequest[]
+  feeOverrides  StudentFeeOverride[]
+  feeDiscounts  FeeDiscount[]
+  invoices      Invoice[]
+  payments      Payment[]
+  paymentClaims PaymentClaim[]
+  ledgerEntries LedgerEntry[]
 
   @@unique([sectionId, rollNumber])
   @@unique([tenantId, admissionNo])
@@ -629,6 +663,8 @@ model LeaveType {
   name        String
   forStudents Boolean   @default(true) @map("for_students")
   forStaff    Boolean   @default(true) @map("for_staff")
+  /// Unpaid leave types reduce staff salary in payroll (Finance).
+  paid        Boolean   @default(true)
   archivedAt  DateTime? @map("archived_at")
 
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -989,4 +1025,444 @@ model AuditArchive {
 
   @@unique([tenantId, month])
   @@map("audit_archives")
+}
+
+// ───────────── Finance (spec docs/superpowers/specs/2026-11-11-finance-and-android-design.md §2) ─────────────
+// Money is BIGINT paisa (1 PKR = 100 paisa). Payments, expenses and ledger entries are never deleted; corrections
+// are reversals. Numbers (receipt, invoice, voucher, payslip) are gap-free per school via finance_sequences.
+
+enum FeeKind {
+  MONTHLY
+  TERM
+  ONCE
+}
+
+enum DiscountKind {
+  PERCENT
+  FIXED
+}
+
+enum LateFeeKind {
+  FIXED
+  PERCENT
+  PER_DAY
+}
+
+enum InvoiceStatus {
+  DUE
+  PARTIAL
+  PAID
+  WAIVED
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  JAZZCASH
+  EASYPAISA
+  CHEQUE
+}
+
+enum ClaimStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALISED
+  PAID
+}
+
+enum LedgerKind {
+  FEE
+  ADVANCE
+  EXPENSE
+  SALARY
+  REVERSAL
+}
+
+enum LedgerDirection {
+  IN
+  OUT
+}
+
+enum SequenceKind {
+  RECEIPT
+  INVOICE
+  VOUCHER
+  PAYSLIP
+}
+
+enum PerDayDeduction {
+  BASIC_30
+  NONE
+}
+
+model FeeHead {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  name       String
+  kind       FeeKind   @default(MONTHLY)
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  structures FeeStructure[]
+  overrides  StudentFeeOverride[]
+  discounts  FeeDiscount[]
+  lines      InvoiceLine[]
+
+  @@unique([tenantId, name])
+  @@map("fee_heads")
+}
+
+model FeeStructure {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  academicYearId String   @map("academic_year_id") @db.Uuid
+  classId        String   @map("class_id") @db.Uuid
+  feeHeadId      String   @map("fee_head_id") @db.Uuid
+  amountPaisa    BigInt   @map("amount_paisa")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  feeHead      FeeHead      @relation(fields: [feeHeadId], references: [id], onDelete: Restrict)
+
+  @@unique([academicYearId, classId, feeHeadId])
+  @@index([tenantId])
+  @@map("fee_structures")
+}
+
+model StudentFeeOverride {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  studentId   String   @map("student_id") @db.Uuid
+  feeHeadId   String   @map("fee_head_id") @db.Uuid
+  amountPaisa BigInt   @map("amount_paisa")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeHead FeeHead @relation(fields: [feeHeadId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, feeHeadId])
+  @@index([tenantId])
+  @@map("student_fee_overrides")
+}
+
+model FeeDiscount {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  studentId String       @map("student_id") @db.Uuid
+  /// NULL = applies to every fee head.
+  feeHeadId String?      @map("fee_head_id") @db.Uuid
+  kind      DiscountKind
+  /// PERCENT: hundredths of a percent (1250 = 12.50%). FIXED: paisa.
+  value     Int
+  reason    String
+  validFrom DateTime     @map("valid_from") @db.Date
+  validTo   DateTime?    @map("valid_to") @db.Date
+  createdBy String       @map("created_by") @db.Uuid
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeHead FeeHead? @relation(fields: [feeHeadId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, studentId])
+  @@map("fee_discounts")
+}
+
+model LateFeeRule {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  academicYearId String      @unique @map("academic_year_id") @db.Uuid
+  graceDays      Int         @default(0) @map("grace_days")
+  kind           LateFeeKind @default(FIXED)
+  /// FIXED/PER_DAY: paisa. PERCENT: hundredths of a percent.
+  value          Int         @default(0)
+  capPaisa       BigInt?     @map("cap_paisa")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("late_fee_rules")
+}
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  studentId      String        @map("student_id") @db.Uuid
+  academicYearId String        @map("academic_year_id") @db.Uuid
+  /// "YYYY-MM" (monthly), "YYYY-T1|T2|T3" (term), "YYYY-ONCE-<feeHeadId>" (one-time).
+  period         String
+  number         String
+  issuedOn       DateTime      @map("issued_on") @db.Date
+  dueOn          DateTime      @map("due_on") @db.Date
+  subtotalPaisa  BigInt        @map("subtotal_paisa")
+  discountPaisa  BigInt        @default(0) @map("discount_paisa")
+  /// Live until the invoice is fully paid, then frozen here. NULL = compute from the rule.
+  lateFeePaisa   BigInt?       @map("late_fee_paisa")
+  lateFeeWaived  Boolean       @default(false) @map("late_fee_waived")
+  paidPaisa      BigInt        @default(0) @map("paid_paisa")
+  status         InvoiceStatus @default(DUE)
+  /// User id, or NULL when generated by the monthly job.
+  generatedBy    String?       @map("generated_by") @db.Uuid
+  voidReason     String?       @map("void_reason")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student      Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  lines        InvoiceLine[]
+  payments     Payment[]
+  claims       PaymentClaim[]
+
+  @@unique([studentId, period])
+  @@unique([tenantId, number])
+  @@index([tenantId, status, dueOn])
+  @@index([tenantId, period])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id            String @id @default(uuid()) @db.Uuid
+  tenantId      String @map("tenant_id") @db.Uuid
+  invoiceId     String @map("invoice_id") @db.Uuid
+  feeHeadId     String @map("fee_head_id") @db.Uuid
+  description   String
+  amountPaisa   BigInt @map("amount_paisa")
+  discountPaisa BigInt @default(0) @map("discount_paisa")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeHead FeeHead @relation(fields: [feeHeadId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id                  String        @id @default(uuid()) @db.Uuid
+  tenantId            String        @map("tenant_id") @db.Uuid
+  studentId           String        @map("student_id") @db.Uuid
+  /// NULL = advance (on account).
+  invoiceId           String?       @map("invoice_id") @db.Uuid
+  /// Negative only for a reversal row.
+  amountPaisa         BigInt        @map("amount_paisa")
+  method              PaymentMethod
+  reference           String?
+  receivedOn          DateTime      @map("received_on") @db.Date
+  receivedBy          String        @map("received_by") @db.Uuid
+  receiptNumber       String        @map("receipt_number")
+  proofKey            String?       @map("proof_key")
+  note                String?
+  clientKey           String?       @map("client_key") @db.Uuid
+  /// Set on the original when it has been reversed.
+  reversedByPaymentId String?       @unique @map("reversed_by_payment_id") @db.Uuid
+  /// Set on the reversal row: the payment it undoes.
+  reversesPaymentId   String?       @unique @map("reverses_payment_id") @db.Uuid
+  reversalReason      String?       @map("reversal_reason")
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoice    Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  reverses   Payment?       @relation("PaymentReversal", fields: [reversesPaymentId], references: [id], onDelete: Restrict)
+  reversedBy Payment?       @relation("PaymentReversal")
+  claims     PaymentClaim[]
+
+  @@unique([tenantId, receiptNumber])
+  @@unique([tenantId, clientKey])
+  @@index([tenantId, receivedOn])
+  @@index([studentId])
+  @@map("payments")
+}
+
+model PaymentClaim {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenantId     String        @map("tenant_id") @db.Uuid
+  studentId    String        @map("student_id") @db.Uuid
+  invoiceId    String        @map("invoice_id") @db.Uuid
+  amountPaisa  BigInt        @map("amount_paisa")
+  method       PaymentMethod
+  reference    String
+  paidOn       DateTime      @map("paid_on") @db.Date
+  proofKey     String?       @map("proof_key")
+  status       ClaimStatus   @default(PENDING)
+  decidedBy    String?       @map("decided_by") @db.Uuid
+  decidedAt    DateTime?     @map("decided_at")
+  decisionNote String?       @map("decision_note")
+  paymentId    String?       @map("payment_id") @db.Uuid
+  clientKey    String?       @map("client_key") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, clientKey])
+  @@index([tenantId, status, createdAt])
+  @@map("payment_claims")
+}
+
+model ExpenseCategory {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  name       String
+  /// System categories (e.g. Salaries) are created by the app and cannot be archived.
+  system     Boolean   @default(false)
+  archivedAt DateTime? @map("archived_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([tenantId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id                  String        @id @default(uuid()) @db.Uuid
+  tenantId            String        @map("tenant_id") @db.Uuid
+  categoryId          String        @map("category_id") @db.Uuid
+  amountPaisa         BigInt        @map("amount_paisa")
+  spentOn             DateTime      @map("spent_on") @db.Date
+  paidTo              String        @map("paid_to")
+  method              PaymentMethod
+  voucherNumber       String        @map("voucher_number")
+  reference           String?
+  receiptKey          String?       @map("receipt_key")
+  note                String?
+  enteredBy           String        @map("entered_by") @db.Uuid
+  clientKey           String?       @map("client_key") @db.Uuid
+  reversedByExpenseId String?       @unique @map("reversed_by_expense_id") @db.Uuid
+  reversesExpenseId   String?       @unique @map("reverses_expense_id") @db.Uuid
+  reversalReason      String?       @map("reversal_reason")
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reverses   Expense?        @relation("ExpenseReversal", fields: [reversesExpenseId], references: [id], onDelete: Restrict)
+  reversedBy Expense?        @relation("ExpenseReversal")
+
+  @@unique([tenantId, voucherNumber])
+  @@unique([tenantId, clientKey])
+  @@index([tenantId, spentOn])
+  @@map("expenses")
+}
+
+model SalaryStructure {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  basicPaisa      BigInt          @map("basic_paisa")
+  /// [{ name, amountPaisa }]
+  allowances      Json            @default("[]")
+  deductions      Json            @default("[]")
+  effectiveFrom   DateTime        @map("effective_from") @db.Date
+  perDayDeduction PerDayDeduction @default(BASIC_30) @map("per_day_deduction")
+  updatedBy       String?         @map("updated_by") @db.Uuid
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([tenantId])
+  @@map("salary_structures")
+}
+
+model PayrollRun {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  /// "YYYY-MM"
+  period      String
+  status      PayrollStatus @default(DRAFT)
+  totalPaisa  BigInt        @default(0) @map("total_paisa")
+  runBy       String        @map("run_by") @db.Uuid
+  finalisedAt DateTime?     @map("finalised_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payslips Payslip[]
+
+  @@unique([tenantId, period])
+  @@map("payroll_runs")
+}
+
+model Payslip {
+  id                  String         @id @default(uuid()) @db.Uuid
+  tenantId            String         @map("tenant_id") @db.Uuid
+  payrollRunId        String         @map("payroll_run_id") @db.Uuid
+  userId              String         @map("user_id") @db.Uuid
+  number              String
+  basicPaisa          BigInt         @map("basic_paisa")
+  allowances          Json           @default("[]")
+  deductions          Json           @default("[]")
+  allowancesPaisa     BigInt         @default(0) @map("allowances_paisa")
+  deductionsPaisa     BigInt         @default(0) @map("deductions_paisa")
+  unpaidLeaveDays     Int            @default(0) @map("unpaid_leave_days")
+  leaveDeductionPaisa BigInt         @default(0) @map("leave_deduction_paisa")
+  netPaisa            BigInt         @map("net_paisa")
+  paidOn              DateTime?      @map("paid_on") @db.Date
+  method              PaymentMethod?
+  reference           String?
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run    PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollRunId, userId])
+  @@unique([tenantId, number])
+  @@index([tenantId, userId])
+  @@map("payslips")
+}
+
+/// Append-only. Every rupee in or out. Reports read only this table. Updates and deletes are blocked by a trigger.
+model LedgerEntry {
+  id          String          @id @default(uuid()) @db.Uuid
+  tenantId    String          @map("tenant_id") @db.Uuid
+  entryOn     DateTime        @map("entry_on") @db.Date
+  kind        LedgerKind
+  direction   LedgerDirection
+  amountPaisa BigInt          @map("amount_paisa")
+  method      PaymentMethod?
+  refTable    String          @map("ref_table")
+  refId       String          @map("ref_id") @db.Uuid
+  studentId   String?         @map("student_id") @db.Uuid
+  userId      String?         @map("user_id") @db.Uuid
+  createdBy   String?         @map("created_by") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entryOn])
+  @@index([tenantId, studentId])
+  @@index([tenantId, kind, entryOn])
+  @@map("ledger_entries")
+}
+
+/// Gap-free per-school counters; the row is locked (SELECT … FOR UPDATE) inside the writing transaction.
+model FinanceSequence {
+  tenantId String       @map("tenant_id") @db.Uuid
+  kind     SequenceKind
+  next     Int          @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, kind])
+  @@map("finance_sequences")
 }
