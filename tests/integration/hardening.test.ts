@@ -268,6 +268,9 @@ describe('retention and scheduled jobs', () => {
       'studentsAnonymized',
       'auditArchive',
       'yearArchive',
+      'invoicesGenerate',
+      'feeReminders',
+      'advancesApply',
       'demoData',
     ]);
     expect(JSON.stringify(r.json.results)).not.toContain('error');

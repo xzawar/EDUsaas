@@ -33,6 +33,10 @@ export const updateSettingsSchema = z
     atRiskThreshold: z.number().int().min(0).max(100),
     marksPublisher: z.enum(['SCHOOL_ADMIN', 'PRINCIPAL']),
     leaveAgeOutHours: z.number().int().min(1).max(720),
+    invoiceDay: z.number().int().min(1).max(28),
+    feeDueDays: z.number().int().min(0).max(60),
+    termStartMonths: z.array(z.number().int().min(1).max(12)).length(3),
+    receiptFooter: z.string().trim().max(200).nullable(),
   })
   .partial()
   .strict()

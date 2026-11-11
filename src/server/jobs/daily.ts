@@ -9,6 +9,7 @@ import { systemDb } from '@/server/db/system';
 import { expireGrants } from '@/server/platform/support';
 import { refreshDemoData } from '@/server/jobs/demo';
 import { archiveAuditMonths, processYearArchives } from '@/server/jobs/archive';
+import { applyPendingAdvances, generateMonthlyInvoices, sendFeeReminders } from '@/server/jobs/finance';
 
 /**
  * Daily maintenance (cron, decision D8). Each step is independent and idempotent, so a missed or repeated run is
@@ -189,6 +190,9 @@ export async function runDaily(now = new Date()) {
   await step('studentsAnonymized', () => anonymizeWithdrawn(now));
   await step('auditArchive', () => auditArchival(now));
   await step('yearArchive', () => processYearArchives(200));
+  await step('invoicesGenerate', () => generateMonthlyInvoices(now));
+  await step('feeReminders', () => sendFeeReminders(now));
+  await step('advancesApply', () => applyPendingAdvances(now));
   await step('demoData', () => refreshDemoData(now));
   return results;
 }

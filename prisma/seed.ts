@@ -286,6 +286,7 @@ async function seedBrightStar() {
     { role: 'SCHOOL_ADMIN', displayName: 'Sara Ahmed', email: 'admin@bss.test' },
     { role: 'PRINCIPAL', displayName: 'Imran Qureshi', email: 'principal@bss.test' },
     { role: 'ADMISSIONS_OFFICER', displayName: 'Nadia Malik', email: 'admissions@bss.test' },
+    { role: 'ACCOUNTANT', displayName: 'Bilal Hassan', email: 'accounts@bss.test' },
   ] satisfies SeedUser[])
     await upsertUser(u, t);
 
@@ -922,6 +923,367 @@ async function seedOperations(prefix: string) {
   );
 }
 
+// ── Finance demo: fee setup, months of bills (mostly paid), proofs waiting, expenses, salaries, payroll ──
+async function seedFinance(prefix: string) {
+  const tenant = await db.tenant.findUnique({ where: { prefix } });
+  if (!tenant) return;
+  const t = tenant.id;
+  if ((await db.feeHead.count({ where: { tenantId: t } })) > 0) {
+    console.log(`${tenant.name}: finance data already present.`);
+    return;
+  }
+  const year = await db.academicYear.findFirst({ where: { tenantId: t, status: 'CURRENT' } });
+  if (!year) return;
+  const rnd = prng(prefix === 'bss' ? 77 : 78);
+  const today = dayInKarachi();
+  const admin = await db.user.findFirstOrThrow({ where: { tenantId: t, role: 'SCHOOL_ADMIN' } });
+  const accountant = (await db.user.findFirst({ where: { tenantId: t, role: 'ACCOUNTANT' } })) ?? admin;
+  const seq: Record<string, number> = { INVOICE: 1, RECEIPT: 1, VOUCHER: 1, PAYSLIP: 1 };
+  const num = (kind: 'INVOICE' | 'RECEIPT' | 'VOUCHER' | 'PAYSLIP') =>
+    `${kind[0]}-${String(seq[kind]!++).padStart(6, '0')}`;
+
+  // Fee heads and per-class amounts (tuition rises with the class).
+  const tuition = await db.feeHead.create({ data: { tenantId: t, name: 'Tuition', kind: 'MONTHLY' } });
+  const transport = await db.feeHead.create({ data: { tenantId: t, name: 'Transport', kind: 'MONTHLY' } });
+  const exam = await db.feeHead.create({ data: { tenantId: t, name: 'Exam', kind: 'TERM' } });
+  await db.feeHead.create({ data: { tenantId: t, name: 'Admission', kind: 'ONCE' } });
+  const classes = await db.class.findMany({ where: { academicYearId: year.id }, orderBy: { gradeLevel: 'asc' } });
+  const amountFor = (grade: number, head: string) =>
+    head === 'tuition' ? (3500 + grade * 350) * 100 : head === 'transport' ? 1500 * 100 : 2000 * 100;
+  await db.feeStructure.createMany({
+    data: classes.flatMap((c) => [
+      {
+        tenantId: t,
+        academicYearId: year.id,
+        classId: c.id,
+        feeHeadId: tuition.id,
+        amountPaisa: amountFor(c.gradeLevel, 'tuition'),
+      },
+      {
+        tenantId: t,
+        academicYearId: year.id,
+        classId: c.id,
+        feeHeadId: transport.id,
+        amountPaisa: amountFor(c.gradeLevel, 'transport'),
+      },
+      {
+        tenantId: t,
+        academicYearId: year.id,
+        classId: c.id,
+        feeHeadId: exam.id,
+        amountPaisa: amountFor(c.gradeLevel, 'exam'),
+      },
+    ]),
+  });
+  await db.lateFeeRule.create({
+    data: { tenantId: t, academicYearId: year.id, graceDays: 5, kind: 'FIXED', value: 50000 },
+  });
+
+  const students = await db.student.findMany({
+    where: { tenantId: t, status: 'ACTIVE', sectionId: { not: null } },
+    include: { section: { include: { class: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  // A few sibling / scholarship discounts and transport opt-outs.
+  for (const s of students.filter((_, i) => i % 23 === 0).slice(0, 12)) {
+    await db.feeDiscount.create({
+      data: {
+        tenantId: t,
+        studentId: s.id,
+        feeHeadId: null,
+        kind: 'PERCENT',
+        value: 2500,
+        reason: 'Sibling discount',
+        validFrom: year.startsOn,
+        createdBy: admin.id,
+      },
+    });
+  }
+  for (const s of students.filter((_, i) => i % 23 === 7).slice(0, 6)) {
+    await db.feeDiscount.create({
+      data: {
+        tenantId: t,
+        studentId: s.id,
+        feeHeadId: tuition.id,
+        kind: 'PERCENT',
+        value: 10000,
+        reason: 'Scholarship',
+        validFrom: year.startsOn,
+        createdBy: admin.id,
+      },
+    });
+  }
+  const noTransport = new Set(students.filter((_, i) => i % 3 === 0).map((s) => s.id));
+  await db.studentFeeOverride.createMany({
+    data: [...noTransport].map((studentId) => ({
+      tenantId: t,
+      studentId,
+      feeHeadId: transport.id,
+      amountPaisa: 0,
+      note: 'Walks to school',
+    })),
+  });
+  const discounts = await db.feeDiscount.findMany({ where: { tenantId: t } });
+  const discountOf = (studentId: string, headId: string) =>
+    discounts.find((d) => d.studentId === studentId && d.feeHeadId === headId) ??
+    discounts.find((d) => d.studentId === studentId && d.feeHeadId === null) ??
+    null;
+
+  // Months from the year's start to this month.
+  const months: string[] = [];
+  for (let d = year.startsOn.toISOString().slice(0, 7); d <= today.slice(0, 7);) {
+    months.push(d);
+    const [y, m] = d.split('-').map(Number);
+    d = m === 12 ? `${y! + 1}-01` : `${y}-${String(m! + 1).padStart(2, '0')}`;
+  }
+  const methods = ['CASH', 'CASH', 'CASH', 'BANK', 'JAZZCASH', 'EASYPAISA'] as const;
+  let pendingClaims = 0;
+  for (const period of months) {
+    const issuedOn = `${period}-01`;
+    const dueOn = addDaysIso(issuedOn, 10);
+    const isCurrent = period === today.slice(0, 7);
+    const termStart = [4, 9, 1].includes(Number(period.slice(5, 7)));
+    for (const s of students) {
+      const grade = s.section!.class.gradeLevel;
+      const lines: { feeHeadId: string; description: string; amountPaisa: number; discountPaisa: number }[] = [];
+      const push = (head: { id: string; name: string }, amount: number, label = head.name) => {
+        if (amount <= 0) return;
+        const d = discountOf(s.id, head.id);
+        const discount = d
+          ? d.kind === 'PERCENT'
+            ? Math.round((amount * d.value) / 10000)
+            : Math.min(amount, d.value)
+          : 0;
+        lines.push({ feeHeadId: head.id, description: label, amountPaisa: amount, discountPaisa: discount });
+      };
+      push(tuition, amountFor(grade, 'tuition'));
+      push(transport, noTransport.has(s.id) ? 0 : amountFor(grade, 'transport'));
+      if (termStart)
+        push(
+          exam,
+          amountFor(grade, 'exam'),
+          `Exam (${period.slice(0, 4)}-T${termStart ? [4, 9, 1].indexOf(Number(period.slice(5, 7))) + 1 : 1})`,
+        );
+      const subtotal = lines.reduce((a, l) => a + l.amountPaisa, 0);
+      const discount = lines.reduce((a, l) => a + l.discountPaisa, 0);
+      const total = subtotal - discount;
+      // Past months: 85% paid in full, 7% partly, 8% unpaid. This month: 40% paid so far.
+      const r = rnd();
+      const paid = isCurrent ? (r < 0.4 ? total : 0) : r < 0.85 ? total : r < 0.92 ? Math.round(total * 0.5) : 0;
+      const status = paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'DUE';
+      const inv = await db.invoice.create({
+        data: {
+          tenantId: t,
+          studentId: s.id,
+          academicYearId: year.id,
+          period,
+          number: num('INVOICE'),
+          issuedOn: new Date(`${issuedOn}T00:00:00Z`),
+          dueOn: new Date(`${dueOn}T00:00:00Z`),
+          subtotalPaisa: subtotal,
+          discountPaisa: discount,
+          paidPaisa: paid,
+          status,
+          lateFeePaisa: status === 'PAID' ? 0 : null,
+          generatedBy: null,
+          lines: { create: lines.map((l) => ({ tenantId: t, ...l })) },
+        },
+      });
+      if (paid > 0) {
+        const method = methods[Math.floor(rnd() * methods.length)]!;
+        const receivedOn = addDaysIso(issuedOn, Math.floor(rnd() * 9));
+        const payment = await db.payment.create({
+          data: {
+            tenantId: t,
+            studentId: s.id,
+            invoiceId: inv.id,
+            amountPaisa: paid,
+            method,
+            reference: method === 'CASH' ? null : `TX${Math.floor(rnd() * 9_000_000 + 1_000_000)}`,
+            receivedOn: new Date(`${receivedOn}T00:00:00Z`),
+            receivedBy: accountant.id,
+            receiptNumber: num('RECEIPT'),
+            allocations: { create: { tenantId: t, invoiceId: inv.id, amountPaisa: paid } },
+          },
+        });
+        await db.ledgerEntry.create({
+          data: {
+            tenantId: t,
+            entryOn: payment.receivedOn,
+            kind: 'FEE',
+            direction: 'IN',
+            amountPaisa: paid,
+            method,
+            refTable: 'payments',
+            refId: payment.id,
+            studentId: s.id,
+            createdBy: accountant.id,
+          },
+        });
+      } else if (isCurrent && pendingClaims < 5 && rnd() < 0.08) {
+        pendingClaims++;
+        await db.paymentClaim.create({
+          data: {
+            tenantId: t,
+            studentId: s.id,
+            invoiceId: inv.id,
+            amountPaisa: total,
+            method: 'EASYPAISA',
+            reference: `EP${Math.floor(rnd() * 9_000_000 + 1_000_000)}`,
+            paidOn: new Date(`${today}T00:00:00Z`),
+          },
+        });
+      }
+    }
+  }
+
+  // Expenses: a few categories, ~4 per month.
+  const catNames = ['Utilities', 'Repairs & maintenance', 'Stationery', 'Transport fuel', 'Events'];
+  const cats = [];
+  for (const name of catNames) cats.push(await db.expenseCategory.create({ data: { tenantId: t, name } }));
+  const salariesCat = await db.expenseCategory.create({ data: { tenantId: t, name: 'Salaries', system: true } });
+  const payees: Record<string, string[]> = {
+    Utilities: ['LESCO', 'SNGPL', 'PTCL'],
+    'Repairs & maintenance': ['Ali Electric Works', 'Hamza Plumbing'],
+    Stationery: ['Book Depot', 'Paper House'],
+    'Transport fuel': ['PSO pump'],
+    Events: ['Decor & Tents'],
+  };
+  for (const period of months) {
+    for (let i = 0; i < 4; i++) {
+      const cat = cats[Math.floor(rnd() * cats.length)]!;
+      const spentOn = addDaysIso(`${period}-01`, Math.floor(rnd() * 27));
+      if (spentOn > today) continue;
+      const amount = Math.round((5000 + rnd() * 60000) / 100) * 100 * 100;
+      const method = rnd() < 0.6 ? 'CASH' : 'BANK';
+      const e = await db.expense.create({
+        data: {
+          tenantId: t,
+          categoryId: cat.id,
+          amountPaisa: amount,
+          spentOn: new Date(`${spentOn}T00:00:00Z`),
+          paidTo: payees[cat.name]![Math.floor(rnd() * payees[cat.name]!.length)]!,
+          method,
+          voucherNumber: num('VOUCHER'),
+          enteredBy: accountant.id,
+        },
+      });
+      await db.ledgerEntry.create({
+        data: {
+          tenantId: t,
+          entryOn: e.spentOn,
+          kind: 'EXPENSE',
+          direction: 'OUT',
+          amountPaisa: amount,
+          method,
+          refTable: 'expenses',
+          refId: e.id,
+          createdBy: accountant.id,
+        },
+      });
+    }
+  }
+
+  // Salaries for every staff member; payroll for the previous two months, paid.
+  const staff = await db.user.findMany({ where: { tenantId: t, role: { not: 'STUDENT' }, deletedAt: null } });
+  const basicFor = (role: UserRole) =>
+    role === 'SCHOOL_ADMIN'
+      ? 120000
+      : role === 'PRINCIPAL'
+        ? 150000
+        : role === 'ACCOUNTANT'
+          ? 70000
+          : role === 'ADMISSIONS_OFFICER'
+            ? 55000
+            : 45000 + Math.floor(rnd() * 25) * 1000;
+  for (const u of staff) {
+    const basic = basicFor(u.role) * 100;
+    await db.salaryStructure.create({
+      data: {
+        tenantId: t,
+        userId: u.id,
+        basicPaisa: basic,
+        allowances: [{ name: 'House rent', amountPaisa: Math.round(basic * 0.1) }],
+        deductions: [{ name: 'Staff fund', amountPaisa: 100000 }],
+        effectiveFrom: year.startsOn,
+        updatedBy: admin.id,
+      },
+    });
+  }
+  const structures = await db.salaryStructure.findMany({ where: { tenantId: t } });
+  for (const period of months.slice(-3, -1)) {
+    const run = await db.payrollRun.create({
+      data: { tenantId: t, period, status: 'PAID', runBy: accountant.id, finalisedAt: new Date() },
+    });
+    let total = 0;
+    const paidOn = addDaysIso(`${period}-01`, 32 + 4); // the 5th of the next month
+    const paidDate = new Date(`${paidOn.slice(0, 7)}-05T00:00:00Z`);
+    for (const st of structures) {
+      const allowances = st.allowances as { name: string; amountPaisa: number }[];
+      const deductions = st.deductions as { name: string; amountPaisa: number }[];
+      const net =
+        Number(st.basicPaisa) +
+        allowances.reduce((a, x) => a + x.amountPaisa, 0) -
+        deductions.reduce((a, x) => a + x.amountPaisa, 0);
+      const slip = await db.payslip.create({
+        data: {
+          tenantId: t,
+          payrollRunId: run.id,
+          userId: st.userId,
+          number: num('PAYSLIP'),
+          basicPaisa: st.basicPaisa,
+          allowances,
+          deductions,
+          allowancesPaisa: allowances.reduce((a, x) => a + x.amountPaisa, 0),
+          deductionsPaisa: deductions.reduce((a, x) => a + x.amountPaisa, 0),
+          netPaisa: net,
+          paidOn: paidDate,
+          method: 'BANK',
+        },
+      });
+      await db.ledgerEntry.create({
+        data: {
+          tenantId: t,
+          entryOn: paidDate,
+          kind: 'SALARY',
+          direction: 'OUT',
+          amountPaisa: net,
+          method: 'BANK',
+          refTable: 'payslips',
+          refId: slip.id,
+          userId: st.userId,
+          createdBy: accountant.id,
+        },
+      });
+      total += net;
+    }
+    await db.payrollRun.update({ where: { id: run.id }, data: { totalPaisa: total } });
+    await db.expense.create({
+      data: {
+        tenantId: t,
+        categoryId: salariesCat.id,
+        amountPaisa: total,
+        spentOn: paidDate,
+        paidTo: `Staff salaries ${period} (${structures.length})`,
+        method: 'BANK',
+        voucherNumber: num('VOUCHER'),
+        note: `Payroll ${period}`,
+        enteredBy: accountant.id,
+      },
+    });
+  }
+  await db.financeSequence.createMany({
+    data: (['INVOICE', 'RECEIPT', 'VOUCHER', 'PAYSLIP'] as const).map((kind) => ({
+      tenantId: t,
+      kind,
+      next: seq[kind]!,
+    })),
+  });
+  console.log(
+    `${tenant.name}: finance seeded (${months.length} months, ${students.length} students, ${staff.length} staff).`,
+  );
+}
+
 async function main() {
   if (process.env.NODE_ENV === 'production' && process.env.DEMO_SEED !== 'true') {
     throw new Error('Refusing to seed demo accounts in production (set DEMO_SEED=true for a demo deployment)');
@@ -935,6 +1297,8 @@ async function main() {
   await seedAnnouncements('bss');
   await seedAnnouncements('gvs');
   await seedPlatform();
+  await seedFinance('bss');
+  await seedFinance('gvs');
   console.log(`Seed complete. Demo password for every account: ${DEMO_PASSWORD}`);
 }
 

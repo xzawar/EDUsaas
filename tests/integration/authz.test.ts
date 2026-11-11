@@ -144,6 +144,8 @@ import * as payrollFinalise from '@/app/api/v1/payroll/runs/[id]/finalise/route'
 import * as payrollPay from '@/app/api/v1/payroll/runs/[id]/pay/route';
 import * as payslipById from '@/app/api/v1/payslips/[id]/route';
 import * as mePayslipsRoute from '@/app/api/v1/me/payslips/route';
+import * as financeReports from '@/app/api/v1/finance/reports/[report]/route';
+import * as financeOverview from '@/app/api/v1/finance/overview/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -1364,6 +1366,14 @@ const MATRIX: Row[] = [
     expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   { key: 'GET /api/v1/me/payslips', handler: mePayslipsRoute.GET, request: () => ({}), expect: STAFF_ANY },
+  // ── Finance: reports ──
+  {
+    key: 'GET /api/v1/finance/reports/[report]',
+    handler: financeReports.GET,
+    request: () => ({ params: { report: 'summary' } }),
+    expect: FINANCE_READ,
+  },
+  { key: 'GET /api/v1/finance/overview', handler: financeOverview.GET, request: () => ({}), expect: FINANCE_READ },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */
