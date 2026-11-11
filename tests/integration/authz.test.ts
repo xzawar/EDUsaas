@@ -136,6 +136,14 @@ import * as expCategoryById from '@/app/api/v1/expenses/categories/[id]/route';
 import * as expensesRoute from '@/app/api/v1/expenses/route';
 import * as expenseReverse from '@/app/api/v1/expenses/[id]/reverse/route';
 import * as expenseReceiptRoute from '@/app/api/v1/expenses/[id]/receipt/route';
+import * as payrollRoster from '@/app/api/v1/payroll/structures/route';
+import * as payrollStructure from '@/app/api/v1/payroll/structures/[userId]/route';
+import * as payrollRuns from '@/app/api/v1/payroll/runs/route';
+import * as payrollRunById from '@/app/api/v1/payroll/runs/[id]/route';
+import * as payrollFinalise from '@/app/api/v1/payroll/runs/[id]/finalise/route';
+import * as payrollPay from '@/app/api/v1/payroll/runs/[id]/pay/route';
+import * as payslipById from '@/app/api/v1/payslips/[id]/route';
+import * as mePayslipsRoute from '@/app/api/v1/me/payslips/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -1300,6 +1308,62 @@ const MATRIX: Row[] = [
     request: () => ({ params: { id: MISSING } }),
     expect: FINANCE_READ_404,
   },
+  // ── Finance: payroll ──
+  { key: 'GET /api/v1/payroll/structures', handler: payrollRoster.GET, request: () => ({}), expect: FEES_MANAGE(200) },
+  {
+    key: 'GET /api/v1/payroll/structures/[userId]',
+    handler: payrollStructure.GET,
+    request: () => ({ params: { userId: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'PUT /api/v1/payroll/structures/[userId]',
+    handler: payrollStructure.PUT,
+    request: () => ({
+      method: 'PUT',
+      params: { userId: MISSING },
+      body: { basicPaisa: 1, effectiveFrom: '2026-01-01' },
+    }),
+    expect: FEES_MANAGE(404),
+  },
+  { key: 'GET /api/v1/payroll/runs', handler: payrollRuns.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/payroll/runs',
+    handler: payrollRuns.POST,
+    request: () => ({ body: { period: `${2030 + (++n % 60)}-${String(1 + (n % 12)).padStart(2, '0')}` } }),
+    expect: FEES_MANAGE(201),
+  },
+  {
+    key: 'GET /api/v1/payroll/runs/[id]',
+    handler: payrollRunById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: FINANCE_READ_404,
+  },
+  {
+    key: 'DELETE /api/v1/payroll/runs/[id]',
+    handler: payrollRunById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/payroll/runs/[id]/finalise',
+    handler: payrollFinalise.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/payroll/runs/[id]/pay',
+    handler: payrollPay.POST,
+    request: () => ({ params: { id: MISSING }, body: { paidOn: '2026-01-01', method: 'BANK' } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'GET /api/v1/payslips/[id]',
+    handler: payslipById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  { key: 'GET /api/v1/me/payslips', handler: mePayslipsRoute.GET, request: () => ({}), expect: STAFF_ANY },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */
