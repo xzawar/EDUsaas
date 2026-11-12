@@ -116,7 +116,7 @@ test('teacher checks in and takes a register', async ({ page }) => {
   const checkIn = page.getByRole('button', { name: 'Check in' });
   if (await checkIn.isVisible()) {
     await checkIn.click();
-    await expect(page.getByText(/^Checked in/)).toBeVisible();
+    await expect(page.getByText(/^Checked in/).first()).toBeVisible();
   }
   await page.goto('/staff/attendance');
   await page.locator('a[href^="/staff/attendance/"]').first().click();
