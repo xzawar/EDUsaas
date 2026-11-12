@@ -9,6 +9,7 @@ type T = {
   name: string;
   forStudents: boolean;
   forStaff: boolean;
+  paid: boolean;
   archivedAt: string | Date | null;
   used: number;
 };
@@ -50,6 +51,16 @@ export function LeaveTypesEditor({ types }: { types: T[] }) {
                   onChange={(e) => patch(t.id, { forStaff: e.target.checked })}
                 />{' '}
                 Staff
+              </label>
+              <label className="flex items-center gap-1.5" title="Unpaid leave is deducted from salary in payroll">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  disabled={busy || !!t.archivedAt}
+                  checked={t.paid}
+                  onChange={(e) => patch(t.id, { paid: e.target.checked })}
+                />{' '}
+                Paid
               </label>
               <Button
                 size="sm"

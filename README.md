@@ -19,6 +19,7 @@ Multi-tenant school management SaaS: one school = one tenant. Students, teachers
 | 4 — Management: reports + CSV export, Excel student import, search (Ctrl K), announcements, notification bell, audit log                                           | ✅ Done |
 | 5 — Hardening: break-glass support access, report-card PDF, retention & scheduled jobs, rate limits                                                                | ✅ Done |
 | 6 — Gaps: file storage, photos, year + audit archival, plans & subscriptions, Platform Admins, support tickets, per-period attendance, offline marks, Sentry       | ✅ Done |
+| 7 — Finance: Accountant role, fee setup, monthly bills, counter payments + receipts, parent payment proofs, expenses, payroll + payslips, money reports, ledger    | ✅ Done |
 
 **Still needed before real school data:** an S3/R2 bucket configured (`STORAGE_DRIVER=s3`, see `.env.example`; photos
 and archives wait until it is set), `SENTRY_DSN`, a backup/restore plan, a load test with a 1,000-student school, and a
@@ -69,6 +70,7 @@ Password for every demo account: `Demo-pass-2026`
 | Staff    | `admin@bss.test`      | School Admin                                      |
 | Staff    | `principal@bss.test`  | Principal                                         |
 | Staff    | `admissions@bss.test` | Admissions Officer                                |
+| Staff    | `accounts@bss.test`   | Accountant (fees, expenses, payroll, reports)     |
 | Staff    | `admin@gvs.test`      | School Admin, Green Valley School (second tenant) |
 | Platform | `owner@edusaas.test`  | Platform Owner                                    |
 | Platform | `ops@edusaas.test`    | Platform Admin (schools, support queue + access)  |

@@ -54,7 +54,7 @@ export async function financeOverview(ctx: AuthedContext) {
     const get = (kind: string, direction: string) =>
       n(monthLedger.find((l) => l.kind === kind && l.direction === direction)?._sum.amountPaisa);
     let outstanding = 0;
-    let overdueStudents = new Set<string>();
+    const overdueStudents = new Set<string>();
     for (const inv of open) {
       const t = invoiceTotals(inv, ruleMap.get(inv.academicYearId) ?? null, clock.today);
       outstanding += t.balancePaisa;
@@ -63,9 +63,8 @@ export async function financeOverview(ctx: AuthedContext) {
     return {
       today: clock.today,
       month,
-      collectedTodayPaisa:
-        n(todayIn.find((t) => t.direction === 'IN')?._sum.amountPaisa) -
-        n(todayIn.find((t) => t.direction === 'OUT')?._sum.amountPaisa),
+      collectedTodayPaisa: n(todayIn.find((t) => t.direction === 'IN')?._sum.amountPaisa),
+      reversedTodayPaisa: n(todayIn.find((t) => t.direction === 'OUT')?._sum.amountPaisa),
       monthCollectedPaisa: get('FEE', 'IN') + get('ADVANCE', 'IN') - get('REVERSAL', 'OUT'),
       monthInvoicedPaisa: n(invoiced._sum.subtotalPaisa) - n(invoiced._sum.discountPaisa),
       monthBills: invoiced._count,

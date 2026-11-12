@@ -13,6 +13,13 @@ import {
   Upload,
   ScrollText,
   LifeBuoy,
+  Wallet,
+  HandCoins,
+  Receipt,
+  FileCheck,
+  ShoppingBag,
+  Banknote,
+  FileSpreadsheet,
   CalendarRange,
   ClipboardCheck,
   GraduationCap,
@@ -62,6 +69,13 @@ const ICONS = {
   import: Upload,
   audit: ScrollText,
   support: LifeBuoy,
+  finance: Wallet,
+  collect: HandCoins,
+  invoices: Receipt,
+  claims: FileCheck,
+  expenses: ShoppingBag,
+  payroll: Banknote,
+  payslip: FileSpreadsheet,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

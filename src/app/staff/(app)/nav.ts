@@ -8,7 +8,16 @@ import type { AuthedContext } from '@/server/http/route';
 export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?: NavItem[] } {
   const isTeacher = ctx.user.role === 'TEACHER';
   const groups: NavGroup[] = [
-    { items: [{ href: '/staff', label: isTeacher ? 'Today' : 'Dashboard', icon: 'dashboard', exact: true }] },
+    {
+      items: [
+        {
+          href: '/staff',
+          label: isTeacher ? 'Today' : ctx.user.role === 'ACCOUNTANT' ? 'Overview' : 'Dashboard',
+          icon: 'dashboard',
+          exact: true,
+        },
+      ],
+    },
   ];
 
   const daily: NavItem[] = [];
@@ -40,12 +49,32 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   if (ctx.can('promotion.run')) academics.push({ href: '/staff/promotion', label: 'Promotion', icon: 'promotion' });
   if (academics.length) groups.push({ label: 'Academics', items: academics });
 
+  const finance: NavItem[] = [];
+  const isAccountant = ctx.user.role === 'ACCOUNTANT';
+  if (!isAccountant && (ctx.can('fees.collect') || ctx.can('finance.read')))
+    finance.push({ href: '/staff/finance', label: 'Finance', icon: 'finance', exact: true });
+  if (ctx.can('fees.collect')) {
+    finance.push({ href: '/staff/finance/collect', label: 'Collect fees', icon: 'collect' });
+    finance.push({ href: '/staff/finance/invoices', label: 'Fee bills', icon: 'invoices' });
+    finance.push({ href: '/staff/finance/claims', label: 'Payment proofs', icon: 'claims' });
+  }
+  if (ctx.can('expenses.manage') || ctx.can('finance.read'))
+    finance.push({ href: '/staff/finance/expenses', label: 'Expenses', icon: 'expenses' });
+  if (ctx.can('payroll.manage') || ctx.can('finance.read'))
+    finance.push({ href: '/staff/finance/payroll', label: 'Payroll', icon: 'payroll' });
+  if (ctx.can('finance.read'))
+    finance.push({ href: '/staff/finance/reports', label: 'Money reports', icon: 'reports' });
+  if (ctx.can('fees.manage')) finance.push({ href: '/staff/finance/setup', label: 'Fee setup', icon: 'settings' });
+  if (finance.length) groups.push({ label: 'Finance', items: finance });
+
   const school: NavItem[] = [];
   if (ctx.can('reports.read')) school.push({ href: '/staff/reports', label: 'Reports', icon: 'reports' });
   if (ctx.can('audit.read')) school.push({ href: '/staff/audit', label: 'Audit log', icon: 'audit' });
   if (ctx.can('settings.manage')) school.push({ href: '/staff/settings', label: 'Settings', icon: 'settings' });
   if (ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL')
     school.push({ href: '/staff/support', label: 'Help & support', icon: 'support' });
+  if (!isAccountant && ctx.user.role !== 'SCHOOL_ADMIN')
+    school.push({ href: '/staff/payslips', label: 'My payslips', icon: 'payslip' });
   if (school.length) groups.push({ label: 'School', items: school });
 
   const mobileTabs = isTeacher

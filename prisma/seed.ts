@@ -981,7 +981,7 @@ async function seedFinance(prefix: string) {
 
   const students = await db.student.findMany({
     where: { tenantId: t, status: 'ACTIVE', sectionId: { not: null } },
-    include: { section: { include: { class: true } } },
+    include: { section: { include: { class: true } }, user: { select: { username: true } } },
     orderBy: { createdAt: 'asc' },
   });
   // A few sibling / scholarship discounts and transport opt-outs.
@@ -1069,7 +1069,20 @@ async function seedFinance(prefix: string) {
       const total = subtotal - discount;
       // Past months: 85% paid in full, 7% partly, 8% unpaid. This month: 40% paid so far.
       const r = rnd();
-      const paid = isCurrent ? (r < 0.4 ? total : 0) : r < 0.85 ? total : r < 0.92 ? Math.round(total * 0.5) : 0;
+      // The two demo logins always have this month's bill open, so the fee demo works on day one.
+      const demoLogin = ['bss-8a-ahmad-14', 'bss-8a-ayesha-15'].includes(s.user.username ?? '');
+      const paid =
+        isCurrent && demoLogin
+          ? 0
+          : isCurrent
+            ? r < 0.4
+              ? total
+              : 0
+            : r < 0.85
+              ? total
+              : r < 0.92
+                ? Math.round(total * 0.5)
+                : 0;
       const status = paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'DUE';
       const inv = await db.invoice.create({
         data: {

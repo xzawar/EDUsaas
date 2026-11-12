@@ -7,6 +7,7 @@ const STUDENT_NAV: NavItem[] = [
   { href: '/student', label: 'Home', icon: 'home', exact: true },
   { href: '/student/attendance', label: 'Attendance', icon: 'attendance' },
   { href: '/student/marks', label: 'Marks', icon: 'marks' },
+  { href: '/student/fees', label: 'Fees', icon: 'invoices' },
   { href: '/student/timetable', label: 'Timetable', icon: 'timetable' },
   { href: '/student/leave', label: 'Leave', icon: 'leave' },
 ];
