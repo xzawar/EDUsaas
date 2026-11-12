@@ -35,6 +35,12 @@ export default function Home() {
           );
         })}
       </div>
+      <p className="mt-8 text-sm text-slate-600">
+        On Android?{' '}
+        <Link href="/download" className="font-medium text-slate-900 underline">
+          Get the app
+        </Link>
+      </p>
     </main>
   );
 }

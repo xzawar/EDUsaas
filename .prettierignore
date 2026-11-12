@@ -4,3 +4,9 @@ node_modules
 docs/spec
 prisma/migrations
 package-lock.json
+apps/mobile/node_modules
+apps/mobile/android
+apps/mobile/ios
+apps/mobile/.expo
+apps/mobile/dist
+apps/mobile/package-lock.json

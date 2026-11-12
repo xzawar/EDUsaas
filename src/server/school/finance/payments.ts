@@ -8,6 +8,7 @@ import { audit, friendlyDbError, inTenant, isoDate, schoolClock, toDate } from '
 import { invoiceTotals, recomputeInvoice, yearRule } from '@/server/school/finance/invoices';
 import { postLedger } from '@/server/school/finance/ledger';
 import { nextNumber } from '@/server/school/finance/sequences';
+import { formatPKR } from '@/lib/money';
 import { notify } from '@/server/school/notifications';
 
 /**
@@ -147,7 +148,7 @@ export async function recordPayment(ctx: AuthedContext, input: z.infer<typeof pa
         if (input.amountPaisa > balance && !input.allowAdvance)
           throw new AppError(
             'VALIDATION_FAILED',
-            `Amount exceeds the balance of this bill (${balance} paisa). Tick “keep extra as advance” to accept it.`,
+            `This bill only has ${formatPKR(balance)} left to pay. Tick “keep extra as advance” to accept more.`,
             {
               balancePaisa: balance,
             },

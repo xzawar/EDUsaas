@@ -1,0 +1,70 @@
+name: Mobile
+on:
+  pull_request:
+    paths: ['apps/mobile/**', 'packages/shared/**', '.github/workflows/mobile.yml']
+  push:
+    branches: [main]
+    paths: ['apps/mobile/**', 'packages/shared/**']
+  workflow_dispatch:
+    inputs:
+      build_apk:
+        description: Build a signed release APK
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/mobile
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx jest --ci
+
+  apk:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_apk
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_API_URL: ${{ vars.EDUSAAS_API_URL || 'https://edusaas-tau.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.EDUSAAS_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "Add the EDUSAAS_KEYSTORE_B64 secret (base64 of the release keystore)."; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "EDUSAAS_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+      - name: Build APK
+        env:
+          EDUSAAS_KEYSTORE_PASSWORD: ${{ secrets.EDUSAAS_KEYSTORE_PASSWORD }}
+          EDUSAAS_KEY_ALIAS: ${{ secrets.EDUSAAS_KEY_ALIAS }}
+        run: bash scripts/build-apk.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: edusaas-apk
+          path: apps/mobile/dist/*.apk

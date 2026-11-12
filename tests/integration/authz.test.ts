@@ -147,6 +147,7 @@ import * as mePayslipsRoute from '@/app/api/v1/me/payslips/route';
 import * as financeReports from '@/app/api/v1/finance/reports/[report]/route';
 import * as financeOverview from '@/app/api/v1/finance/overview/route';
 import * as mobileHome from '@/app/api/v1/mobile/home/route';
+import * as attSections from '@/app/api/v1/attendance/sections/route';
 import * as pushToken from '@/app/api/v1/me/push-token/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
@@ -1378,6 +1379,12 @@ const MATRIX: Row[] = [
   { key: 'GET /api/v1/finance/overview', handler: financeOverview.GET, request: () => ({}), expect: FINANCE_READ },
   // ── Mobile app ──
   { key: 'GET /api/v1/mobile/home', handler: mobileHome.GET, request: () => ({}), expect: everyone(200) },
+  {
+    key: 'GET /api/v1/attendance/sections',
+    handler: attSections.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
   {
     key: 'POST /api/v1/me/push-token',
     handler: pushToken.POST,

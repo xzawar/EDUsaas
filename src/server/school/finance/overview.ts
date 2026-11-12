@@ -63,7 +63,10 @@ export async function financeOverview(ctx: AuthedContext) {
     return {
       today: clock.today,
       month,
-      collectedTodayPaisa: n(todayIn.find((t) => t.direction === 'IN')?._sum.amountPaisa),
+      // Net of payments reversed today (a bounced transfer is not money in); the reversal is also shown on its own.
+      collectedTodayPaisa:
+        n(todayIn.find((t) => t.direction === 'IN')?._sum.amountPaisa) -
+        n(todayIn.find((t) => t.direction === 'OUT')?._sum.amountPaisa),
       reversedTodayPaisa: n(todayIn.find((t) => t.direction === 'OUT')?._sum.amountPaisa),
       monthCollectedPaisa: get('FEE', 'IN') + get('ADVANCE', 'IN') - get('REVERSAL', 'OUT'),
       monthInvoicedPaisa: n(invoiced._sum.subtotalPaisa) - n(invoiced._sum.discountPaisa),

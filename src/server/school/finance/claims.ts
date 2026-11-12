@@ -1,5 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
+import { formatPKR } from '@/lib/money';
 import { STORAGE_MISSING, newKey, storage } from '@/server/files/storage';
 import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
@@ -58,7 +59,7 @@ export async function submitClaim(ctx: AuthedContext, input: z.infer<typeof clai
       if (input.amountPaisa > balance)
         throw new AppError(
           'VALIDATION_FAILED',
-          `This bill has ${balance} paisa left to pay (counting proofs already sent).`,
+          `This bill only has ${formatPKR(balance)} left to pay (counting proofs already sent).`,
           {
             balancePaisa: balance,
           },
