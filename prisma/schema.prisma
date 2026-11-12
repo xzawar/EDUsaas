@@ -275,6 +275,7 @@ model User {
   ticketsCreated   SupportTicket[]           @relation("TicketAuthor")
   salaryStructures SalaryStructure[]
   payslips         Payslip[]
+  pushTokens       PushToken[]
 
   @@index([tenantId, role])
   @@map("users")
@@ -1475,6 +1476,22 @@ model LedgerEntry {
   @@index([tenantId, studentId])
   @@index([tenantId, kind, entryOn])
   @@map("ledger_entries")
+}
+
+/// Expo push tokens for the native app, one row per device. System-managed (deny-all for the app role).
+model PushToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  token      String   @unique
+  platform   String   @default("android")
+  appVersion String?  @map("app_version")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
 }
 
 /// Gap-free per-school counters; the row is locked (SELECT … FOR UPDATE) inside the writing transaction.

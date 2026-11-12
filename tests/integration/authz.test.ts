@@ -146,6 +146,8 @@ import * as payslipById from '@/app/api/v1/payslips/[id]/route';
 import * as mePayslipsRoute from '@/app/api/v1/me/payslips/route';
 import * as financeReports from '@/app/api/v1/finance/reports/[report]/route';
 import * as financeOverview from '@/app/api/v1/finance/overview/route';
+import * as mobileHome from '@/app/api/v1/mobile/home/route';
+import * as pushToken from '@/app/api/v1/me/push-token/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -1374,6 +1376,20 @@ const MATRIX: Row[] = [
     expect: FINANCE_READ,
   },
   { key: 'GET /api/v1/finance/overview', handler: financeOverview.GET, request: () => ({}), expect: FINANCE_READ },
+  // ── Mobile app ──
+  { key: 'GET /api/v1/mobile/home', handler: mobileHome.GET, request: () => ({}), expect: everyone(200) },
+  {
+    key: 'POST /api/v1/me/push-token',
+    handler: pushToken.POST,
+    request: () => ({ body: { token: 'ExponentPushToken[abcdefghijklmnopqrstuv]', platform: 'android' } }),
+    expect: everyone(200),
+  },
+  {
+    key: 'DELETE /api/v1/me/push-token',
+    handler: pushToken.DELETE,
+    request: () => ({ method: 'DELETE', body: { token: 'ExponentPushToken[abcdefghijklmnopqrstuv]' } }),
+    expect: everyone(200),
+  },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */
@@ -1382,6 +1398,7 @@ const NOT_IN_MATRIX = new Set([
   'POST /api/v1/auth/forgot-password',
   'POST /api/v1/auth/reset-password',
   'GET /api/internal/cron/daily',
+  'GET /api/v1/mobile/config',
 ]);
 
 let f: Fixtures;

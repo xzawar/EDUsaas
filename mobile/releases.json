@@ -1,0 +1,9 @@
+{
+  "minVersion": "1.0.0",
+  "latest": {
+    "version": "1.0.0",
+    "apkUrl": null,
+    "releasedOn": null,
+    "notes": "First release: all portals, fees, offline registers."
+  }
+}

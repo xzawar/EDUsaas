@@ -42,3 +42,18 @@ export function isSameOrigin(req: Request, appUrl: string): boolean {
     return false;
   }
 }
+
+/**
+ * The session token: the httpOnly cookie for browsers, or `Authorization: Bearer <token>` for the mobile app, which
+ * keeps the token in the device keystore instead of a cookie jar.
+ */
+export function sessionToken(req: Request, cookieName: string): string | undefined {
+  const auth = req.headers.get('authorization');
+  if (auth && /^Bearer\s+\S+$/i.test(auth)) return auth.split(/\s+/)[1];
+  return readCookie(req, cookieName);
+}
+
+/** True for requests from the native app (it identifies itself; nothing security-relevant hangs on this). */
+export function isMobileClient(req: Request): boolean {
+  return /^android\//i.test(req.headers.get('x-edusaas-client') ?? '');
+}

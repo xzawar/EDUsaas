@@ -16,6 +16,7 @@ const DENY_ALL_TABLES = new Set([
   'subscriptions',
   'platform_permission_grants',
   'audit_archives',
+  'push_tokens',
 ]);
 
 async function main() {

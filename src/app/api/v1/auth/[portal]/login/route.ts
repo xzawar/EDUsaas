@@ -5,6 +5,7 @@ import { login } from '@/server/auth/service';
 import { LIMITS, assertUnderLimit, recordHit } from '@/server/auth/ratelimit';
 import { PORTAL_SLUGS, type PortalSlug } from '@/server/auth/portals';
 import { sessionCookie } from '@/server/auth/session';
+import { isMobileClient } from '@/server/http/request';
 
 const schema = z.object({
   identifier: z.string().trim().min(1, 'Enter your username or email').max(200),
@@ -15,7 +16,7 @@ const schema = z.object({
 export const POST = defineRoute({
   auth: 'public',
   input: schema,
-  handler: async (meta, { input, params }) => {
+  handler: async (meta, { input, params, req }) => {
     const slug = String(params.portal);
     if (!Object.hasOwn(PORTAL_SLUGS, slug)) throw new AppError('NOT_FOUND', 'Unknown portal');
     const key = meta.ipHash ? `login-fail:${meta.ipHash}` : null;
@@ -30,9 +31,15 @@ export const POST = defineRoute({
         await recordHit(key, windowSeconds);
       throw e;
     }
+    // The native app cannot read an httpOnly cookie; it gets the token in the body and keeps it in the keystore.
+    const mobile = isMobileClient(req);
     return {
-      body: { redirectTo: result.redirectTo, mustChangePassword: result.mustChangePassword },
-      cookies: [sessionCookie(result.token, result.expiresAt)],
+      body: {
+        redirectTo: result.redirectTo,
+        mustChangePassword: result.mustChangePassword,
+        ...(mobile ? { token: result.token, expiresAt: result.expiresAt } : {}),
+      },
+      cookies: mobile ? [] : [sessionCookie(result.token, result.expiresAt)],
     };
   },
 });

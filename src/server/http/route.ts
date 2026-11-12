@@ -7,7 +7,7 @@ import type { Portal } from '@prisma/client';
 import { z, type ZodType } from 'zod';
 import { env } from '@/server/env';
 import { AppError } from '@/server/http/errors';
-import { ipHash, isSameOrigin, readCookie, userAgent } from '@/server/http/request';
+import { ipHash, isSameOrigin, readCookie, sessionToken, userAgent } from '@/server/http/request';
 import { SESSION_COOKIE, resolveSession, sessionCookie, type SessionContext } from '@/server/auth/session';
 import { loadPermissions } from '@/server/authz/context';
 import type { Permission } from '@/server/authz/permissions';
@@ -127,7 +127,7 @@ export function defineRoute<I = undefined, Q = undefined>(def: PublicRoute<I, Q>
         return toResponse(await def.handler(meta, { req, input, query, params }));
       }
 
-      const session = await resolveSession(readCookie(req, SESSION_COOKIE));
+      const session = await resolveSession(sessionToken(req, SESSION_COOKIE));
       if (!session) throw new AppError('UNAUTHENTICATED', 'Please sign in');
       if (session.user.mustChangePassword && !def.allowPendingPasswordChange) {
         throw new AppError('PASSWORD_CHANGE_REQUIRED', 'You must change your password before continuing');
@@ -165,7 +165,12 @@ export function defineRoute<I = undefined, Q = undefined>(def: PublicRoute<I, Q>
 
       const input = await parseInput(req, def.input, def.maxBodyBytes);
       const res = toResponse(await def.handler(ctx, { req, input, query, params }));
-      if (session.renewed && res instanceof NextResponse && !res.cookies.get(SESSION_COOKIE)) {
+      if (
+        session.renewed &&
+        res instanceof NextResponse &&
+        readCookie(req, SESSION_COOKIE) &&
+        !res.cookies.get(SESSION_COOKIE)
+      ) {
         res.cookies.set(sessionCookie(readCookie(req, SESSION_COOKIE)!, session.expiresAt));
       }
       return res;
