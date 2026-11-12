@@ -21,6 +21,7 @@ async function signIn(page: Page, path: string, identifier: string, password = P
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Main' });
 
 test('a brand-new school: owner creates it, the admin signs in and sets it up step by step', async ({ browser }) => {
+  test.setTimeout(90_000); // the longest journey: two sign-ins and a full school setup
   const n = Date.now() % 100000;
   const owner = await (await browser.newContext()).newPage();
   await signIn(owner, '/platform/login', 'owner@edusaas.test');
@@ -73,7 +74,11 @@ test('a brand-new school: owner creates it, the admin signs in and sets it up st
 
   // Step 3: a subject.
   await nav(page).getByRole('link', { name: 'Subjects' }).click();
-  await page.getByRole('button', { name: 'Add subject' }).first().click();
+  // A click that lands before hydration is lost; retry until the dialog really opens.
+  await expect(async () => {
+    await page.getByRole('button', { name: 'Add subject' }).first().click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 2000 });
+  }).toPass();
   await page.getByRole('dialog').getByLabel('Name').fill('Mathematics');
   await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('cell', { name: 'Mathematics' })).toBeVisible();
