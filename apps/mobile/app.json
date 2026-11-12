@@ -21,7 +21,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA", "POST_NOTIFICATIONS", "USE_BIOMETRIC", "USE_FINGERPRINT", "VIBRATE"],
+      "permissions": ["CAMERA", "POST_NOTIFICATIONS", "VIBRATE", "USE_BIOMETRIC"],
       "usesCleartextTraffic": false,
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -34,6 +34,12 @@
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.DETECT_SCREEN_CAPTURE"
       ]
     },
     "ios": {
@@ -47,6 +53,12 @@
       "expo-image",
       "expo-sharing",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Unlock EDUsaas"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#6d5dfc",
@@ -54,15 +66,11 @@
         }
       ],
       [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Unlock EDUsaas"
-        }
-      ],
-      [
         "expo-image-picker",
         {
-          "cameraPermission": "Take a photo of your payment proof or a bill."
+          "cameraPermission": "Take a photo of your payment proof or a bill.",
+          "microphonePermission": false,
+          "photosPermission": "Choose a screenshot of your payment proof."
         }
       ],
       [

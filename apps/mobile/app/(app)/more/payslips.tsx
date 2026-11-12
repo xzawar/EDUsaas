@@ -2,10 +2,12 @@ import { Card, Empty, ErrorBox, Loading, Money, Row, Screen } from '@/components
 import { errorText, useGet } from '@/lib/data';
 import { openPdf } from '@/lib/files';
 import { fmtDate, periodLabel } from '@/lib/format';
+import { useSecureScreen } from '@/lib/secure-screen';
 
 type P = { items: { id: string; number: string; period: string; netPaisa: number; paidOn: string | null }[] };
 
 export default function PayslipsScreen() {
+  useSecureScreen('payslips');
   const q = useGet<P>('/me/payslips');
   const d = q.data;
   return (

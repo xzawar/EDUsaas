@@ -11,6 +11,8 @@ import { usePushRegistration } from '@/lib/push';
 import { ToastHost } from '@/components/toast';
 import { useUpdateCheck } from '@/lib/update';
 import { UpdateRequired } from '@/screens/UpdateRequired';
+import { loadLock, useLock, useRelockOnResume } from '@/lib/lock';
+import { LockScreen } from '@/screens/LockScreen';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -21,7 +23,10 @@ function Gate() {
   const router = useRouter();
   useEffect(() => {
     void boot();
+    void loadLock();
   }, [boot]);
+  useRelockOnResume();
+  const locked = useLock((l) => l.locked);
   useEffect(() => {
     if (status === 'loading') return;
     void SplashScreen.hideAsync().catch(() => undefined);
@@ -34,6 +39,7 @@ function Gate() {
   usePushRegistration(status === 'in' && !me?.user.mustChangePassword);
   const update = useUpdateCheck();
   if (update.required) return <UpdateRequired latest={update.available} />;
+  if (status === 'in' && locked) return <LockScreen />;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="(auth)" />

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { PortalSlug } from '@edusaas/shared';
 import { api, loadToken, setToken, setUnauthorizedHandler } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearLock } from './lock';
 import { clearQueue } from './queue';
 
 const ME_KEY = 'edusaas.me';
@@ -101,6 +102,7 @@ export const useSession = create<State>((set, get) => ({
     await setToken(null);
     await clearQueue().catch(() => undefined);
     await saveMe(null);
+    await clearLock();
     set({ status: 'out', me: null });
   },
 }));

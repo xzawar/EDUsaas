@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { Button, Field, Input } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, setToken } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { colors, font, space } from '@/lib/theme';
 import { toast } from '@/components/toast';
@@ -20,12 +20,14 @@ export default function ChangePasswordScreen() {
     if (next !== confirm) return setError('The two new passwords don’t match.');
     setBusy(true);
     setError(null);
-    const r = await api('/auth/change-password', { body: { currentPassword: current, newPassword: next } }).catch(
-      () => null,
-    );
+    const r = await api<{ token?: string }>('/auth/change-password', {
+      body: { currentPassword: current, newPassword: next },
+    }).catch(() => null);
     setBusy(false);
     if (!r) return setError('No connection.');
     if (!r.ok) return setError(r.error.message);
+    // The server revokes the old session and hands this phone a new one.
+    if (r.data.token) await setToken(r.data.token);
     toast('success', 'Password changed');
     await refresh();
   }
@@ -37,13 +39,18 @@ export default function ChangePasswordScreen() {
         </View>
       )}
       <Field label={forced ? 'Temporary password' : 'Current password'}>
-        <Input secureTextEntry value={current} onChangeText={setCurrent} />
+        <Input
+          secureTextEntry
+          accessibilityLabel={forced ? 'Temporary password' : 'Current password'}
+          value={current}
+          onChangeText={setCurrent}
+        />
       </Field>
       <Field label="New password" hint={RULES}>
-        <Input secureTextEntry value={next} onChangeText={setNext} />
+        <Input secureTextEntry accessibilityLabel="New password" value={next} onChangeText={setNext} />
       </Field>
       <Field label="Confirm new password">
-        <Input secureTextEntry value={confirm} onChangeText={setConfirm} />
+        <Input secureTextEntry accessibilityLabel="Confirm new password" value={confirm} onChangeText={setConfirm} />
       </Field>
       {error && <Text style={{ color: colors.red }}>{error}</Text>}
       <Button onPress={submit} loading={busy} disabled={!current || next.length < 10}>

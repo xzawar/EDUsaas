@@ -63,6 +63,7 @@ export default function LoginScreen() {
                   ? 'username or email'
                   : 'you@edusaas.pk'
             }
+            accessibilityLabel={meta.idLabel}
             value={identifier}
             onChangeText={setIdentifier}
             returnKeyType="next"
@@ -71,6 +72,7 @@ export default function LoginScreen() {
         <Field label="Password">
           <View>
             <Input
+              accessibilityLabel="Password"
               secureTextEntry={!show}
               autoComplete="password"
               textContentType="password"

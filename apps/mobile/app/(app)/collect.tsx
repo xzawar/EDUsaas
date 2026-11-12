@@ -12,6 +12,7 @@ import { sendOrQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
 import { colors, font, space } from '@/lib/theme';
 import { toPaisa, toRupees } from '@edusaas/shared';
+import { useSecureScreen } from '@/lib/secure-screen';
 
 type Hit = { id: string; name: string; username: string | null; rollNumber: number | null; section: string | null };
 type Fees = {
@@ -49,6 +50,7 @@ type Fees = {
 
 /** The counter in your pocket: find the student, take the money, share the receipt. Works offline (queued). */
 export default function CollectScreen() {
+  useSecureScreen('collect');
   const { student: preset } = useLocalSearchParams<{ student?: string }>();
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);

@@ -7,6 +7,7 @@ import { errorText, useGet, useInvalidate } from '@/lib/data';
 import { fmtDate, METHOD_LABELS } from '@/lib/format';
 import { colors, font } from '@/lib/theme';
 import { useEffect } from 'react';
+import { useSecureScreen } from '@/lib/secure-screen';
 
 type Claim = {
   id: string;
@@ -36,6 +37,7 @@ function Proof({ id, size }: { id: string; size: number }) {
 
 /** Office: parents' transfer proofs. Check against the bank, confirm (receipt issued) or reject with a note. */
 export default function ClaimsScreen() {
+  useSecureScreen('claims');
   const q = useGet<{ items: Claim[]; pending: number }>('/fees/claims?status=PENDING');
   const invalidate = useInvalidate();
   const [viewing, setViewing] = useState<Claim | null>(null);

@@ -5,6 +5,7 @@ import * as logout from '@/app/api/v1/auth/logout/route';
 import * as home from '@/app/api/v1/mobile/home/route';
 import * as config from '@/app/api/v1/mobile/config/route';
 import * as pushToken from '@/app/api/v1/me/push-token/route';
+import * as changePassword from '@/app/api/v1/auth/change-password/route';
 import { systemDb } from '@/server/db/system';
 import { PASSWORD, cookieFor, seedFixtures, type Fixtures } from './helpers/fixtures';
 import { call, setCookieValue } from './helpers/http';
@@ -41,6 +42,28 @@ describe('bearer sessions', () => {
       (await call(logout.POST, { method: 'POST', headers: { authorization: `Bearer ${r.json.token}` } })).status,
     ).toBe(200);
     expect((await call(me.GET, { headers: { authorization: `Bearer ${r.json.token}` } })).status).toBe(401);
+  });
+
+  it('a password change hands the phone its new session instead of signing it out', async () => {
+    const mobile = { 'x-edusaas-client': 'android/1.0.0' };
+    const r = await call(login.POST, {
+      params: { portal: 'staff' },
+      headers: mobile,
+      body: { identifier: f.a.ADMISSIONS_OFFICER.login, password: PASSWORD },
+    });
+    const old = r.json.token as string;
+    const changed = await call(changePassword.POST, {
+      method: 'POST',
+      headers: { ...mobile, authorization: `Bearer ${old}` },
+      body: { currentPassword: PASSWORD, newPassword: 'Brand-new-pass-77' },
+    });
+    expect(changed.status).toBe(200);
+    expect(typeof changed.json.token).toBe('string');
+    expect(setCookieValue(changed.headers, 'edu_session')).toBeUndefined();
+    expect((await call(me.GET, { headers: { authorization: `Bearer ${old}` } })).status).toBe(401);
+    const who = await call(me.GET, { headers: { authorization: `Bearer ${changed.json.token}` } });
+    expect(who.status).toBe(200);
+    expect(who.json.user.id).toBe(f.a.ADMISSIONS_OFFICER.id);
   });
 
   it('rejects a garbage bearer token', async () => {

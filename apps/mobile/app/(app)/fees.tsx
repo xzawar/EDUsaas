@@ -6,6 +6,7 @@ import { fmtDate, periodLabel, METHOD_LABELS } from '@/lib/format';
 import { openPdf } from '@/lib/files';
 import { colors, font } from '@/lib/theme';
 import { ClaimSheet } from '@/screens/ClaimSheet';
+import { useSecureScreen } from '@/lib/secure-screen';
 
 type Fees = {
   outstandingPaisa: number;
@@ -50,6 +51,7 @@ function statusBadge(i: Fees['invoices'][number]) {
 
 /** Student / parent: what's owed, receipts, and "I have paid" with a screenshot. */
 export default function FeesScreen() {
+  useSecureScreen('fees');
   const q = useGet<Fees>('/me/fees');
   const d = q.data;
   const [claiming, setClaiming] = useState(false);

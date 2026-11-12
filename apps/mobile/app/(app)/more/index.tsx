@@ -12,6 +12,8 @@ import { useGet } from '@/lib/data';
 import { useEffect } from 'react';
 import { Linking } from 'react-native';
 import { useUpdateCheck } from '@/lib/update';
+import { setLockEnabled, useLock } from '@/lib/lock';
+import { toast } from '@/components/toast';
 
 export default function MoreScreen() {
   const me = useSession((s) => s.me)!;
@@ -21,6 +23,12 @@ export default function MoreScreen() {
   const isPlatform = me.user.role === 'PLATFORM_OWNER' || me.user.role === 'PLATFORM_ADMIN';
   const notes = useGet<{ unread: number }>(isPlatform ? null : '/notifications');
   const update = useUpdateCheck();
+  const lockOn = useLock((l) => l.enabled);
+  async function toggleLock() {
+    const ok = await setLockEnabled(!lockOn);
+    if (!ok && !lockOn) toast('error', 'Set up a fingerprint, face or screen lock on this phone first.');
+    else if (ok) toast('success', lockOn ? 'App lock turned off' : 'The app now asks for your fingerprint');
+  }
   useEffect(() => {
     void queue.reload();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,6 +70,15 @@ export default function MoreScreen() {
               onPress={() => router.push(i.href as never)}
             />
           ))}
+      </Card>
+      <Card style={{ paddingVertical: 4 }}>
+        <Row
+          left={<Ionicons name="finger-print-outline" size={22} color={colors.accent} />}
+          title="App lock"
+          subtitle="Ask for your fingerprint or screen lock when opening the app"
+          right={<Badge tone={lockOn ? 'green' : 'slate'}>{lockOn ? 'On' : 'Off'}</Badge>}
+          onPress={() => void toggleLock()}
+        />
       </Card>
       <Button
         variant="secondary"
