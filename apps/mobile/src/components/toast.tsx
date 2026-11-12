@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 import { colors, radius } from '@/lib/theme';
 
+let nextId = 1;
 type Toast = { id: number; tone: 'success' | 'error' | 'info'; text: string };
 const useToasts = create<{
   items: Toast[];
@@ -12,7 +13,7 @@ const useToasts = create<{
   drop: (id: number) => void;
 }>((set) => ({
   items: [],
-  push: (tone, text) => set((s) => ({ items: [...s.items, { id: Date.now() + Math.random(), tone, text }] })),
+  push: (tone, text) => set((s) => ({ items: [...s.items, { id: nextId++, tone, text }] })),
   drop: (id) => set((s) => ({ items: s.items.filter((t) => t.id !== id) })),
 }));
 

@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 export { formatPKR, periodLabel, METHOD_LABELS, ROLE_LABELS } from '@edusaas/shared';
 
 export const fmtDate = (
@@ -26,12 +27,5 @@ export const relative = (d: string | Date) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-export const uuid = () => {
-  // RN 0.76+ exposes crypto.randomUUID; fall back for older runtimes.
-  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
-  if (c?.randomUUID) return c.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
-    const r = (Math.random() * 16) | 0;
-    return (ch === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-};
+/** Idempotency keys and client ids: a random v4 UUID from the platform's secure generator. */
+export const uuid = () => Crypto.randomUUID();

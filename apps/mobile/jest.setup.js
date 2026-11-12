@@ -12,3 +12,4 @@ jest.mock('expo-secure-store', () => {
 });
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+jest.mock('expo-crypto', () => ({ randomUUID: () => require('crypto').randomUUID() }));
