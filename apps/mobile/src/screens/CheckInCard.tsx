@@ -54,7 +54,7 @@ export function CheckInCard({ checkin }: { checkin: CheckIn }) {
             Check in
           </Button>
         )}
-        {done && <Text style={{ color: colors.green, fontWeight: '700' }}>✓</Text>}
+        {!!done && <Text style={{ color: colors.green, fontWeight: '700' }}>✓</Text>}
       </View>
     </Card>
   );

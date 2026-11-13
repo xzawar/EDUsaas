@@ -28,7 +28,7 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockCalls: { path: string; body: unknown }[] = [];
-let mockMode: 'offline' | 'ok' | 'reject' | 'server-error' = 'ok';
+let mockMode: 'offline' | 'ok' | 'reject' | 'server-error' | 'expired' = 'ok';
 jest.mock('@/lib/api', () => {
   class NetworkError extends Error {}
   return {
@@ -38,13 +38,15 @@ jest.mock('@/lib/api', () => {
       mockCalls.push({ path, body: init.body });
       if (mockMode === 'reject')
         return { ok: false, status: 409, error: { code: 'CONFLICT', message: 'Register already taken by Ms Saima' } };
+      if (mockMode === 'expired')
+        return { ok: false, status: 401, error: { code: 'UNAUTHENTICATED', message: 'Please sign in' } };
       if (mockMode === 'server-error') return { ok: false, status: 503, error: { code: 'HTTP_503', message: 'Down' } };
       return { ok: true, status: 200, data: { saved: true } };
     }),
   };
 });
 
-import { clearQueue, discard, flush, pending, sendOrQueue, useQueue } from '@/lib/queue';
+import { clearQueue, discard, flush, pending, sendOrQueue, setQueueOwner, useQueue } from '@/lib/queue';
 
 const item = (n: number) => ({
   id: `id-${n}`,
@@ -56,6 +58,7 @@ const item = (n: number) => ({
 });
 
 beforeEach(async () => {
+  setQueueOwner('u1');
   await clearQueue();
   mockCalls.length = 0;
   mockMode = 'ok';
@@ -131,4 +134,30 @@ it('two flushes at once send each item once', async () => {
   mockMode = 'ok';
   await Promise.all([useQueue.getState().flushNow(), useQueue.getState().flushNow()]);
   expect(mockCalls).toHaveLength(1);
+});
+
+it('an expired session leaves everything waiting, untouched, for after sign-in', async () => {
+  mockMode = 'offline';
+  await sendOrQueue(item(1));
+  await sendOrQueue(item(2));
+  mockMode = 'expired';
+  expect(await flush()).toEqual({ sent: 0, failed: 0 });
+  expect((await pending()).map((q) => q.error)).toEqual([null, null]);
+  mockMode = 'ok';
+  expect(await flush()).toEqual({ sent: 2, failed: 0 });
+});
+
+it('on a shared phone, one person’s saved work is never sent under another’s account', async () => {
+  mockMode = 'offline';
+  await sendOrQueue(item(1)); // saved by u1
+  mockMode = 'ok';
+  setQueueOwner(null); // u1’s session expired
+  expect(await flush()).toEqual({ sent: 0, failed: 0 });
+  setQueueOwner('u2'); // someone else signs in
+  expect(await flush()).toEqual({ sent: 0, failed: 0 });
+  expect(mockCalls).toHaveLength(0);
+  await useQueue.getState().reload();
+  expect(useQueue.getState().items).toHaveLength(0); // u2 does not see u1’s items
+  setQueueOwner('u1');
+  expect(await flush()).toEqual({ sent: 1, failed: 0 });
 });

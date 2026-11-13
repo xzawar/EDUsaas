@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Card, ErrorBox, Loading, Money, Row, Screen, Stat } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
-import { periodLabel, plural } from '@/lib/format';
+import { METHOD_LABELS, periodLabel, plural } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { font } from '@/lib/theme';
 
@@ -89,7 +89,7 @@ export default function FinanceScreen() {
                 <Row
                   key={p.id}
                   title={p.student}
-                  subtitle={`${p.receiptNumber} · ${p.method}`}
+                  subtitle={`${p.receiptNumber} · ${METHOD_LABELS[p.method] ?? p.method}`}
                   right={<Money paisa={p.amountPaisa} style={{ fontWeight: '600' }} />}
                 />
               ))

@@ -113,7 +113,7 @@ export default function MarkSheetScreen() {
                   ? 'submitted, waiting to publish'
                   : 'draft'}
             </Text>
-            {a.lockedReason && !a.canEdit && <ErrorBox message={a.lockedReason} />}
+            {!!a.lockedReason && !a.canEdit && <ErrorBox message={a.lockedReason} />}
             <Card style={{ gap: 0, paddingVertical: 4 }}>
               {a.students.map((s, i) => {
                 const x = v[s.id] ?? { score: '', absent: false };

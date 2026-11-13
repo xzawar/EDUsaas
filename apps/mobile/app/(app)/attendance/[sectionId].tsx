@@ -131,7 +131,7 @@ export default function RegisterScreen() {
                 Taken by {d.submitted.by}. {d.canEdit ? 'Changes are corrections and are audited.' : ''}
               </Text>
             )}
-            {d.lockedReason && <ErrorBox message={d.lockedReason} />}
+            {!!d.lockedReason && <ErrorBox message={d.lockedReason} />}
             <Card style={{ gap: 0, paddingVertical: 4 }}>
               {d.students.map((s, i) => (
                 <View

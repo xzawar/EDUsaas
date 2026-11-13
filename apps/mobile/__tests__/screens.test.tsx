@@ -32,6 +32,7 @@ jest.mock('@/lib/api', () => {
   };
 });
 jest.mock('@/lib/queue', () => ({
+  setQueueOwner: () => undefined,
   sendOrQueue: async (item: { path: string; method: string; body: unknown }) => {
     const { api } = jest.requireMock('@/lib/api');
     const r = await api(item.path, { method: item.method, body: item.body });
@@ -39,7 +40,7 @@ jest.mock('@/lib/queue', () => ({
   },
   useQueue: Object.assign(
     () => ({ items: [], flushing: false, reload: async () => undefined, flushNow: async () => undefined }),
-    { getState: () => ({ items: [] }) },
+    { getState: () => ({ items: [], flushNow: async () => undefined }) },
   ),
 }));
 const mockPush = jest.fn();
@@ -47,6 +48,7 @@ let mockParams: Record<string, string> = {};
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => mockParams,
+  useFocusEffect: (cb: () => void | (() => void)) => require('react').useEffect(cb, [cb]),
   Stack: { Screen: () => null },
 }));
 jest.mock('@/lib/files', () => ({ openPdf: jest.fn() }));

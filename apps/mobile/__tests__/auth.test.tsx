@@ -8,7 +8,11 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => mockParams,
 }));
-jest.mock('@/lib/queue', () => ({ clearQueue: async () => undefined }));
+jest.mock('@/lib/queue', () => ({
+  clearQueue: async () => undefined,
+  setQueueOwner: () => undefined,
+  useQueue: { getState: () => ({ flushNow: async () => undefined }) },
+}));
 
 type Seen = { url: string; method: string; headers: Record<string, string>; body: unknown };
 const seen: Seen[] = [];

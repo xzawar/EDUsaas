@@ -80,6 +80,16 @@ export async function discard(id: string) {
   await useQueue.getState().reload();
 }
 
+/**
+ * Whose work may be sent. Set by the session on sign-in; null when signed out or the session expired. Items always
+ * go out under the account that saved them, never under whoever happens to be signed in next on a shared phone.
+ */
+let owner: string | null = null;
+export function setQueueOwner(userId: string | null) {
+  owner = userId;
+  void useQueue.getState().reload();
+}
+
 export async function clearQueue() {
   const d = await db();
   await d.runAsync('DELETE FROM queue');
@@ -91,7 +101,8 @@ export async function clearQueue() {
  * message so the person can see what the server refused and why; anything else is retried next time.
  */
 export async function flush(): Promise<{ sent: number; failed: number }> {
-  const items = await pending();
+  if (!owner) return { sent: 0, failed: 0 };
+  const items = await pending(owner);
   let sent = 0;
   let failed = 0;
   const d = await db();
@@ -102,6 +113,8 @@ export async function flush(): Promise<{ sent: number; failed: number }> {
       if (r.ok) {
         await d.runAsync('DELETE FROM queue WHERE id = ?', item.id);
         sent++;
+      } else if (r.status === 401) {
+        break; // session expired: keep everything as it is and send after the person signs back in
       } else if (r.status >= 400 && r.status < 500 && r.status !== 429) {
         await d.runAsync('UPDATE queue SET error = ? WHERE id = ?', r.error.message, item.id);
         failed++;
@@ -127,7 +140,7 @@ export const useQueue = create<{
   items: [],
   flushing: false,
   async reload() {
-    set({ items: await pending() });
+    set({ items: owner ? await pending(owner) : [] });
   },
   async flushNow() {
     if (useQueue.getState().flushing) return; // reconnect + foreground can fire together

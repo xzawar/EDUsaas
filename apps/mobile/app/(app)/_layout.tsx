@@ -1,16 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
 import { tabsFor } from '@/lib/nav';
 import { colors } from '@/lib/theme';
+export { ErrorBoundary } from '@/screens/ErrorScreen';
 
 /** Bottom tabs chosen by role. Every file under (app) exists for every role; only the chosen ones get a tab. */
 export default function AppLayout() {
   const me = useSession((s) => s.me);
+  const insets = useSafeAreaInsets();
   const pendingCount = useQueue((s) => s.items.length);
-  const tabs = me ? tabsFor(me) : [];
+  // Every screen below reads the signed-in profile. Until it has loaded (cold start) or after it is cleared
+  // (sign-out, expired session) render nothing; the root gate is already routing to the right place.
+  if (!me) return null;
+  const tabs = tabsFor(me);
   const shown = new Set(tabs.map((t) => t.name));
   const all = [
     'index',
@@ -34,7 +40,13 @@ export default function AppLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.faint,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line, height: 64, paddingTop: 6 },
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.line,
+          height: 60 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 6),
+        },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
         sceneStyle: { backgroundColor: colors.bg },
       }}
@@ -46,7 +58,9 @@ export default function AppLayout() {
             key={name}
             name={name}
             options={{
-              href: shown.has(name) ? undefined : null,
+              // Hide only the button: `href: null` would make Expo Router redirect away from the screen, which
+              // breaks every More-menu link to a screen that is not a tab for this role.
+              ...(shown.has(name) ? {} : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' as const } }),
               title: t?.title ?? name,
               tabBarIcon: ({ color, size }) => (
                 <View>

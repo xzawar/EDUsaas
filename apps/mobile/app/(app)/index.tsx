@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Button, Card, Empty, ErrorBox, Loading, Money, Row, Screen, Stat } from '@/components/ui';
 import { useGet, errorText } from '@/lib/data';
-import { fmtDate, plural } from '@/lib/format';
+import { fmtDate, METHOD_LABELS, plural } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { colors, font } from '@/lib/theme';
 import { CheckInCard } from '@/screens/CheckInCard';
@@ -319,7 +319,7 @@ function AccountantHome({ d, go: push }: { d: Home; go: Go }) {
               <Row
                 key={p.id}
                 title={p.student}
-                subtitle={`${p.receiptNumber} · ${p.method}`}
+                subtitle={`${p.receiptNumber} · ${METHOD_LABELS[p.method] ?? p.method}`}
                 right={<Money paisa={p.amountPaisa} style={{ fontWeight: '600' }} />}
               />
             ),

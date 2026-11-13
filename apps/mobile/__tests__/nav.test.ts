@@ -133,3 +133,11 @@ describe('notification links', () => {
     expect(exists(route)).toBe(true);
   });
 });
+
+describe('hidden tabs stay reachable', () => {
+  it('the tab layout never uses href: null (Expo Router redirects away from such screens)', () => {
+    const src = fs.readFileSync(path.join(APP, '_layout.tsx'), 'utf8');
+    expect(src).not.toMatch(/^\s*href:/m);
+    expect(src).toMatch(/tabBarButton/);
+  });
+});

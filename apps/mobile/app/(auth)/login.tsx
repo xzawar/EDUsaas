@@ -92,7 +92,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
         </Field>
-        {error && (
+        {!!error && (
           <View style={{ backgroundColor: colors.redSoft, borderRadius: 12, padding: 12 }}>
             <Text style={{ color: '#991b1b' }}>{error}</Text>
           </View>

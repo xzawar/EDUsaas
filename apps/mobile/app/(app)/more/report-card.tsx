@@ -44,7 +44,7 @@ export default function ReportCardScreen() {
               >
                 <Text style={{ flex: 1, color: colors.ink, fontWeight: '500' }}>{s.subject}</Text>
                 <Text style={{ color: colors.ink, fontWeight: '600' }}>{s.pct}%</Text>
-                {s.grade && <Badge tone={s.pct >= 60 ? 'green' : s.pct >= 40 ? 'amber' : 'red'}>{s.grade}</Badge>}
+                {!!s.grade && <Badge tone={s.pct >= 60 ? 'green' : s.pct >= 40 ? 'amber' : 'red'}>{s.grade}</Badge>}
               </View>
             ))}
           </Card>

@@ -41,7 +41,12 @@ export function Screen({
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: padded ? space.lg : 0, paddingBottom: insets.bottom + 96, gap: space.lg }}
+      contentContainerStyle={{
+        padding: padded ? space.lg : 0,
+        paddingTop: (title ? insets.top : 0) + (padded ? space.lg : 0),
+        paddingBottom: insets.bottom + 96,
+        gap: space.lg,
+      }}
       refreshControl={
         onRefresh ? (
           <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
@@ -251,7 +256,7 @@ export function Row({
     >
       {left}
       <View style={{ flex: 1, minWidth: 0 }}>
-        {typeof title === 'string' ? (
+        {typeof title === 'string' || typeof title === 'number' ? (
           <Text style={{ fontSize: 15, fontWeight: '500', color: colors.ink }} numberOfLines={1}>
             {title}
           </Text>
@@ -259,7 +264,7 @@ export function Row({
           title
         )}
         {subtitle ? (
-          typeof subtitle === 'string' ? (
+          typeof subtitle === 'string' || typeof subtitle === 'number' ? (
             <Text style={font.small} numberOfLines={2}>
               {subtitle}
             </Text>
@@ -268,7 +273,7 @@ export function Row({
           )
         ) : null}
       </View>
-      {right}
+      {typeof right === 'string' || typeof right === 'number' ? <Text style={font.small}>{right}</Text> : right}
       {onPress && !right ? <Ionicons name="chevron-forward" size={18} color={colors.faint} /> : null}
     </Pressable>
   );

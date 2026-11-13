@@ -88,6 +88,11 @@ export default function ReportsScreen() {
             <Text style={font.tiny}>As of {fmtDate(d.data.asOf)}</Text>
             <Money paisa={d.data.totalPaisa} style={{ fontSize: 26, fontWeight: '700', color: colors.red }} />
             <Text style={font.small}>{plural(d.data.students, 'student')} with overdue fees</Text>
+            {d.data.rows.length > 100 && (
+              <Text style={font.tiny}>
+                Showing the 100 youngest classes first. The full list is in Reports on the web.
+              </Text>
+            )}
           </Card>
           {d.data.rows.length === 0 ? (
             <Card>
@@ -95,7 +100,7 @@ export default function ReportsScreen() {
             </Card>
           ) : (
             <Card>
-              {d.data.rows.map((r) => (
+              {d.data.rows.slice(0, 100).map((r) => (
                 <Row
                   key={r.studentId}
                   title={r.name}
@@ -103,7 +108,7 @@ export default function ReportsScreen() {
                   right={
                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
                       <Money paisa={r.balancePaisa} style={{ fontWeight: '600' }} />
-                      {r.guardianPhone && (
+                      {!!r.guardianPhone && (
                         <Button
                           variant="ghost"
                           icon="call-outline"

@@ -64,7 +64,9 @@ export default function PortalScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.faint} />
         </Pressable>
       ))}
-      <Text style={[font.tiny, { textAlign: 'center', marginTop: 'auto' }]}>Each school’s data is kept separate.</Text>
+      <Text style={[font.tiny, { textAlign: 'center', marginTop: 'auto', marginBottom: insets.bottom }]}>
+        Each school’s data is kept separate.
+      </Text>
     </View>
   );
 }

@@ -44,7 +44,7 @@ export default function StudentScreen() {
               <Text style={font.small}>
                 {s.username} · {s.section ? `${s.section.label} · Roll ${s.rollNumber}` : 'Not placed'}
               </Text>
-              {s.section?.classTeacher && <Text style={font.small}>Class Incharge: {s.section.classTeacher}</Text>}
+              {!!s.section?.classTeacher && <Text style={font.small}>Class Incharge: {s.section.classTeacher}</Text>}
             </Card>
             <Card title="Guardian">
               <Row
@@ -62,8 +62,8 @@ export default function StudentScreen() {
                   ) : undefined
                 }
               />
-              {s.address && <Text style={font.small}>{s.address}</Text>}
-              {s.admittedOn && (
+              {!!s.address && <Text style={font.small}>{s.address}</Text>}
+              {!!s.admittedOn && (
                 <Text style={font.tiny}>
                   Admitted {fmtDate(s.admittedOn, { day: 'numeric', month: 'short', year: 'numeric' })}
                   {s.admissionNo ? ` · No. ${s.admissionNo}` : ''}

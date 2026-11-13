@@ -2,6 +2,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryProvider } from '@/lib/query';
@@ -13,6 +14,7 @@ import { useUpdateCheck } from '@/lib/update';
 import { UpdateRequired } from '@/screens/UpdateRequired';
 import { loadLock, useLock, useRelockOnResume } from '@/lib/lock';
 import { LockScreen } from '@/screens/LockScreen';
+export { ErrorBoundary } from '@/screens/ErrorScreen';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -38,14 +40,21 @@ function Gate() {
   }, [status, me?.user.mustChangePassword, segments, router]);
   usePushRegistration(status === 'in' && !me?.user.mustChangePassword);
   const update = useUpdateCheck();
-  if (update.required) return <UpdateRequired latest={update.available} />;
-  if (status === 'in' && locked) return <LockScreen />;
+  // The navigator must stay mounted (Expo Router navigates through it), so the update and lock screens cover it.
+  const cover = update.required ? (
+    <UpdateRequired latest={update.available} />
+  ) : status === 'in' && locked ? (
+    <LockScreen />
+  ) : null;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(app)" />
-      <Stack.Screen name="change-password" options={{ headerShown: true, title: 'Change password' }} />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="change-password" options={{ headerShown: true, title: 'Change password' }} />
+      </Stack>
+      {cover ? <View style={StyleSheet.absoluteFill}>{cover}</View> : null}
+    </>
   );
 }
 

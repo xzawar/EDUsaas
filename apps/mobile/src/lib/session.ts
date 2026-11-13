@@ -3,7 +3,7 @@ import type { PortalSlug } from '@edusaas/shared';
 import { api, loadToken, setToken, setUnauthorizedHandler } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearLock } from './lock';
-import { clearQueue } from './queue';
+import { clearQueue, setQueueOwner, useQueue } from './queue';
 
 const ME_KEY = 'edusaas.me';
 const saveMe = (me: Me | null) =>
@@ -55,7 +55,11 @@ export const useSession = create<State>((set, get) => ({
       void saveMe(null);
       set({ status: 'out', me: null });
     });
-    const t = await loadToken();
+    // A damaged keystore entry (seen after some Android backup restores) must not leave the app on the splash.
+    const t = await loadToken().catch(async () => {
+      await setToken(null).catch(() => undefined);
+      return null;
+    });
     if (!t) return set({ status: 'out', me: null });
     try {
       const r = await api<Me>('/auth/me');
@@ -106,3 +110,11 @@ export const useSession = create<State>((set, get) => ({
     set({ status: 'out', me: null });
   },
 }));
+
+// Keep the offline queue tied to whoever is signed in; when someone signs (back) in, send their saved work.
+useSession.subscribe((s, prev) => {
+  const id = s.me?.user.id ?? null;
+  if (id === (prev.me?.user.id ?? null)) return;
+  setQueueOwner(id);
+  if (id) void useQueue.getState().flushNow();
+});

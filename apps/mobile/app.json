@@ -22,7 +22,6 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": ["CAMERA", "POST_NOTIFICATIONS", "VIBRATE", "USE_BIOMETRIC"],
-      "usesCleartextTraffic": false,
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
         {
@@ -38,8 +37,7 @@
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.DETECT_SCREEN_CAPTURE"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "ios": {

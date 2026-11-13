@@ -124,7 +124,7 @@ export default function CollectScreen() {
               {fees.student.username} · {fees.student.section}
               {fees.student.rollNumber ? ` · Roll ${fees.student.rollNumber}` : ''}
             </Text>
-            {fees.student.guardianName && (
+            {!!fees.student.guardianName && (
               <Text style={font.small}>
                 Guardian: {fees.student.guardianName}
                 {fees.student.guardianPhone ? ` · ${fees.student.guardianPhone}` : ''}
@@ -164,7 +164,7 @@ export default function CollectScreen() {
                 subtitle={`${i.number} · due ${fmtDate(i.dueOn)}`}
                 right={
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                    <Money paisa={i.balancePaisa} style={{ fontWeight: '600' }} />
+                    <Money paisa={i.balancePaisa > 0 ? i.balancePaisa : i.totalPaisa} style={{ fontWeight: '600' }} />
                     <Badge
                       tone={
                         i.status === 'PAID' ? 'green' : i.overdue ? 'red' : i.status === 'PARTIAL' ? 'amber' : 'slate'

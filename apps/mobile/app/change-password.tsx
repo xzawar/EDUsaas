@@ -52,7 +52,7 @@ export default function ChangePasswordScreen() {
       <Field label="Confirm new password">
         <Input secureTextEntry accessibilityLabel="Confirm new password" value={confirm} onChangeText={setConfirm} />
       </Field>
-      {error && <Text style={{ color: colors.red }}>{error}</Text>}
+      {!!error && <Text style={{ color: colors.red }}>{error}</Text>}
       <Button onPress={submit} loading={busy} disabled={!current || next.length < 10}>
         Save password
       </Button>
