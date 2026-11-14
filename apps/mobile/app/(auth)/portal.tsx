@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui';
 import { Text } from '@/components/text';
 import { BrandMark } from '@/screens/BrandMark';
+import { DevSignIn } from '@/screens/DevSignIn';
 import { colors, family, space } from '@/lib/theme';
 
 /**
@@ -15,15 +17,29 @@ export default function PortalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const go = (portal: string) => router.push({ pathname: '/(auth)/login', params: { portal } });
+  // Hidden developer quick-sign-in: tap the EDUsaas wordmark seven times to open it.
+  const [dev, setDev] = useState(false);
+  const taps = useRef(0);
+  const tapBrand = () => {
+    taps.current += 1;
+    if (taps.current >= 7) {
+      taps.current = 0;
+      setDev(true);
+    }
+  };
   return (
     <View
       style={{ flex: 1, backgroundColor: colors.deep, paddingHorizontal: space.xl, paddingTop: insets.top + space.xl }}
     >
       <StatusBar style="light" />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <Pressable
+        onPress={tapBrand}
+        hitSlop={8}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start' }}
+      >
         <BrandMark size={36} />
         <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>EDUsaas</Text>
-      </View>
+      </Pressable>
       <View style={{ flex: 1, justifyContent: 'center' }}>
         <Text
           style={{ fontFamily: family.display, fontSize: 56, lineHeight: 50, color: colors.brand, letterSpacing: -0.5 }}
@@ -52,6 +68,7 @@ export default function PortalScreen() {
           </Text>
         </Pressable>
       </View>
+      <DevSignIn visible={dev} onClose={() => setDev(false)} />
     </View>
   );
 }
