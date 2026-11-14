@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
 import { tabsFor } from '@/lib/nav';
-import { colors } from '@/lib/theme';
+import { colors, family } from '@/lib/theme';
 export { ErrorBoundary } from '@/screens/ErrorScreen';
 
 /** Bottom tabs chosen by role. Every file under (app) exists for every role; only the chosen ones get a tab. */
@@ -39,15 +39,17 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.ink,
-        tabBarInactiveTintColor: colors.faint,
+        tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: colors.bg,
           borderTopColor: colors.line,
-          height: 60 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 6),
+          borderTopWidth: 1,
+          elevation: 0,
+          height: 66 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 8),
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 12, fontFamily: family.semibold, marginTop: 4 },
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
@@ -62,15 +64,29 @@ export default function AppLayout() {
               // breaks every More-menu link to a screen that is not a tab for this role.
               ...(shown.has(name) ? {} : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' as const } }),
               title: t?.title ?? name,
-              tabBarIcon: ({ color, size }) => (
-                <View>
-                  <Ionicons name={t?.icon ?? 'ellipse-outline'} size={size} color={String(color)} />
+              tabBarIcon: ({ color, focused }) => (
+                // The selected tab sits in a soft pill, like the website's navigation.
+                <View
+                  style={{
+                    width: 56,
+                    height: 30,
+                    borderRadius: 15,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: focused ? colors.card : 'transparent',
+                  }}
+                >
+                  <Ionicons
+                    name={t?.icon ?? 'ellipse-outline'}
+                    size={22}
+                    color={focused ? colors.deep : String(color)}
+                  />
                   {name === 'more' && pendingCount > 0 && (
                     <View
                       style={{
                         position: 'absolute',
-                        right: -6,
-                        top: -4,
+                        right: 10,
+                        top: 0,
                         width: 10,
                         height: 10,
                         borderRadius: 5,

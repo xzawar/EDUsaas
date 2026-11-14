@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, TextInput } from '@/components/text';
 import { Button, Card, ErrorBox, Loading, Screen } from '@/components/ui';
 import { toast } from '@/components/toast';
 import { api } from '@/lib/api';
@@ -144,12 +145,12 @@ export default function MarkSheetScreen() {
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                         borderRadius: radius.pill,
-                        backgroundColor: x.absent ? colors.redSoft : '#f8fafc',
+                        backgroundColor: x.absent ? colors.red : '#fff',
                         borderWidth: 1,
                         borderColor: x.absent ? colors.redSoft : colors.line,
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: x.absent ? '#991b1b' : colors.muted }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: x.absent ? '#fff' : colors.muted }}>
                         Abs
                       </Text>
                     </Pressable>
@@ -172,7 +173,7 @@ export default function MarkSheetScreen() {
                         textAlign: 'center',
                         fontSize: 16,
                         color: colors.ink,
-                        backgroundColor: x.absent ? '#f1f5f9' : colors.card,
+                        backgroundColor: x.absent ? colors.cardStrong : '#fff',
                       }}
                     />
                   </View>

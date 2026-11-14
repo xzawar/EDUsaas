@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
 import { fmtDate } from '@/lib/format';

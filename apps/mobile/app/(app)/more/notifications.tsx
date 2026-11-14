@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { Card, Empty, ErrorBox, Loading, Row, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { errorText, useGet, useInvalidate } from '@/lib/data';

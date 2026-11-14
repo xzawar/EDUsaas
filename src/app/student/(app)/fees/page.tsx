@@ -79,8 +79,8 @@ export default async function StudentFeesPage() {
             <thead>
               <tr>
                 <Th>Month</Th>
-                <Th>Due</Th>
-                <Th className="text-right">Total</Th>
+                <Th className="hidden sm:table-cell">Due</Th>
+                <Th className="hidden text-right sm:table-cell">Total</Th>
                 <Th className="text-right">Left</Th>
                 <Th>Status</Th>
               </tr>
@@ -91,13 +91,14 @@ export default async function StudentFeesPage() {
                   <Td>
                     <span className="font-medium">{periodLabel(i.period)}</span>
                     <span className="block text-xs text-slate-500">{i.number}</span>
+                    <span className="block text-xs text-slate-500 sm:hidden">Due {fmtDate(i.dueOn)}</span>
                   </Td>
-                  <Td>{fmtDate(i.dueOn)}</Td>
-                  <Td className="text-right">
+                  <Td className="hidden sm:table-cell">{fmtDate(i.dueOn)}</Td>
+                  <Td className="hidden text-right whitespace-nowrap sm:table-cell">
                     <Money paisa={i.totalPaisa} />
                     {i.lateFeePaisa > 0 && <span className="block text-xs text-rose-600">incl. late fee</span>}
                   </Td>
-                  <Td className="text-right font-medium">
+                  <Td className="text-right font-medium whitespace-nowrap">
                     <Money paisa={i.balancePaisa} />
                   </Td>
                   <Td>

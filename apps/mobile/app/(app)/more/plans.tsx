@@ -1,4 +1,4 @@
-import { Text } from 'react-native';
+import { Text } from '@/components/text';
 import { Badge, Card, Empty, ErrorBox, Loading, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
 import { colors, font } from '@/lib/theme';

@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text } from '@/components/text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PORTALS, type PortalSlug } from '@edusaas/shared';
 import { Button, Field, Input } from '@/components/ui';
+import { BackChip } from '@/components/header';
+import { StatusBar } from 'expo-status-bar';
 import { useSession } from '@/lib/session';
 import { colors, font, space } from '@/lib/theme';
 
@@ -34,20 +37,14 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        contentContainerStyle={{ padding: space.xl, paddingTop: insets.top + 16, gap: space.lg }}
+        contentContainerStyle={{ padding: space.xl, paddingTop: insets.top + space.lg, gap: space.lg }}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.muted} />
-          <Text style={font.small}>Change portal</Text>
-        </Pressable>
-        <View>
+        <StatusBar style="dark" />
+        <BackChip onPress={() => router.back()} />
+        <View style={{ marginTop: space.sm, marginBottom: space.sm }}>
           <Text style={font.h1}>{meta.title}</Text>
-          <Text style={font.small}>{meta.blurb}</Text>
+          <Text style={[font.body, { marginTop: space.sm }]}>{meta.blurb}</Text>
         </View>
         <Field label={meta.idLabel}>
           <Input
@@ -93,11 +90,12 @@ export default function LoginScreen() {
           </View>
         </Field>
         {!!error && (
-          <View style={{ backgroundColor: colors.redSoft, borderRadius: 12, padding: 12 }}>
-            <Text style={{ color: '#991b1b' }}>{error}</Text>
+          <View style={{ flexDirection: 'row', gap: 10, backgroundColor: colors.card, borderRadius: 16, padding: 16 }}>
+            <Ionicons name="alert-circle" size={20} color={colors.red} />
+            <Text style={{ flex: 1, color: colors.red, fontSize: 15 }}>{error}</Text>
           </View>
         )}
-        <Button onPress={submit} loading={busy}>
+        <Button onPress={submit} loading={busy} style={{ marginTop: space.sm }}>
           Sign in
         </Button>
         <Text style={[font.tiny, { textAlign: 'center' }]}>

@@ -1,5 +1,5 @@
 import { Badge, Card, Empty, ErrorBox, Loading, Money, Row, Screen } from '@/components/ui';
-import { Text } from 'react-native';
+import { Text } from '@/components/text';
 import { errorText, useGet } from '@/lib/data';
 import { periodLabel } from '@/lib/format';
 import { font } from '@/lib/theme';

@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button, Field, Input } from '@/components/ui';
 import { api, setToken } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -34,8 +36,11 @@ export default function ChangePasswordScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled">
       {forced && (
-        <View style={{ backgroundColor: colors.amberSoft, borderRadius: 12, padding: 12 }}>
-          <Text style={{ color: '#92400e' }}>This is your first sign-in. Choose your own password to continue.</Text>
+        <View style={{ flexDirection: 'row', gap: 10, backgroundColor: colors.card, borderRadius: 16, padding: 16 }}>
+          <Ionicons name="key" size={20} color={colors.deep} />
+          <Text style={{ flex: 1, color: colors.ink, fontSize: 15, lineHeight: 22 }}>
+            Welcome! This is your first sign-in, so choose your own password to continue.
+          </Text>
         </View>
       )}
       <Field label={forced ? 'Temporary password' : 'Current password'}>

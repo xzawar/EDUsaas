@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { Badge, Card, Empty, ErrorBox, Loading, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
 import { fmtTime } from '@/lib/format';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Money, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
 import { fmtDate, periodLabel, METHOD_LABELS } from '@/lib/format';
@@ -71,7 +72,7 @@ export default function FeesScreen() {
           <View
             style={{
               backgroundColor: d.outstandingPaisa > 0 ? colors.redSoft : colors.greenSoft,
-              borderRadius: 20,
+              borderRadius: 16,
               padding: 18,
               gap: 4,
             }}

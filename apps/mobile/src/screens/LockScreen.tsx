@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button } from '@/components/ui';
 import { unlock } from '@/lib/lock';
 import { useSession } from '@/lib/session';

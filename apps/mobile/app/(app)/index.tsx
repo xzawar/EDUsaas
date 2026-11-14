@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button, Card, Empty, ErrorBox, Loading, Money, Row, Screen, Stat } from '@/components/ui';
 import { useGet, errorText } from '@/lib/data';
 import { fmtDate, METHOD_LABELS, plural } from '@/lib/format';

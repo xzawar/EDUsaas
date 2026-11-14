@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ErrorBoundaryProps } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button } from '@/components/ui';
 import { colors, font } from '@/lib/theme';
 

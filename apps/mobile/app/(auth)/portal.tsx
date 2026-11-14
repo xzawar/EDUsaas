@@ -1,72 +1,57 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PORTALS } from '@edusaas/shared';
-import { colors, font, radius, space } from '@/lib/theme';
+import { Button } from '@/components/ui';
+import { Text } from '@/components/text';
+import { BrandMark } from '@/screens/BrandMark';
+import { colors, family, space } from '@/lib/theme';
 
-const ICON = { student: 'school-outline', staff: 'people-outline', platform: 'planet-outline' } as const;
-
-/** First screen: which door are you coming in through? (decision D1: separate portals). */
+/**
+ * First screen, the app's one "brand moment": deep canvas, a heavy headline, and one loud choice. Most people are
+ * students and parents, so that door is the primary button; staff and the EDUsaas team are quieter (decision D1).
+ */
 export default function PortalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const go = (portal: string) => router.push({ pathname: '/(auth)/login', params: { portal } });
   return (
     <View
-      style={{ flex: 1, padding: space.xl, paddingTop: insets.top + 56, gap: space.lg, backgroundColor: colors.bg }}
+      style={{ flex: 1, backgroundColor: colors.deep, paddingHorizontal: space.xl, paddingTop: insets.top + space.xl }}
     >
-      <View style={{ alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <View
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 20,
-            backgroundColor: colors.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>E</Text>
-        </View>
-        <Text style={font.h1}>EDUsaas</Text>
-        <Text style={font.small}>Sign in to your school</Text>
+      <StatusBar style="light" />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <BrandMark size={36} />
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>EDUsaas</Text>
       </View>
-      {PORTALS.map((p) => (
-        <Pressable
-          key={p.slug}
-          onPress={() => router.push({ pathname: '/(auth)/login', params: { portal: p.slug } })}
-          style={({ pressed }) => ({
-            backgroundColor: colors.card,
-            borderRadius: radius.xl,
-            padding: space.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 14,
-            opacity: pressed ? 0.85 : 1,
-          })}
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <Text
+          style={{ fontFamily: family.display, fontSize: 56, lineHeight: 50, color: colors.brand, letterSpacing: -0.5 }}
         >
-          <View
+          School,{'\n'}made{'\n'}simple.
+        </Text>
+        <Text style={{ marginTop: space.xl, fontSize: 17, lineHeight: 25, color: 'rgba(255,255,255,0.8)' }}>
+          Attendance, marks, fees and the timetable, for students, parents, teachers and the school office.
+        </Text>
+      </View>
+      <View style={{ gap: space.md, paddingBottom: insets.bottom + space.xl }}>
+        <Button onPress={() => go('student')}>Student or parent</Button>
+        <Button variant="secondary" onPress={() => go('staff')} style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Staff</Text>
+        </Button>
+        <Pressable onPress={() => go('platform')} hitSlop={8} style={{ alignSelf: 'center', padding: space.sm }}>
+          <Text
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.accentSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.75)',
+              fontSize: 14,
+              fontWeight: '600',
+              textDecorationLine: 'underline',
             }}
           >
-            <Ionicons name={ICON[p.slug]} size={22} color={colors.accent} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.ink }}>{p.title}</Text>
-            <Text style={font.small}>{p.blurb}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.faint} />
+            EDUsaas team sign in
+          </Text>
         </Pressable>
-      ))}
-      <Text style={[font.tiny, { textAlign: 'center', marginTop: 'auto', marginBottom: insets.bottom }]}>
-        Each school’s data is kept separate.
-      </Text>
+      </View>
     </View>
   );
 }
