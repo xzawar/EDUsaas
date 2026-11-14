@@ -7,6 +7,7 @@ import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { audit, friendlyDbError, inTenant, isoDate, schoolClock, toDate } from '@/server/school/common';
 import { postLedger } from '@/server/school/finance/ledger';
+import { lockRow } from '@/server/school/finance/locks';
 import { METHODS } from '@/server/school/finance/payments';
 import { nextNumber } from '@/server/school/finance/sequences';
 import { decodePhoto, photoSchema } from '@/server/school/photos';
@@ -247,10 +248,21 @@ export async function recordExpense(ctx: AuthedContext, input: z.infer<typeof ex
 export async function reverseExpense(ctx: AuthedContext, id: string, reason: string) {
   return inTenant(ctx, async (tx) => {
     const tenantId = ctx.tenantId!;
+    // Lock first so two "reverse" clicks cannot both pass the already-reversed check.
+    await lockRow(tx, 'expense', id);
     const e = await tx.expense.findUnique({ where: { id } });
     if (!e) throw notFound('Expense');
     if (e.reversesExpenseId) throw new AppError('CONFLICT', 'A reversal cannot be reversed');
     if (e.reversedByExpenseId) throw new AppError('CONFLICT', 'This expense was already reversed');
+    // Only an expense that put money out through the ledger can be reversed. The payroll "Staff salaries" voucher has
+    // no ledger entry of its own (each payslip posts its own SALARY entry), so reversing it would add money that
+    // never left and understate expenses in every report.
+    const posted = await tx.ledgerEntry.count({ where: { refTable: 'expenses', refId: e.id, direction: 'OUT' } });
+    if (!posted)
+      throw new AppError(
+        'CONFLICT',
+        'This voucher was created by payroll. Salaries are recorded per payslip, so it cannot be reversed here.',
+      );
     const clock = await schoolClock(tx);
     const rev = await tx.expense.create({
       data: {

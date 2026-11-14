@@ -8,6 +8,7 @@ import type { TenantTx } from '@/server/db/client';
 import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { addDays, audit, inTenant, isoDate, schoolClock, sectionLabel, toDate } from '@/server/school/common';
+import { lockRow } from '@/server/school/finance/locks';
 import { nextNumber } from '@/server/school/finance/sequences';
 import { applyAdvances } from '@/server/school/finance/payments';
 
@@ -140,8 +141,9 @@ export async function generateInvoices(
       where: { academicYearId: year.id, feeHead: { archivedAt: null } },
       include: { feeHead: { select: { id: true, name: true, kind: true } } },
     }),
+    // A cancelled bill does not count: the office voids a wrong bill and generates the month again.
     tx.invoice.findMany({
-      where: { period: input.period, studentId: { in: students.map((s) => s.id) } },
+      where: { period: input.period, studentId: { in: students.map((s) => s.id) }, status: { not: 'VOID' } },
       select: { studentId: true },
     }),
     tx.studentFeeOverride.findMany({ where: { studentId: { in: students.map((s) => s.id) } } }),
@@ -404,6 +406,10 @@ export async function invoiceDetail(ctx: AuthedContext, id: string) {
 
 export async function voidInvoice(ctx: AuthedContext, id: string, reason: string) {
   return inTenant(ctx, async (tx) => {
+    const found = await tx.invoice.findUnique({ where: { id }, select: { studentId: true } });
+    if (!found) throw notFound('Invoice');
+    // Same lock as payments, so a bill cannot be cancelled while a payment is being put on it.
+    await lockRow(tx, 'student', found.studentId);
     const inv = await tx.invoice.findUnique({ where: { id }, include: { _count: { select: { allocations: true } } } });
     if (!inv) throw notFound('Invoice');
     if (inv.status === 'VOID') throw new AppError('CONFLICT', 'This bill is already cancelled');

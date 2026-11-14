@@ -7,6 +7,7 @@ import type { AuthedContext } from '@/server/http/route';
 import { audit, friendlyDbError, inTenant, isoDate, schoolClock, toDate } from '@/server/school/common';
 import { invoiceTotals, recomputeInvoice, yearRule } from '@/server/school/finance/invoices';
 import { postLedger } from '@/server/school/finance/ledger';
+import { lockRow } from '@/server/school/finance/locks';
 import { nextNumber } from '@/server/school/finance/sequences';
 import { formatPKR } from '@/lib/money';
 import { notify } from '@/server/school/notifications';
@@ -67,6 +68,7 @@ async function unallocated(tx: TenantTx, paymentId: string) {
  * invoices are generated and after an advance is recorded. No ledger entry: the money was counted when received.
  */
 export async function applyAdvances(tx: TenantTx, tenantId: string, studentId: string, today: string) {
+  await lockRow(tx, 'student', studentId);
   const payments = await tx.payment.findMany({
     where: { studentId, reversedByPaymentId: null, reversesPaymentId: null, amountPaisa: { gt: 0 } },
     orderBy: [{ receivedOn: 'asc' }, { createdAt: 'asc' }],
@@ -110,106 +112,113 @@ function receiptView(p: Prisma.PaymentGetPayload<{ include: { allocations: true 
 
 export async function recordPayment(ctx: AuthedContext, input: z.infer<typeof paymentSchema>) {
   try {
-    return await inTenant(ctx, async (tx) => {
-      const tenantId = ctx.tenantId!;
-      const dupe = await tx.payment.findUnique({
-        where: { tenantId_clientKey: { tenantId, clientKey: input.clientKey } },
-        include: { allocations: true },
-      });
-      if (dupe) return { payment: receiptView(dupe), duplicate: true };
-
-      const clock = await schoolClock(tx);
-      if (input.receivedOn > clock.today)
-        throw new AppError('VALIDATION_FAILED', 'Received date cannot be in the future');
-      const student = await tx.student.findUnique({
-        where: { id: input.studentId },
-        select: { id: true, userId: true, user: { select: { displayName: true } } },
-      });
-      if (!student) {
-        await audit(ctx, tx, {
-          action: 'access.not_found',
-          entity: 'Student',
-          entityId: input.studentId,
-          outcome: 'denied',
-        });
-        throw notFound('Student');
-      }
-
-      let toInvoice = 0;
-      let invoice: Prisma.InvoiceGetPayload<object> | null = null;
-      if (input.invoiceId) {
-        invoice = await tx.invoice.findUnique({ where: { id: input.invoiceId } });
-        if (!invoice || invoice.studentId !== student.id) throw notFound('Invoice');
-        if (invoice.status === 'VOID') throw new AppError('CONFLICT', 'This bill is cancelled');
-        if (invoice.status === 'WAIVED') throw new AppError('CONFLICT', 'This bill was waived');
-        if (invoice.status === 'PAID') throw new AppError('CONFLICT', 'This bill is already paid in full');
-        const rule = await yearRule(tx, invoice.academicYearId);
-        const balance = invoiceTotals(invoice, rule, clock.today).balancePaisa;
-        if (input.amountPaisa > balance && !input.allowAdvance)
-          throw new AppError(
-            'VALIDATION_FAILED',
-            `This bill only has ${formatPKR(balance)} left to pay. Tick “keep extra as advance” to accept more.`,
-            {
-              balancePaisa: balance,
-            },
-          );
-        toInvoice = Math.min(input.amountPaisa, balance);
-      }
-
-      const payment = await tx.payment.create({
-        data: {
-          tenantId,
-          studentId: student.id,
-          invoiceId: invoice?.id ?? null,
-          amountPaisa: BigInt(input.amountPaisa),
-          method: input.method,
-          reference: input.reference || null,
-          receivedOn: toDate(input.receivedOn),
-          receivedBy: ctx.user.id,
-          receiptNumber: await nextNumber(tx, tenantId, 'RECEIPT'),
-          note: input.note || null,
-          clientKey: input.clientKey,
-        },
-      });
-      if (invoice) await allocate(tx, tenantId, payment.id, invoice.id, toInvoice, clock.today);
-      await postLedger(tx, {
-        tenantId,
-        entryOn: input.receivedOn,
-        kind: invoice ? 'FEE' : 'ADVANCE',
-        direction: 'IN',
-        amountPaisa: input.amountPaisa,
-        method: input.method,
-        refTable: 'payments',
-        refId: payment.id,
-        studentId: student.id,
-        createdBy: ctx.user.id,
-      });
-      // Anything left over goes to other open bills, oldest first.
-      if (input.amountPaisa > toInvoice) await applyAdvances(tx, tenantId, student.id, clock.today);
-      await audit(ctx, tx, {
-        action: 'payment.record',
-        entity: 'Payment',
-        entityId: payment.id,
-        after: {
-          receiptNumber: payment.receiptNumber,
-          studentId: student.id,
-          invoiceId: invoice?.id ?? null,
-          amountPaisa: input.amountPaisa,
-          method: input.method,
-        },
-      });
-      await notify(tx, tenantId, [student.userId], {
-        kind: 'fee.payment',
-        title: `Payment received: ${payment.receiptNumber}`,
-        body: `Thank you. We received your payment${invoice ? ` for ${invoice.period}` : ''}.`,
-        link: '/student/fees',
-      });
-      const full = await tx.payment.findUniqueOrThrow({ where: { id: payment.id }, include: { allocations: true } });
-      return { payment: receiptView(full), duplicate: false };
-    });
+    return await inTenant(ctx, (tx) => recordPaymentTx(ctx, tx, input));
   } catch (e) {
     friendlyDbError(e);
   }
+}
+
+/**
+ * Records a payment inside the caller's transaction. Every write that moves money onto a student's bills takes the
+ * student's row lock first, so two counters (or a counter and a confirmed proof) paying the same bill at the same
+ * moment are applied one after the other and the second sees the first one's allocation.
+ */
+export async function recordPaymentTx(ctx: AuthedContext, tx: TenantTx, input: z.infer<typeof paymentSchema>) {
+  const tenantId = ctx.tenantId!;
+  await lockRow(tx, 'student', input.studentId);
+  const dupe = await tx.payment.findUnique({
+    where: { tenantId_clientKey: { tenantId, clientKey: input.clientKey } },
+    include: { allocations: true },
+  });
+  if (dupe) return { payment: receiptView(dupe), duplicate: true };
+
+  const clock = await schoolClock(tx);
+  if (input.receivedOn > clock.today) throw new AppError('VALIDATION_FAILED', 'Received date cannot be in the future');
+  const student = await tx.student.findUnique({
+    where: { id: input.studentId },
+    select: { id: true, userId: true, user: { select: { displayName: true } } },
+  });
+  if (!student) {
+    await audit(ctx, tx, {
+      action: 'access.not_found',
+      entity: 'Student',
+      entityId: input.studentId,
+      outcome: 'denied',
+    });
+    throw notFound('Student');
+  }
+
+  let toInvoice = 0;
+  let invoice: Prisma.InvoiceGetPayload<object> | null = null;
+  if (input.invoiceId) {
+    invoice = await tx.invoice.findUnique({ where: { id: input.invoiceId } });
+    if (!invoice || invoice.studentId !== student.id) throw notFound('Invoice');
+    if (invoice.status === 'VOID') throw new AppError('CONFLICT', 'This bill is cancelled');
+    if (invoice.status === 'WAIVED') throw new AppError('CONFLICT', 'This bill was waived');
+    if (invoice.status === 'PAID') throw new AppError('CONFLICT', 'This bill is already paid in full');
+    const rule = await yearRule(tx, invoice.academicYearId);
+    const balance = invoiceTotals(invoice, rule, clock.today).balancePaisa;
+    if (input.amountPaisa > balance && !input.allowAdvance)
+      throw new AppError(
+        'VALIDATION_FAILED',
+        `This bill only has ${formatPKR(balance)} left to pay. Tick “keep extra as advance” to accept more.`,
+        {
+          balancePaisa: balance,
+        },
+      );
+    toInvoice = Math.min(input.amountPaisa, balance);
+  }
+
+  const payment = await tx.payment.create({
+    data: {
+      tenantId,
+      studentId: student.id,
+      invoiceId: invoice?.id ?? null,
+      amountPaisa: BigInt(input.amountPaisa),
+      method: input.method,
+      reference: input.reference || null,
+      receivedOn: toDate(input.receivedOn),
+      receivedBy: ctx.user.id,
+      receiptNumber: await nextNumber(tx, tenantId, 'RECEIPT'),
+      note: input.note || null,
+      clientKey: input.clientKey,
+    },
+  });
+  if (invoice) await allocate(tx, tenantId, payment.id, invoice.id, toInvoice, clock.today);
+  await postLedger(tx, {
+    tenantId,
+    entryOn: input.receivedOn,
+    kind: invoice ? 'FEE' : 'ADVANCE',
+    direction: 'IN',
+    amountPaisa: input.amountPaisa,
+    method: input.method,
+    refTable: 'payments',
+    refId: payment.id,
+    studentId: student.id,
+    createdBy: ctx.user.id,
+  });
+  // Anything left over goes to other open bills, oldest first.
+  if (input.amountPaisa > toInvoice) await applyAdvances(tx, tenantId, student.id, clock.today);
+  await audit(ctx, tx, {
+    action: 'payment.record',
+    entity: 'Payment',
+    entityId: payment.id,
+    after: {
+      receiptNumber: payment.receiptNumber,
+      studentId: student.id,
+      invoiceId: invoice?.id ?? null,
+      amountPaisa: input.amountPaisa,
+      method: input.method,
+    },
+  });
+  await notify(tx, tenantId, [student.userId], {
+    kind: 'fee.payment',
+    title: `Payment received: ${payment.receiptNumber}`,
+    body: `Thank you. We received your payment${invoice ? ` for ${invoice.period}` : ''}.`,
+    link: '/student/fees',
+  });
+  const full = await tx.payment.findUniqueOrThrow({ where: { id: payment.id }, include: { allocations: true } });
+  return { payment: receiptView(full), duplicate: false };
 }
 
 export const reverseSchema = z.object({ reason: z.string().trim().min(3).max(200) });
@@ -218,8 +227,11 @@ export const reverseSchema = z.object({ reason: z.string().trim().min(3).max(200
 export async function reversePayment(ctx: AuthedContext, id: string, input: z.infer<typeof reverseSchema>) {
   return inTenant(ctx, async (tx) => {
     const tenantId = ctx.tenantId!;
+    // Lock first: two "reverse" clicks must not both pass the already-reversed check.
+    await lockRow(tx, 'payment', id);
     const p = await tx.payment.findUnique({ where: { id }, include: { allocations: true } });
     if (!p) throw notFound('Payment');
+    await lockRow(tx, 'student', p.studentId);
     if (p.reversesPaymentId) throw new AppError('CONFLICT', 'A reversal cannot be reversed');
     if (p.reversedByPaymentId) throw new AppError('CONFLICT', 'This payment was already reversed');
     const clock = await schoolClock(tx);

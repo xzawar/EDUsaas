@@ -8,6 +8,7 @@ import type { AuthedContext } from '@/server/http/route';
 import { audit, friendlyDbError, inTenant, isoDate, schoolClock, toDate } from '@/server/school/common';
 import { salariesCategory } from '@/server/school/finance/expenses';
 import { postLedger } from '@/server/school/finance/ledger';
+import { lockRow } from '@/server/school/finance/locks';
 import { METHODS } from '@/server/school/finance/payments';
 import { nextNumber } from '@/server/school/finance/sequences';
 import { notify } from '@/server/school/notifications';
@@ -281,6 +282,7 @@ export async function payrollRun(ctx: AuthedContext, id: string) {
 
 export async function finaliseRun(ctx: AuthedContext, id: string) {
   return inTenant(ctx, async (tx) => {
+    await lockRow(tx, 'payrollRun', id);
     const run = await tx.payrollRun.findUnique({
       where: { id },
       include: { payslips: { select: { userId: true, number: true, netPaisa: true } } },
@@ -321,6 +323,9 @@ export const paySchema = z.object({
 export async function payRun(ctx: AuthedContext, id: string, input: z.infer<typeof paySchema>) {
   return inTenant(ctx, async (tx) => {
     const tenantId = ctx.tenantId!;
+    // Lock the run before reading which payslips are unpaid: a double-click or two people paying at once must not
+    // both post the same salaries to the append-only ledger.
+    await lockRow(tx, 'payrollRun', id);
     const run = await tx.payrollRun.findUnique({ where: { id }, include: { payslips: true } });
     if (!run) throw notFound('Payroll run');
     if (run.status === 'DRAFT') throw new AppError('CONFLICT', 'Finalise the payroll before paying');
@@ -381,6 +386,7 @@ export async function payRun(ctx: AuthedContext, id: string, input: z.infer<type
 
 export async function deleteDraftRun(ctx: AuthedContext, id: string) {
   return inTenant(ctx, async (tx) => {
+    await lockRow(tx, 'payrollRun', id);
     const run = await tx.payrollRun.findUnique({ where: { id } });
     if (!run) throw notFound('Payroll run');
     if (run.status !== 'DRAFT') throw new AppError('CONFLICT', 'Only a draft payroll can be deleted');
