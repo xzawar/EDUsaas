@@ -2,6 +2,7 @@ import 'server-only';
 import type { TenantTx } from '@/server/db/client';
 import type { AuthedContext } from '@/server/http/route';
 import { inTenant } from '@/server/school/common';
+import { sendPush } from '@/server/auth/push';
 
 /**
  * In-app notifications (spec §1.3). Written inside the caller's tenant transaction so they commit with the
@@ -25,6 +26,8 @@ export async function notify(
       link: n.link ?? null,
     })),
   });
+  // Native app: best-effort push for the same message (never blocks or fails the caller).
+  void sendPush(ids, { title: n.title, body: n.body, link: n.link });
 }
 
 export async function myNotifications(ctx: AuthedContext, limit = 20) {

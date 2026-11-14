@@ -37,6 +37,12 @@ export const PERMISSIONS = {
   'announcements.manage': 'Publish announcements',
   'settings.manage': 'Manage school settings and role permissions',
   'self.records': 'View own attendance, marks and timetable',
+  'fees.manage': 'Set up fee heads, amounts and discounts',
+  'fees.collect': 'Generate invoices, take payments, confirm payment proofs',
+  'expenses.manage': 'Record school expenses',
+  'payroll.manage': 'Salary structures and monthly payroll',
+  'finance.read': 'View finance reports and ledgers',
+  'self.fees': 'View own fee bills and submit payment proof',
   // Platform
   'platform.tenants.manage': 'Create, suspend and manage schools',
   'platform.tenants.read': 'Search schools by name and metadata',
@@ -70,6 +76,7 @@ const SCHOOL_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
   (p) =>
     !p.startsWith('platform.') &&
     p !== 'self.records' &&
+    p !== 'self.fees' &&
     p !== 'teacher_attendance.self' &&
     p !== 'attendance.submit' &&
     p !== 'marks.enter',
@@ -112,6 +119,7 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
       'reports.read': true,
       'audit.read': true,
       'announcements.manage': true,
+      'finance.read': true,
     },
   },
   ADMISSIONS_OFFICER: {
@@ -121,6 +129,19 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
       'students.import': true,
       'students.reset_password': true,
     },
+  },
+  ACCOUNTANT: {
+    // Money only, plus finding a student at the counter. No attendance, marks, settings or accounts.
+    fixed: [
+      'fees.manage',
+      'fees.collect',
+      'expenses.manage',
+      'payroll.manage',
+      'finance.read',
+      'students.read',
+      'students.search',
+    ],
+    configurable: {},
   },
   TEACHER: {
     fixed: [
@@ -134,7 +155,7 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
     ],
     configurable: {},
   },
-  STUDENT: { fixed: ['self.records', 'leave.apply', 'timetable.view'], configurable: {} },
+  STUDENT: { fixed: ['self.records', 'self.fees', 'leave.apply', 'timetable.view'], configurable: {} },
 };
 
 export const CONFIGURABLE_ROLES = ['PRINCIPAL', 'ADMISSIONS_OFFICER'] as const satisfies readonly UserRole[];

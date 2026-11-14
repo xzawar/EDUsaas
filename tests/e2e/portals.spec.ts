@@ -116,7 +116,7 @@ test('teacher checks in and takes a register', async ({ page }) => {
   const checkIn = page.getByRole('button', { name: 'Check in' });
   if (await checkIn.isVisible()) {
     await checkIn.click();
-    await expect(page.getByText(/^Checked in ·/)).toBeVisible();
+    await expect(page.getByText(/^Checked in/).first()).toBeVisible();
   }
   await page.goto('/staff/attendance');
   await page.locator('a[href^="/staff/attendance/"]').first().click();
@@ -192,7 +192,7 @@ test('school admin imports students from a file and gets their logins', async ({
 
 test('reports show attendance and the at-risk list', async ({ page }) => {
   await signIn(page, '/staff/login', 'principal@bss.test');
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download CSV' })).toBeVisible();
   await page.getByRole('link', { name: 'At risk' }).click();

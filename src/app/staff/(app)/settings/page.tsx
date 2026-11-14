@@ -34,6 +34,9 @@ export default async function SettingsPage() {
               atRiskThreshold: settings.atRiskThreshold,
               marksPublisher: settings.marksPublisher,
               leaveAgeOutHours: settings.leaveAgeOutHours,
+              invoiceDay: settings.invoiceDay,
+              feeDueDays: settings.feeDueDays,
+              receiptFooter: settings.receiptFooter,
             }}
           />
         </Card>

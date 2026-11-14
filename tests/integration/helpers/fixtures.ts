@@ -12,7 +12,7 @@ export type FixtureUser = { id: string; role: UserRole; tenantId: string | null;
 export type Fixtures = {
   tenantA: { id: string; prefix: string };
   tenantB: { id: string; prefix: string };
-  a: Record<'SCHOOL_ADMIN' | 'PRINCIPAL' | 'ADMISSIONS_OFFICER' | 'TEACHER' | 'STUDENT', FixtureUser>;
+  a: Record<'SCHOOL_ADMIN' | 'PRINCIPAL' | 'ADMISSIONS_OFFICER' | 'ACCOUNTANT' | 'TEACHER' | 'STUDENT', FixtureUser>;
   b: Record<'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT', FixtureUser>;
   owner: FixtureUser;
   platformAdmin: FixtureUser;
@@ -88,6 +88,7 @@ export async function seedFixtures(): Promise<Fixtures> {
       SCHOOL_ADMIN: await user(tA.id, 'SCHOOL_ADMIN', { email: 'admin@a.test' }),
       PRINCIPAL: await user(tA.id, 'PRINCIPAL', { email: 'principal@a.test' }),
       ADMISSIONS_OFFICER: await user(tA.id, 'ADMISSIONS_OFFICER', { email: 'admissions@a.test' }),
+      ACCOUNTANT: await user(tA.id, 'ACCOUNTANT', { email: 'accounts@a.test' }),
       TEACHER: await user(tA.id, 'TEACHER', { username: 'sca-t-teacher-1' }),
       STUDENT: await user(tA.id, 'STUDENT', { username: 'sca-8a-student-1' }),
     },

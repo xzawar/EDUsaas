@@ -19,6 +19,8 @@ Multi-tenant school management SaaS: one school = one tenant. Students, teachers
 | 4 — Management: reports + CSV export, Excel student import, search (Ctrl K), announcements, notification bell, audit log                                           | ✅ Done |
 | 5 — Hardening: break-glass support access, report-card PDF, retention & scheduled jobs, rate limits                                                                | ✅ Done |
 | 6 — Gaps: file storage, photos, year + audit archival, plans & subscriptions, Platform Admins, support tickets, per-period attendance, offline marks, Sentry       | ✅ Done |
+| 7 — Finance: Accountant role, fee setup, monthly bills, counter payments + receipts, parent payment proofs, expenses, payroll + payslips, money reports, ledger    | ✅ Done |
+| 8 — Android app (Expo, React Native): every role, offline registers/marks/payments, counter collection, payment proofs, PDFs                                       | ✅ Done |
 
 **Still needed before real school data:** an S3/R2 bucket configured (`STORAGE_DRIVER=s3`, see `.env.example`; photos
 and archives wait until it is set), `SENTRY_DSN`, a backup/restore plan, a load test with a 1,000-student school, and a
@@ -69,6 +71,7 @@ Password for every demo account: `Demo-pass-2026`
 | Staff    | `admin@bss.test`      | School Admin                                      |
 | Staff    | `principal@bss.test`  | Principal                                         |
 | Staff    | `admissions@bss.test` | Admissions Officer                                |
+| Staff    | `accounts@bss.test`   | Accountant (fees, expenses, payroll, reports)     |
 | Staff    | `admin@gvs.test`      | School Admin, Green Valley School (second tenant) |
 | Platform | `owner@edusaas.test`  | Platform Owner                                    |
 | Platform | `ops@edusaas.test`    | Platform Admin (schools, support queue + access)  |
@@ -88,6 +91,30 @@ New database migrations are created with `npm run db:new-migration -- <name>` (a
 | `npm run test:e2e`                            | Playwright browser tests (needs `npm run build` and the demo seed) |
 | `npm run db:check-rls`                        | Fails if any table lacks forced RLS or an app-role policy          |
 | `npm run db:reset`                            | Drop, migrate, recreate roles and reseed the dev database          |
+
+## Android app
+
+The app lives in `apps/mobile` (Expo SDK 58, React Native with Hermes). It talks to the same API as the website using
+a bearer token kept in the Android keystore, so every permission and row-level security rule applies unchanged.
+
+- **Who it is for:** students and parents (one shared student login), teachers, School Admin, Principal, Admissions
+  Officer, Accountant and the platform team. Each role gets its own bottom tabs.
+- **Works offline:** registers, marks, leave, check-in, counter payments and expenses are saved on the phone and sent
+  when the connection returns. Every write carries an idempotency key, so a resend never duplicates anything.
+- **Money:** the Accountant finds a student, takes cash or a bank payment and shares the receipt PDF. Parents photograph
+  a transfer receipt; the office confirms or rejects it from the phone.
+
+| Command (in `apps/mobile`)       | What it does                                                        |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `npx expo start`                 | Run on a phone with Expo Go, against `next dev` on the same network |
+| `npm run typecheck` / `npx jest` | Static checks and unit + screen tests                               |
+| `bash scripts/build-apk.sh`      | Signed release APK in `dist/` (installs the Android SDK if missing) |
+
+Set `EXPO_PUBLIC_API_URL` to your server when building. Publish the APK somewhere public, then put its link in
+`mobile/releases.json`: the website's `/download` page and the app's update prompt read it. Raise `minVersion` only
+when an old build can no longer talk to the API. Keep the release keystore safe: Android refuses an update signed
+with a different key. The **Mobile** GitHub workflow builds the APK on demand from the `EDUSAAS_KEYSTORE_B64`,
+`EDUSAAS_KEYSTORE_PASSWORD` and `EDUSAAS_KEY_ALIAS` secrets.
 
 ## Security model
 

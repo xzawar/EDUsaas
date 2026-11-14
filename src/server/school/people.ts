@@ -322,7 +322,7 @@ export async function setAssignments(
 // ════════════════════════════════════════════════════════════════════════════
 
 export const createStaffSchema = z.object({
-  role: z.enum(['PRINCIPAL', 'ADMISSIONS_OFFICER']),
+  role: z.enum(['PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT']),
   displayName: z.string().trim().min(2).max(120),
   email: z.string().trim().toLowerCase().email().max(200),
 });

@@ -144,6 +144,23 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           </div>
         </Card>
         <div className="space-y-6 lg:col-span-2">
+          {ctx.can('fees.collect') && (
+            <Card
+              title="Fees"
+              actions={
+                <Link
+                  href={`/staff/finance/collect?student=${student.id}`}
+                  className="text-sm font-medium text-[var(--accent)]"
+                >
+                  Collect / receipts →
+                </Link>
+              }
+            >
+              <p className="text-sm text-slate-600">
+                Bills, payments, discounts and the student ledger live on the Collect page.
+              </p>
+            </Card>
+          )}
           <Card title="Details">
             <KeyValue
               items={[

@@ -11,6 +11,9 @@ type Settings = {
   atRiskThreshold: number;
   marksPublisher: 'SCHOOL_ADMIN' | 'PRINCIPAL';
   leaveAgeOutHours: number;
+  invoiceDay: number;
+  feeDueDays: number;
+  receiptFooter: string | null;
 };
 
 export function SettingsForm({ initial }: { initial: Settings }) {
@@ -96,6 +99,46 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             max={720}
             value={values.leaveAgeOutHours}
             onChange={(e) => set('leaveAgeOutHours', Number(e.target.value))}
+          />
+        </Field>
+        <Field
+          label="Fee bills are issued on day"
+          htmlFor="invoiceDay"
+          hint="Of each month. Bills for the month are generated automatically on this day."
+        >
+          <Input
+            id="invoiceDay"
+            type="number"
+            min={1}
+            max={28}
+            value={values.invoiceDay}
+            onChange={(e) => set('invoiceDay', Number(e.target.value))}
+          />
+        </Field>
+        <Field
+          label="Fees due within (days)"
+          htmlFor="feeDueDays"
+          hint="After the bill is issued. The late-fee rule starts after this plus its grace period."
+        >
+          <Input
+            id="feeDueDays"
+            type="number"
+            min={0}
+            max={60}
+            value={values.feeDueDays}
+            onChange={(e) => set('feeDueDays', Number(e.target.value))}
+          />
+        </Field>
+        <Field
+          label="Receipt footer"
+          htmlFor="receiptFooter"
+          hint="One line printed at the bottom of every fee receipt."
+        >
+          <Input
+            id="receiptFooter"
+            value={values.receiptFooter ?? ''}
+            onChange={(e) => set('receiptFooter', e.target.value || null)}
+            placeholder="e.g. Fees once paid are not refundable."
           />
         </Field>
       </div>

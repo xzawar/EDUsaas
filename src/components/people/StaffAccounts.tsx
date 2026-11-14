@@ -53,6 +53,7 @@ export function NewStaffButton({ schoolName }: { schoolName: string }) {
             <Select id="st-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value })}>
               <option value="PRINCIPAL">Principal</option>
               <option value="ADMISSIONS_OFFICER">Admissions Officer</option>
+              <option value="ACCOUNTANT">Accountant</option>
             </Select>
           </Field>
           <Field label="Full name" htmlFor="st-name">

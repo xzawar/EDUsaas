@@ -1,4 +1,4 @@
-import { CalendarCheck, NotebookPen, Plane } from 'lucide-react';
+import { CalendarCheck, NotebookPen, Plane, Receipt } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LatestAnnouncements } from '@/components/comms/LatestAnnouncements';
@@ -20,6 +20,8 @@ import { studentAttendance } from '@/server/school/attendance';
 import { inTenant } from '@/server/school/common';
 import { studentOverview } from '@/server/school/dashboard';
 import { todayLessons } from '@/server/school/timetable';
+import { myFees } from '@/server/school/finance/invoices';
+import { formatPKR } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Home' };
 
@@ -39,11 +41,12 @@ export default async function StudentHome() {
   const me = await inTenant(ctx, (tx) =>
     tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }),
   );
-  const [d, att, lessons, results] = await Promise.all([
+  const [d, att, lessons, results, fees] = await Promise.all([
     studentOverview(ctx),
     me ? studentAttendance(ctx, me.id) : Promise.resolve(null),
     todayLessons(ctx),
     me ? studentResults(ctx, me.id) : Promise.resolve({ items: [], subjects: [] }),
+    me ? myFees(ctx).catch(() => null) : Promise.resolve(null),
   ]);
   const first = ctx.user.displayName.split(' ')[0];
   const weeks = att ? weeklyAttendance(att.byDay) : [];
@@ -188,6 +191,13 @@ export default async function StudentHome() {
               className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 font-medium hover:bg-slate-100"
             >
               <CalendarCheck className="size-4 text-slate-500" aria-hidden /> My attendance
+            </Link>
+            <Link
+              href="/student/fees"
+              className="col-span-2 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 font-medium hover:bg-slate-100"
+            >
+              <Receipt className="size-4 text-slate-500" aria-hidden />
+              {fees && fees.outstandingPaisa > 0 ? `Fees due: ${formatPKR(fees.outstandingPaisa)}` : 'Fees: all paid'}
             </Link>
           </div>
           {d?.classTeacher && <p className="mt-3 text-xs text-slate-500">Class Incharge: {d.classTeacher}</p>}

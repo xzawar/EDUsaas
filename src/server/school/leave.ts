@@ -45,6 +45,8 @@ export const leaveTypeSchema = z.object({
   name: z.string().trim().min(2).max(60),
   forStudents: z.boolean().default(true),
   forStaff: z.boolean().default(true),
+  /** Unpaid types reduce staff salary in payroll. */
+  paid: z.boolean().default(true),
 });
 
 export async function createLeaveType(ctx: AuthedContext, input: z.infer<typeof leaveTypeSchema>) {
@@ -72,7 +74,12 @@ export async function allLeaveTypes(ctx: AuthedContext) {
 }
 
 export const updateLeaveTypeSchema = z
-  .object({ forStudents: z.boolean().optional(), forStaff: z.boolean().optional(), archived: z.boolean().optional() })
+  .object({
+    forStudents: z.boolean().optional(),
+    forStaff: z.boolean().optional(),
+    paid: z.boolean().optional(),
+    archived: z.boolean().optional(),
+  })
   .refine((v) => Object.keys(v).length > 0, 'Nothing to change');
 
 /** Types are retired, never deleted, so past requests keep their label. */
@@ -85,6 +92,7 @@ export async function updateLeaveType(ctx: AuthedContext, id: string, input: z.i
       data: {
         forStudents: input.forStudents,
         forStaff: input.forStaff,
+        paid: input.paid,
         archivedAt: input.archived === undefined ? undefined : input.archived ? new Date() : null,
       },
     });

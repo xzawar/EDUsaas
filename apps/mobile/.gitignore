@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+expo-env.d.ts

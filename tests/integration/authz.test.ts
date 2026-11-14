@@ -109,6 +109,46 @@ import * as sTickets from '@/app/api/v1/support/tickets/route';
 import * as sTicketReply from '@/app/api/v1/support/tickets/[id]/reply/route';
 import * as sTicketClose from '@/app/api/v1/support/tickets/[id]/close/route';
 import * as leaveTypeById from '@/app/api/v1/leave/types/[id]/route';
+import * as feeHeads from '@/app/api/v1/fees/heads/route';
+import * as feeHeadById from '@/app/api/v1/fees/heads/[id]/route';
+import * as feeStructures from '@/app/api/v1/fees/structures/route';
+import * as feeLateFee from '@/app/api/v1/fees/late-fee/route';
+import * as feeOverrides from '@/app/api/v1/students/[id]/fees/overrides/route';
+import * as feeOverrideById from '@/app/api/v1/students/[id]/fees/overrides/[overrideId]/route';
+import * as feeDiscounts from '@/app/api/v1/students/[id]/fees/discounts/route';
+import * as feeDiscountById from '@/app/api/v1/students/[id]/fees/discounts/[discountId]/route';
+import * as invGenerate from '@/app/api/v1/invoices/generate/route';
+import * as invList from '@/app/api/v1/invoices/route';
+import * as invById from '@/app/api/v1/invoices/[id]/route';
+import * as invVoid from '@/app/api/v1/invoices/[id]/void/route';
+import * as invWaive from '@/app/api/v1/invoices/[id]/waive-late-fee/route';
+import * as studentFeesRoute from '@/app/api/v1/students/[id]/fees/route';
+import * as meFeesRoute from '@/app/api/v1/me/fees/route';
+import * as paymentsRoute from '@/app/api/v1/payments/route';
+import * as receiptRoute from '@/app/api/v1/payments/[id]/receipt/route';
+import * as reverseRoute from '@/app/api/v1/payments/[id]/reverse/route';
+import * as meClaimsRoute from '@/app/api/v1/me/fees/claims/route';
+import * as claimsRoute from '@/app/api/v1/fees/claims/route';
+import * as claimDecide from '@/app/api/v1/fees/claims/[id]/decide/route';
+import * as claimProofRoute from '@/app/api/v1/fees/claims/[id]/proof/route';
+import * as expCategories from '@/app/api/v1/expenses/categories/route';
+import * as expCategoryById from '@/app/api/v1/expenses/categories/[id]/route';
+import * as expensesRoute from '@/app/api/v1/expenses/route';
+import * as expenseReverse from '@/app/api/v1/expenses/[id]/reverse/route';
+import * as expenseReceiptRoute from '@/app/api/v1/expenses/[id]/receipt/route';
+import * as payrollRoster from '@/app/api/v1/payroll/structures/route';
+import * as payrollStructure from '@/app/api/v1/payroll/structures/[userId]/route';
+import * as payrollRuns from '@/app/api/v1/payroll/runs/route';
+import * as payrollRunById from '@/app/api/v1/payroll/runs/[id]/route';
+import * as payrollFinalise from '@/app/api/v1/payroll/runs/[id]/finalise/route';
+import * as payrollPay from '@/app/api/v1/payroll/runs/[id]/pay/route';
+import * as payslipById from '@/app/api/v1/payslips/[id]/route';
+import * as mePayslipsRoute from '@/app/api/v1/me/payslips/route';
+import * as financeReports from '@/app/api/v1/finance/reports/[report]/route';
+import * as financeOverview from '@/app/api/v1/finance/overview/route';
+import * as mobileHome from '@/app/api/v1/mobile/home/route';
+import * as attSections from '@/app/api/v1/attendance/sections/route';
+import * as pushToken from '@/app/api/v1/me/push-token/route';
 import { systemDb } from '@/server/db/system';
 import { cookieFor, seedFixtures, type FixtureUser, type Fixtures } from './helpers/fixtures';
 import { call, type CallOptions } from './helpers/http';
@@ -131,6 +171,7 @@ const ROLES: UserRole[] = [
   'STUDENT',
   'TEACHER',
   'ADMISSIONS_OFFICER',
+  'ACCOUNTANT',
   'PRINCIPAL',
   'SCHOOL_ADMIN',
   'PLATFORM_ADMIN',
@@ -140,7 +181,12 @@ const only = (allowed: Partial<Record<UserRole, Expect>>, otherwise: number = 40
   Object.fromEntries(ROLES.map((r) => [r, allowed[r] ?? otherwise])) as Record<UserRole, Expect>;
 const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect>;
 
-const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 });
+/** Finance reads: Accountant, School Admin and the Principal (finance.read toggle, default on). */
+const FINANCE_READ = only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200 });
+const FEES_MANAGE = (ok: number) => only({ ACCOUNTANT: ok, SCHOOL_ADMIN: ok });
+const FEES_COLLECT = FEES_MANAGE;
+const FINANCE_READ_404 = only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404 });
+const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, ACCOUNTANT: 200, TEACHER: 200 });
 let prefixCounter = 0;
 let n = 0;
 const MISSING = '00000000-0000-4000-8000-000000000000';
@@ -376,7 +422,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/students',
     handler: students.GET,
     request: () => ({}),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
+    expect: only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
   },
   {
     key: 'POST /api/v1/students',
@@ -389,7 +435,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/students/[id]',
     handler: studentById.GET,
     request: (f) => ({ params: { id: f.s.studentA } }),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
+    expect: only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, TEACHER: 200 }),
   },
   {
     key: 'PATCH /api/v1/students/[id]',
@@ -448,7 +494,7 @@ const MATRIX: Row[] = [
     handler: attSheet.GET,
     request: (f) => ({ path: `/api/v1/attendance/sheet?sectionId=${f.s.sectionA8A}` }),
     // Admissions has neither attendance.submit nor attendance.oversee: the section is invisible to them.
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
   },
   {
     key: 'POST /api/v1/attendance/batches',
@@ -468,7 +514,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/attendance/grid',
     handler: attGrid.GET,
     request: (f) => ({ path: `/api/v1/attendance/grid?sectionId=${f.s.sectionA8A}&month=2026-09` }),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404 }),
   },
   {
     key: 'POST /api/v1/attendance/records',
@@ -477,7 +523,7 @@ const MATRIX: Row[] = [
     request: (f) => ({
       body: { sectionId: f.s.sectionA8A, date: '2026-04-02', studentId: f.s.studentA, status: 'LATE' },
     }),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 403, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 403, ADMISSIONS_OFFICER: 404 }),
   },
   { key: 'GET /api/v1/attendance/me', handler: attMe.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
   {
@@ -518,7 +564,14 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/leave/types',
     handler: leaveTypes.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'POST /api/v1/leave/types',
@@ -531,7 +584,7 @@ const MATRIX: Row[] = [
     key: 'POST /api/v1/leave/[id]/decision',
     handler: leaveDecision.POST,
     request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVED' } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'POST /api/v1/leave/[id]/cancel',
@@ -565,19 +618,19 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/assessments/[id]',
     handler: assessmentById.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'DELETE /api/v1/assessments/[id]',
     handler: assessmentById.DELETE,
     request: () => ({ method: 'DELETE', params: { id: MISSING } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'PUT /api/v1/assessments/[id]/marks',
     handler: assessmentMarks.PUT,
     request: () => ({ method: 'PUT', params: { id: MISSING }, body: { marks: [], submit: false } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   {
     key: 'POST /api/v1/assessments/[id]/publish',
@@ -605,14 +658,21 @@ const MATRIX: Row[] = [
     key: 'POST /api/v1/remarks/[id]/moderate',
     handler: remarkModerate.POST,
     request: () => ({ params: { id: MISSING }, body: { decision: 'APPROVED' } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
   },
   // ── Phase 3: timetable & notifications ────────────────────────────────────
   {
     key: 'GET /api/v1/timetable/periods',
     handler: ttPeriods.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'PUT /api/v1/timetable/periods',
@@ -642,13 +702,27 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/notifications',
     handler: notifications.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'POST /api/v1/notifications',
     handler: notifications.POST,
     request: () => ({ body: {} }),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   // ── Phase 4: import, reports, search, announcements, audit ────────────────
   {
@@ -706,13 +780,20 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/search',
     handler: searchRoute.GET,
     request: () => ({ path: '/api/v1/search?q=student' }),
-    expect: only({ TEACHER: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, SCHOOL_ADMIN: 200 }),
+    expect: only({ ACCOUNTANT: 200, TEACHER: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, SCHOOL_ADMIN: 200 }),
   },
   {
     key: 'GET /api/v1/announcements',
     handler: announcements.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 200, TEACHER: 200, PRINCIPAL: 200, SCHOOL_ADMIN: 200, ADMISSIONS_OFFICER: 200 }),
+    expect: only({
+      ACCOUNTANT: 200,
+      STUDENT: 200,
+      TEACHER: 200,
+      PRINCIPAL: 200,
+      SCHOOL_ADMIN: 200,
+      ADMISSIONS_OFFICER: 200,
+    }),
   },
   {
     key: 'POST /api/v1/announcements',
@@ -791,7 +872,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/students/[id]/photo',
     handler: studentPhoto.GET,
     request: (f) => ({ params: { id: f.s.studentA } }),
-    expect: only({ TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }), // no photo yet
+    expect: only({ ACCOUNTANT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }), // no photo yet
   },
   {
     key: 'PUT /api/v1/students/[id]/photo',
@@ -813,7 +894,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/teachers/[id]/photo',
     handler: teacherPhoto.GET,
     request: (f) => ({ params: { id: f.s.teacherA } }),
-    expect: only({ TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+    expect: only({ ACCOUNTANT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
   },
   {
     key: 'PUT /api/v1/teachers/[id]/photo',
@@ -835,7 +916,14 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/me/photo',
     handler: mePhoto.GET,
     request: () => ({}),
-    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+    expect: only({
+      ACCOUNTANT: 404,
+      STUDENT: 404,
+      TEACHER: 404,
+      PRINCIPAL: 404,
+      SCHOOL_ADMIN: 404,
+      ADMISSIONS_OFFICER: 404,
+    }),
   },
   {
     key: 'GET /api/v1/promotions/archive',
@@ -860,7 +948,14 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/archives/[id]',
     handler: archiveById.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ STUDENT: 404, TEACHER: 404, PRINCIPAL: 404, SCHOOL_ADMIN: 404, ADMISSIONS_OFFICER: 404 }),
+    expect: only({
+      ACCOUNTANT: 404,
+      STUDENT: 404,
+      TEACHER: 404,
+      PRINCIPAL: 404,
+      SCHOOL_ADMIN: 404,
+      ADMISSIONS_OFFICER: 404,
+    }),
   },
   {
     key: 'GET /api/v1/report-card/archives',
@@ -1004,6 +1099,304 @@ const MATRIX: Row[] = [
     request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: false } }),
     expect: only({ SCHOOL_ADMIN: 404 }),
   },
+  // ── Finance: fee setup ──
+  { key: 'GET /api/v1/fees/heads', handler: feeHeads.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/fees/heads',
+    handler: feeHeads.POST,
+    request: () => ({ body: { name: `Head ${++n}`, kind: 'MONTHLY' } }),
+    expect: FEES_MANAGE(201),
+  },
+  {
+    key: 'PATCH /api/v1/fees/heads/[id]',
+    handler: feeHeadById.PATCH,
+    request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: true } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'GET /api/v1/fees/structures',
+    handler: feeStructures.GET,
+    request: (f) => ({ path: `/api/v1/fees/structures?yearId=${f.s.yearA}` }),
+    expect: FINANCE_READ,
+  },
+  {
+    key: 'PUT /api/v1/fees/structures',
+    handler: feeStructures.PUT,
+    request: (f) => ({ method: 'PUT', path: `/api/v1/fees/structures?yearId=${f.s.yearA}`, body: { rows: [] } }),
+    expect: FEES_MANAGE(200),
+  },
+  {
+    key: 'POST /api/v1/fees/structures',
+    handler: feeStructures.POST,
+    request: (f) => ({ path: `/api/v1/fees/structures?yearId=${f.s.yearA2}`, body: { fromYearId: f.s.yearA } }),
+    expect: FEES_MANAGE(200),
+  },
+  {
+    key: 'GET /api/v1/fees/late-fee',
+    handler: feeLateFee.GET,
+    request: (f) => ({ path: `/api/v1/fees/late-fee?yearId=${f.s.yearA}` }),
+    expect: FINANCE_READ,
+  },
+  {
+    key: 'PUT /api/v1/fees/late-fee',
+    handler: feeLateFee.PUT,
+    request: (f) => ({ method: 'PUT', path: `/api/v1/fees/late-fee?yearId=${f.s.yearA}`, body: { value: 0 } }),
+    expect: FEES_MANAGE(200),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/fees/overrides',
+    handler: feeOverrides.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: FINANCE_READ,
+  },
+  {
+    key: 'POST /api/v1/students/[id]/fees/overrides',
+    handler: feeOverrides.POST,
+    request: () => ({ params: { id: MISSING }, body: { feeHeadId: MISSING, amountPaisa: 100 } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'DELETE /api/v1/students/[id]/fees/overrides/[overrideId]',
+    handler: feeOverrideById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING, overrideId: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/students/[id]/fees/discounts',
+    handler: feeDiscounts.POST,
+    request: () => ({
+      params: { id: MISSING },
+      body: { kind: 'FIXED', value: 100, reason: 'Test', validFrom: '2026-04-01' },
+    }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'DELETE /api/v1/students/[id]/fees/discounts/[discountId]',
+    handler: feeDiscountById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING, discountId: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  // ── Finance: invoices & payments ──
+  {
+    key: 'POST /api/v1/invoices/generate',
+    handler: invGenerate.POST,
+    request: () => ({ body: { period: '2030-01', studentId: MISSING } }),
+    expect: FEES_COLLECT(200),
+  },
+  { key: 'GET /api/v1/invoices', handler: invList.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'GET /api/v1/invoices/[id]',
+    handler: invById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+  },
+  {
+    key: 'POST /api/v1/invoices/[id]/void',
+    handler: invVoid.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Duplicate' } }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'POST /api/v1/invoices/[id]/waive-late-fee',
+    handler: invWaive.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Hardship' } }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/fees',
+    handler: studentFeesRoute.GET,
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: FINANCE_READ,
+  },
+  { key: 'GET /api/v1/me/fees', handler: meFeesRoute.GET, request: () => ({}), expect: only({ STUDENT: 200 }) },
+  {
+    key: 'POST /api/v1/payments',
+    handler: paymentsRoute.POST,
+    request: () => ({
+      body: {
+        studentId: MISSING,
+        amountPaisa: 100,
+        method: 'CASH',
+        receivedOn: '2026-01-01',
+        clientKey: '33333333-3333-4333-8333-333333333333',
+      },
+    }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'GET /api/v1/payments/[id]/receipt',
+    handler: receiptRoute.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+  },
+  {
+    key: 'POST /api/v1/payments/[id]/reverse',
+    handler: reverseRoute.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Mistake' } }),
+    expect: FEES_COLLECT(404),
+  },
+  // ── Finance: claims & expenses ──
+  {
+    key: 'GET /api/v1/me/fees/claims',
+    handler: meClaimsRoute.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200 }),
+  },
+  {
+    key: 'POST /api/v1/me/fees/claims',
+    handler: meClaimsRoute.POST,
+    request: () => ({
+      body: {
+        invoiceId: MISSING,
+        amountPaisa: 100,
+        method: 'BANK',
+        reference: 'TX',
+        paidOn: '2026-01-01',
+        clientKey: '55555555-5555-4555-8555-555555555555',
+        proof: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      },
+    }),
+    // The bill does not exist (404) once storage is configured for the test environment.
+    expect: only({ STUDENT: 404 }),
+  },
+  { key: 'GET /api/v1/fees/claims', handler: claimsRoute.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/fees/claims/[id]/decide',
+    handler: claimDecide.POST,
+    request: () => ({ params: { id: MISSING }, body: { decision: 'REJECT', note: 'No' } }),
+    expect: FEES_COLLECT(404),
+  },
+  {
+    key: 'GET /api/v1/fees/claims/[id]/proof',
+    handler: claimProofRoute.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+  },
+  { key: 'GET /api/v1/expenses/categories', handler: expCategories.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/expenses/categories',
+    handler: expCategories.POST,
+    request: () => ({ body: { name: `Category ${++n}` } }),
+    expect: FEES_MANAGE(201),
+  },
+  {
+    key: 'PATCH /api/v1/expenses/categories/[id]',
+    handler: expCategoryById.PATCH,
+    request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { archived: true } }),
+    expect: FEES_MANAGE(404),
+  },
+  { key: 'GET /api/v1/expenses', handler: expensesRoute.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/expenses',
+    handler: expensesRoute.POST,
+    request: () => ({
+      body: {
+        categoryId: MISSING,
+        amountPaisa: 100,
+        spentOn: '2026-01-01',
+        paidTo: 'Someone',
+        method: 'CASH',
+        clientKey: '66666666-6666-4666-8666-666666666666',
+      },
+    }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/expenses/[id]/reverse',
+    handler: expenseReverse.POST,
+    request: () => ({ params: { id: MISSING }, body: { reason: 'Mistake' } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'GET /api/v1/expenses/[id]/receipt',
+    handler: expenseReceiptRoute.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: FINANCE_READ_404,
+  },
+  // ── Finance: payroll ──
+  { key: 'GET /api/v1/payroll/structures', handler: payrollRoster.GET, request: () => ({}), expect: FEES_MANAGE(200) },
+  {
+    key: 'GET /api/v1/payroll/structures/[userId]',
+    handler: payrollStructure.GET,
+    request: () => ({ params: { userId: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'PUT /api/v1/payroll/structures/[userId]',
+    handler: payrollStructure.PUT,
+    request: () => ({
+      method: 'PUT',
+      params: { userId: MISSING },
+      body: { basicPaisa: 1, effectiveFrom: '2026-01-01' },
+    }),
+    expect: FEES_MANAGE(404),
+  },
+  { key: 'GET /api/v1/payroll/runs', handler: payrollRuns.GET, request: () => ({}), expect: FINANCE_READ },
+  {
+    key: 'POST /api/v1/payroll/runs',
+    handler: payrollRuns.POST,
+    request: () => ({ body: { period: `${2030 + (++n % 60)}-${String(1 + (n % 12)).padStart(2, '0')}` } }),
+    expect: FEES_MANAGE(201),
+  },
+  {
+    key: 'GET /api/v1/payroll/runs/[id]',
+    handler: payrollRunById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: FINANCE_READ_404,
+  },
+  {
+    key: 'DELETE /api/v1/payroll/runs/[id]',
+    handler: payrollRunById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/payroll/runs/[id]/finalise',
+    handler: payrollFinalise.POST,
+    request: () => ({ method: 'POST', params: { id: MISSING } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'POST /api/v1/payroll/runs/[id]/pay',
+    handler: payrollPay.POST,
+    request: () => ({ params: { id: MISSING }, body: { paidOn: '2026-01-01', method: 'BANK' } }),
+    expect: FEES_MANAGE(404),
+  },
+  {
+    key: 'GET /api/v1/payslips/[id]',
+    handler: payslipById.GET,
+    request: () => ({ params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, TEACHER: 404 }),
+  },
+  { key: 'GET /api/v1/me/payslips', handler: mePayslipsRoute.GET, request: () => ({}), expect: STAFF_ANY },
+  // ── Finance: reports ──
+  {
+    key: 'GET /api/v1/finance/reports/[report]',
+    handler: financeReports.GET,
+    request: () => ({ params: { report: 'summary' } }),
+    expect: FINANCE_READ,
+  },
+  { key: 'GET /api/v1/finance/overview', handler: financeOverview.GET, request: () => ({}), expect: FINANCE_READ },
+  // ── Mobile app ──
+  { key: 'GET /api/v1/mobile/home', handler: mobileHome.GET, request: () => ({}), expect: everyone(200) },
+  {
+    key: 'GET /api/v1/attendance/sections',
+    handler: attSections.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200 }),
+  },
+  {
+    key: 'POST /api/v1/me/push-token',
+    handler: pushToken.POST,
+    request: () => ({ body: { token: 'ExponentPushToken[abcdefghijklmnopqrstuv]', platform: 'android' } }),
+    expect: everyone(200),
+  },
+  {
+    key: 'DELETE /api/v1/me/push-token',
+    handler: pushToken.DELETE,
+    request: () => ({ method: 'DELETE', body: { token: 'ExponentPushToken[abcdefghijklmnopqrstuv]' } }),
+    expect: everyone(200),
+  },
 ];
 
 /** Public or secret-protected routes, tested in auth.test.ts. */
@@ -1012,6 +1405,7 @@ const NOT_IN_MATRIX = new Set([
   'POST /api/v1/auth/forgot-password',
   'POST /api/v1/auth/reset-password',
   'GET /api/internal/cron/daily',
+  'GET /api/v1/mobile/config',
 ]);
 
 let f: Fixtures;

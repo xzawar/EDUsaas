@@ -31,6 +31,27 @@ describe('role policies (spec §2)', () => {
     expect(effectivePermissions('PRINCIPAL', { 'audit.read': false }).has('audit.read')).toBe(false);
   });
 
+  it('Accountant gets finance plus student lookup only', () => {
+    const p = effectivePermissions('ACCOUNTANT');
+    expect([...p].sort()).toEqual([
+      'expenses.manage',
+      'fees.collect',
+      'fees.manage',
+      'finance.read',
+      'payroll.manage',
+      'students.read',
+      'students.search',
+    ]);
+  });
+
+  it('Principal finance.read is a toggle, default on; Student has self.fees; Teacher has no finance', () => {
+    expect(effectivePermissions('PRINCIPAL').has('finance.read')).toBe(true);
+    expect(effectivePermissions('PRINCIPAL', { 'finance.read': false }).has('finance.read')).toBe(false);
+    expect(effectivePermissions('STUDENT').has('self.fees')).toBe(true);
+    expect(effectivePermissions('SCHOOL_ADMIN').has('self.fees')).toBe(false);
+    expect(effectivePermissions('TEACHER').has('finance.read')).toBe(false);
+  });
+
   it('Teacher and Student access is fixed (not configurable)', () => {
     expect(Object.keys(ROLE_POLICIES.TEACHER.configurable)).toHaveLength(0);
     expect(Object.keys(ROLE_POLICIES.STUDENT.configurable)).toHaveLength(0);

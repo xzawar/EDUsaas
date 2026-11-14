@@ -8,7 +8,7 @@ import { listSchoolUsers } from '@/server/school/users';
 
 export const metadata: Metadata = { title: 'Staff accounts' };
 
-const ROLES = ['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'TEACHER'] as const;
+const ROLES = ['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT', 'TEACHER'] as const;
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const ctx = await requirePortal('STAFF', 'users.read');

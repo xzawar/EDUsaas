@@ -6,18 +6,18 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 const alias = { 'server-only': fileURLToPath(new URL('./tests/stubs/server-only.ts', import.meta.url)) };
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  plugins: [tsconfigPaths({ projects: ['./tsconfig.json'] })],
   test: {
     // Integration tests share one database; run files serially.
     fileParallelism: false,
     projects: [
       {
-        plugins: [tsconfigPaths()],
+        plugins: [tsconfigPaths({ projects: ['./tsconfig.json'] })],
         resolve: { alias },
         test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' },
       },
       {
-        plugins: [tsconfigPaths()],
+        plugins: [tsconfigPaths({ projects: ['./tsconfig.json'] })],
         resolve: { alias },
         test: {
           name: 'integration',

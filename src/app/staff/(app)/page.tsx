@@ -38,6 +38,9 @@ import { requirePortal } from '@/server/auth/page';
 import type { AuthedContext } from '@/server/http/route';
 import { admissionsOverview, schoolOverview, subjectAverages, teacherOverview } from '@/server/school/dashboard';
 import { tenantSubscription } from '@/server/platform/plans';
+import { financeOverview } from '@/server/school/finance/overview';
+import { FinanceOverview } from '@/components/finance/FinanceOverview';
+import { formatPKR } from '@/lib/money';
 import { attendanceOverview, myCheckIn, teacherAttendanceTodo, teacherBoard } from '@/server/school/attendance';
 import { pendingApprovals } from '@/server/school/leave';
 import { teacherMarksTodo, unpublishedCount } from '@/server/school/assessments';
@@ -58,6 +61,7 @@ export default async function StaffDashboard() {
   if (ctx.user.role === 'TEACHER') return <TeacherToday ctx={ctx} />;
   if (ctx.user.role === 'PRINCIPAL') return <PrincipalDashboard ctx={ctx} />;
   if (ctx.user.role === 'ADMISSIONS_OFFICER') return <AdmissionsDashboard ctx={ctx} />;
+  if (ctx.user.role === 'ACCOUNTANT') return <AccountantDashboard ctx={ctx} />;
   return <AdminDashboard ctx={ctx} />;
 }
 
@@ -271,6 +275,7 @@ async function AdminDashboard({ ctx }: { ctx: AuthedContext }) {
     ctx.can('settings.manage') ? listSupportGrants(ctx) : Promise.resolve([]),
     ctx.tenantId ? tenantSubscription(ctx.tenantId) : Promise.resolve(null),
   ]);
+  const fin = ctx.can('finance.read') ? await financeOverview(ctx) : null;
   const done = d.checklist.filter((c) => c.done).length;
   const setupComplete = done === d.checklist.length;
   const checkedIn = board ? board.summary.present + board.summary.late : 0;
@@ -472,9 +477,46 @@ async function AdminDashboard({ ctx }: { ctx: AuthedContext }) {
       <aside className="space-y-6">
         <NeedsYou items={todos} className="hidden xl:block" />
         {att && <RegistersPending pending={att.pending} />}
+        {fin && <FinanceCard fin={fin} />}
         {sub && <PlanPanel sub={sub} />}
         {d.activity && <ActivityPanel activity={d.activity} />}
       </aside>
+    </div>
+  );
+}
+
+function FinanceCard({ fin }: { fin: Awaited<ReturnType<typeof financeOverview>> }) {
+  return (
+    <Panel title="Money this month" action={<PanelLink href="/staff/finance">Finance</PanelLink>}>
+      <dl className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-slate-600">Collected</dt>
+          <dd className="font-medium tabular-nums">{formatPKR(fin.monthCollectedPaisa)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-slate-600">Still owed</dt>
+          <dd className="font-medium text-rose-700 tabular-nums">{formatPKR(fin.outstandingPaisa)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-slate-600">Spent</dt>
+          <dd className="font-medium tabular-nums">{formatPKR(fin.monthExpensesPaisa)}</dd>
+        </div>
+      </dl>
+      {fin.claimsPending > 0 && (
+        <Link href="/staff/finance/claims" className="mt-3 block text-sm font-medium text-[var(--accent)]">
+          {plural(fin.claimsPending, 'payment proof')} to check →
+        </Link>
+      )}
+    </Panel>
+  );
+}
+
+async function AccountantDashboard({ ctx }: { ctx: AuthedContext }) {
+  const o = await financeOverview(ctx);
+  return (
+    <div className="space-y-6">
+      <Greeting title={greeting(ctx.user.displayName)} subtitle={`Accountant · ${ctx.session.tenant?.name}`} />
+      <FinanceOverview o={JSON.parse(JSON.stringify(o))} can={{ collect: true, reports: true }} />
     </div>
   );
 }

@@ -1,0 +1,27 @@
+-- CreateTable
+CREATE TABLE "push_tokens" (
+    "id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    "token" TEXT NOT NULL,
+    "platform" TEXT NOT NULL DEFAULT 'android',
+    "app_version" TEXT,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "push_tokens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "push_tokens_token_key" ON "push_tokens"("token");
+
+-- CreateIndex
+CREATE INDEX "push_tokens_user_id_idx" ON "push_tokens"("user_id");
+
+-- AddForeignKey
+ALTER TABLE "push_tokens" ADD CONSTRAINT "push_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+-- System-managed: the app role never touches push tokens directly.
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_tokens FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE push_tokens FROM edusaas_app;
