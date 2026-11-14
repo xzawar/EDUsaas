@@ -129,7 +129,7 @@ export default async function StudentFeesPage() {
                       href={`/api/v1/payments/${p.id}/receipt`}
                       target="_blank"
                       rel="noopener"
-                      className="text-[var(--accent)] hover:underline"
+                      className="text-link hover:underline"
                     >
                       PDF
                     </a>

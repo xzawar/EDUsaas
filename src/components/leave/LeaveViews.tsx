@@ -188,7 +188,7 @@ export function ApprovalList({ rows }: { rows: LeaveRow[] }) {
                 />
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="ghost"
                   disabled={busy}
                   onClick={() =>
                     run(
@@ -201,6 +201,7 @@ export function ApprovalList({ rows }: { rows: LeaveRow[] }) {
                   Decline
                 </Button>
                 <Button
+                  variant="secondary"
                   size="sm"
                   disabled={busy}
                   onClick={() =>

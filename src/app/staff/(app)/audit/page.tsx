@@ -127,7 +127,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           </label>
           <button
             type="submit"
-            className="h-9 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white hover:brightness-110"
+            className="inline-flex h-10 items-center justify-center rounded-full bg-white px-5 text-[15px] font-semibold text-primary ring-1 ring-line hover:bg-tint-strong"
           >
             Filter
           </button>
@@ -149,11 +149,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               const hasDetails = e.before !== null || e.after !== null || e.metadata !== null;
               return (
                 <li key={e.id}>
-                  {header && (
-                    <p className="bg-slate-50 px-2 py-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                      {header}
-                    </p>
-                  )}
+                  {header && <p className="bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-500">{header}</p>}
                   <details className="group px-2 py-2.5">
                     <summary
                       className={
@@ -211,7 +207,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         )}
         {olderHref && (
           <div className="mt-4 text-center">
-            <Link href={olderHref} className="text-sm font-medium text-[var(--accent)] hover:underline">
+            <Link href={olderHref} className="text-sm font-medium text-link hover:underline">
               Show older →
             </Link>
           </div>

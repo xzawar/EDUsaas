@@ -102,10 +102,7 @@ export default async function TeacherPage({ params }: { params: Promise<{ id: st
               <ul className="space-y-2 text-sm">
                 {teacher.inchargeOf.map((s) => (
                   <li key={s.id} className="flex justify-between">
-                    <Link
-                      href={`/staff/students?sectionId=${s.id}`}
-                      className="font-medium text-[var(--accent)] hover:underline"
-                    >
+                    <Link href={`/staff/students?sectionId=${s.id}`} className="font-medium text-link hover:underline">
                       {s.label}
                     </Link>
                     <span className="text-slate-500">{s.studentCount} students</span>

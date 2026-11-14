@@ -324,7 +324,7 @@ export function AssignmentsEditor({
                         className={cx(
                           'rounded-full border px-3 py-1 text-xs font-medium transition',
                           on
-                            ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                            ? 'border-deep bg-accent text-deep'
                             : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400',
                         )}
                       >

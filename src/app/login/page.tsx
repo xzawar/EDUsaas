@@ -15,7 +15,7 @@ export default function StudentLoginPage() {
           <p>Forgot your password or username? Ask your school office to reset it.</p>
           <p>
             Teacher or school staff?{' '}
-            <Link href="/staff/login" className="font-medium text-[var(--accent)] hover:underline">
+            <Link href="/staff/login" className="font-medium text-link hover:underline">
               Go to the Staff Portal
             </Link>
           </p>

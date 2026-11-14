@@ -90,12 +90,10 @@ function isActive(pathname: string, item: NavItem) {
 function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="space-y-3">
+    <nav aria-label="Main" className="space-y-5">
       {groups.map((g, i) => (
         <div key={g.label ?? i}>
-          {g.label && (
-            <p className="mb-0.5 px-4 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{g.label}</p>
-          )}
+          {g.label && <p className="mb-1 px-3 t-group-title">{g.label}</p>}
           <ul className="space-y-0.5">
             {g.items.map((item) => {
               const Icon = ICONS[item.icon];
@@ -107,13 +105,13 @@ function NavList({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () =
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
                     className={cx(
-                      'flex items-center gap-3 rounded-xl px-4 py-1.5 text-sm transition',
+                      'flex items-center gap-3 rounded-full px-3 py-2 text-[15px] tracking-[-0.011em] transition-colors',
                       active
-                        ? 'bg-slate-900 font-semibold text-white shadow-sm'
-                        : 'font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900',
+                        ? 'bg-tint font-semibold text-primary'
+                        : 'text-secondary hover:bg-tint/70 hover:text-primary',
                     )}
                   >
-                    <Icon className="size-[18px] shrink-0" aria-hidden />
+                    <Icon className={cx('size-5 shrink-0', active ? 'text-deep' : 'text-tertiary')} aria-hidden />
                     {item.label}
                   </Link>
                 </li>
@@ -140,11 +138,11 @@ function Profile({ user, orgName }: { user: SidebarUser; orgName: string }) {
     <div className="flex items-center gap-3 px-5 pt-5 pb-4">
       <Avatar name={user.displayName} size="md" src={user.photoUrl} />
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{user.displayName}</p>
+        <p className="truncate text-[15px] font-semibold text-primary">{user.displayName}</p>
         {(user.username ?? user.email) && (
-          <p className="truncate font-mono text-[11px] text-slate-500">{user.username ?? user.email}</p>
+          <p className="truncate text-xs text-tertiary">{user.username ?? user.email}</p>
         )}
-        <p className="truncate text-xs text-slate-500">
+        <p className="truncate text-xs text-tertiary">
           {ROLE_LABELS[user.role] ?? user.role}
           {orgName ? ` · ${orgName}` : ''}
         </p>
@@ -156,9 +154,9 @@ function Profile({ user, orgName }: { user: SidebarUser; orgName: string }) {
 function FooterActions() {
   const [busy, setBusy] = useState(false);
   const row =
-    'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900';
+    'flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-secondary transition-colors hover:bg-tint hover:text-primary';
   return (
-    <div className="flex gap-1 border-t border-slate-100 px-3 pt-2 pb-3">
+    <div className="flex gap-1 border-t border-line px-3 pt-3 pb-4">
       <Link href="/change-password" className={row}>
         <KeyRound className="size-[18px]" aria-hidden /> Password
       </Link>
@@ -201,7 +199,7 @@ export function Sidebar({
   return (
     <>
       {/* Desktop */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-line bg-white lg:flex">
         <Profile user={user} orgName={orgName} />
         <div className="flex-1 overflow-y-auto px-3 pb-2">
           <NavList groups={groups} />
@@ -211,7 +209,7 @@ export function Sidebar({
 
       {/* Desktop top bar: search + notifications, top-right of the page */}
       {(tools.search || tools.notifications) && (
-        <div className="fixed top-0 right-0 left-64 z-10 hidden h-16 items-center justify-end gap-2 bg-[#f4f4f8]/85 px-6 backdrop-blur lg:flex xl:px-8">
+        <div className="fixed top-0 right-0 left-64 z-10 hidden h-16 items-center justify-end gap-2 bg-white/90 px-6 backdrop-blur lg:flex xl:px-8">
           {tools.search && (
             <div className="w-72">
               <SearchButton pages={pages} />
@@ -222,16 +220,16 @@ export function Sidebar({
       )}
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-20 flex items-center gap-1 bg-white/95 px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur lg:hidden">
+      <div className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-white/95 px-3 backdrop-blur lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open menu"
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+          className="grid size-10 place-items-center rounded-full bg-tint text-primary hover:bg-tint-strong"
         >
           <Menu className="size-5" />
         </button>
-        <p className="min-w-0 flex-1 truncate px-1 text-sm font-semibold">{orgName || 'EDUsaas'}</p>
+        <p className="min-w-0 flex-1 truncate px-1 text-base font-semibold text-primary">{orgName || 'EDUsaas'}</p>
         {tools.search && <SearchButton pages={pages} compact />}
         {tools.notifications && <NotificationBell />}
         {!tools.search && !tools.notifications && <Avatar name={user.displayName} size="sm" />}
@@ -239,9 +237,9 @@ export function Sidebar({
 
       {/* Mobile drawer */}
       {open && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-40 bg-ink/40 lg:hidden" onClick={() => setOpen(false)}>
           <aside
-            className="flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl"
+            className="m-2 flex h-[calc(100%-1rem)] w-72 max-w-[85vw] flex-col rounded-3xl bg-white"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-end p-2">
@@ -249,7 +247,7 @@ export function Sidebar({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close menu"
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                className="grid size-10 place-items-center rounded-full bg-tint text-primary hover:bg-tint-strong"
               >
                 <X className="size-5" />
               </button>
@@ -269,7 +267,7 @@ export function Sidebar({
       {mobileTabs && mobileTabs.length > 1 && (
         <nav
           aria-label="Quick"
-          className="fixed inset-x-0 bottom-0 z-20 grid bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_rgba(15,23,42,0.06)] lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 grid border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
           style={{ gridTemplateColumns: `repeat(${mobileTabs.length}, minmax(0, 1fr))` }}
         >
           {mobileTabs.map((item) => {
@@ -281,14 +279,14 @@ export function Sidebar({
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cx(
-                  'flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
-                  active ? 'text-slate-900' : 'text-slate-400',
+                  'flex flex-col items-center gap-1 py-2 text-[11px] font-semibold',
+                  active ? 'text-primary' : 'text-tertiary',
                 )}
               >
                 <span
                   className={cx(
-                    'grid h-7 w-12 place-items-center rounded-full transition',
-                    active && 'bg-slate-900 text-white',
+                    'grid h-7 w-14 place-items-center rounded-full transition-colors',
+                    active && 'bg-tint text-deep',
                   )}
                 >
                   <Icon className="size-[18px]" aria-hidden />

@@ -43,7 +43,7 @@ export function CredentialsDialog({
     >
       {creds && (
         <div className="print-area rounded-xl border-2 border-dashed border-slate-300 p-5">
-          <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">{schoolName}</p>
+          <p className="text-xs font-semibold text-slate-500">{schoolName}</p>
           <p className="mt-1 text-lg font-semibold">{creds.name}</p>
           {creds.detail && <p className="text-sm text-slate-600">{creds.detail}</p>}
           <dl className="mt-4 grid grid-cols-[auto,1fr] gap-x-4 gap-y-2 text-sm">

@@ -148,10 +148,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
             <Card
               title="Fees"
               actions={
-                <Link
-                  href={`/staff/finance/collect?student=${student.id}`}
-                  className="text-sm font-medium text-[var(--accent)]"
-                >
+                <Link href={`/staff/finance/collect?student=${student.id}`} className="text-sm font-medium text-link">
                   Collect / receipts →
                 </Link>
               }
@@ -179,10 +176,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                 [
                   'Phone',
                   student.guardianPhone ? (
-                    <a
-                      href={`tel:${student.guardianPhone.replace(/\s/g, '')}`}
-                      className="text-[var(--accent)] hover:underline"
-                    >
+                    <a href={`tel:${student.guardianPhone.replace(/\s/g, '')}`} className="text-link hover:underline">
                       {formatPhone(student.guardianPhone)}
                     </a>
                   ) : null,

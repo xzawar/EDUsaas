@@ -177,7 +177,7 @@ function SearchDialog({ pages, onClose }: { pages: Page[]; onClose: () => void }
                   onClick={() => go(h)}
                   className={cx(
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left',
-                    i === active ? 'bg-[var(--accent)]/10' : '',
+                    i === active ? 'bg-tint' : '',
                   )}
                 >
                   <Icon className="size-4 shrink-0 text-slate-400" aria-hidden />
@@ -275,11 +275,7 @@ export function NotificationBell() {
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
               <p className="font-semibold">Notifications</p>
               {unread > 0 && (
-                <button
-                  type="button"
-                  onClick={markAll}
-                  className="text-xs font-medium text-[var(--accent)] hover:underline"
-                >
+                <button type="button" onClick={markAll} className="text-xs font-medium text-link hover:underline">
                   Mark all read
                 </button>
               )}
@@ -292,10 +288,7 @@ export function NotificationBell() {
                 const content = (
                   <>
                     <span
-                      className={cx(
-                        'mt-1.5 size-2 shrink-0 rounded-full',
-                        n.readAt ? 'bg-transparent' : 'bg-[var(--accent)]',
-                      )}
+                      className={cx('mt-1.5 size-2 shrink-0 rounded-full', n.readAt ? 'bg-transparent' : 'bg-accent')}
                       aria-hidden
                     />
                     <span className="min-w-0 flex-1">

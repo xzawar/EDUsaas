@@ -63,7 +63,7 @@ export function LoginForm({ portal }: { portal: PortalKey }) {
           required
         />
       </Field>
-      <Button type="submit" className="w-full" disabled={busy || !identifier || !password}>
+      <Button type="submit" size="lg" className="mt-2 w-full" disabled={busy || !identifier || !password}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
     </form>

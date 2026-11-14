@@ -293,12 +293,10 @@ export function PromotionWizard({
             immediately; nobody is notified. Graduating students can no longer sign in.
           </p>
           <details className="mt-3 text-sm">
-            <summary className="cursor-pointer font-medium text-[var(--accent)]">
-              See all {preview.rows.length} changes
-            </summary>
+            <summary className="cursor-pointer font-medium text-link">See all {preview.rows.length} changes</summary>
             <div className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-slate-200">
               <table className="w-full">
-                <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500 uppercase">
+                <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500">
                   <tr>
                     <th className="px-3 py-2 text-left">Student</th>
                     <th className="px-3 py-2 text-left">Move</th>

@@ -150,7 +150,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                         href={`/api/v1/payments/${p.paymentId}/receipt`}
                         target="_blank"
                         rel="noopener"
-                        className="text-sm text-[var(--accent)] hover:underline"
+                        className="text-sm text-link hover:underline"
                       >
                         PDF
                       </a>

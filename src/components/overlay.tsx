@@ -30,14 +30,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             role={t.tone === 'error' ? 'alert' : 'status'}
             className={cx(
-              'pointer-events-auto flex max-w-md items-start gap-2 rounded-lg px-4 py-3 text-sm shadow-lg ring-1',
-              t.tone === 'success' ? 'bg-slate-900 text-white ring-slate-900' : 'bg-red-50 text-red-900 ring-red-200',
+              'pointer-events-auto flex max-w-md items-start gap-2.5 rounded-2xl px-4 py-3.5 text-[15px] leading-6',
+              t.tone === 'success' ? 'bg-ink text-white' : 'bg-ink text-white',
             )}
           >
             {t.tone === 'success' ? (
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-accent" />
             ) : (
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[#ffbfba]" />
             )}
             <span>{t.text}</span>
           </div>
@@ -127,7 +127,7 @@ export function Modal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 p-2 sm:items-center sm:p-4"
       onMouseDown={onClose}
     >
       <div
@@ -137,31 +137,30 @@ export function Modal({
         aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
         className={cx(
-          'flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl',
+          'relative flex max-h-[92vh] w-full flex-col rounded-3xl bg-white pt-4',
           size === 'md' ? 'sm:max-w-lg' : 'sm:max-w-3xl',
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <span aria-hidden className="absolute top-2 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-line sm:hidden" />
+        <header className="flex items-start justify-between gap-4 px-6 pt-3 pb-2">
           <div>
-            <h2 id={titleId} className="text-base font-semibold">
+            <h2 id={titleId} className="t-section-title">
               {title}
             </h2>
-            {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+            {description && <p className="mt-2 t-body">{description}</p>}
           </div>
           <button
             data-close
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-tint text-primary hover:bg-tint-strong"
           >
             <X className="size-5" />
           </button>
         </header>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
-        {footer && (
-          <footer className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</footer>
-        )}
+        <div className="overflow-y-auto px-6 py-4">{children}</div>
+        {footer && <footer className="flex flex-wrap justify-end gap-2 px-6 pt-2 pb-6">{footer}</footer>}
       </div>
     </div>
   );
@@ -185,17 +184,17 @@ export function Drawer({
   const titleId = useId();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/40" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-40 bg-ink/40" onMouseDown={onClose}>
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
-        className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-white shadow-xl"
+        className="absolute inset-y-2 right-2 flex w-[calc(100%-1rem)] max-w-md flex-col rounded-3xl bg-white"
       >
-        <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 id={titleId} className="text-base font-semibold">
+        <header className="flex items-center justify-between gap-4 px-6 pt-6 pb-2">
+          <h2 id={titleId} className="t-section-title">
             {title}
           </h2>
           <button
@@ -203,13 +202,13 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-tint text-primary hover:bg-tint-strong"
           >
             <X className="size-5" />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <footer className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</footer>}
+        <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        {footer && <footer className="flex justify-end gap-2 border-t border-line px-6 py-4">{footer}</footer>}
       </div>
     </div>
   );
@@ -274,7 +273,7 @@ export function ConfirmButton({
           </>
         }
       >
-        <div className="space-y-3 text-sm text-slate-700">{message}</div>
+        <div className="space-y-3 text-[15px] leading-6 text-secondary">{message}</div>
         {requireText !== undefined && (
           <label className="mt-4 block text-sm">
             <span className="text-slate-600">
@@ -283,7 +282,7 @@ export function ConfirmButton({
             <input
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mt-2 block h-11 w-full rounded-md border border-line px-3.5 text-[15px] text-primary focus:border-deep focus:ring-2 focus:ring-deep/15 focus:outline-none"
             />
           </label>
         )}
@@ -307,5 +306,5 @@ export function fieldErrors(error: ApiError | null): Record<string, string> {
 
 export function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-700">{message}</p>;
+  return <p className="text-[13px] text-negative">{message}</p>;
 }

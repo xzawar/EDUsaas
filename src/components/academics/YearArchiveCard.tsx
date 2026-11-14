@@ -64,7 +64,7 @@ export function YearArchiveCard({ jobs, storageReady }: { jobs: Job[]; storageRe
                 aria-valuemax={100}
                 aria-label={`${j.year} archive progress`}
               >
-                <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
               </div>
               {j.error && <p className="mt-1 text-xs text-amber-800">{j.error}</p>}
               {!finished && (

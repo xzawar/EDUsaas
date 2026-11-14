@@ -41,7 +41,7 @@ export function AppShell({
             mobileTabs && mobileTabs.length > 1 ? 'pb-20 lg:pb-0' : '',
           )}
         >
-          <div className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6 lg:px-6 lg:pt-2 lg:pb-8 xl:px-8">{children}</div>
+          <div className="mx-auto max-w-[80rem] px-4 py-6 sm:px-6 lg:px-8 lg:pt-4 lg:pb-12 xl:px-10">{children}</div>
         </main>
       </ToastProvider>
     </div>
@@ -60,12 +60,12 @@ export function PageHeader({
   breadcrumb?: ReactNode;
 }) {
   return (
-    <div className="mb-6">
-      {breadcrumb && <div className="mb-2 text-sm text-slate-500">{breadcrumb}</div>}
+    <div className="mb-8">
+      {breadcrumb && <div className="mb-3 text-sm text-tertiary">{breadcrumb}</div>}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
+        <div className="min-w-0 max-w-2xl">
+          <h1 className="t-screen-title">{title}</h1>
+          {description && <p className="mt-2 text-base leading-6 tracking-[-0.011em] text-secondary">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>

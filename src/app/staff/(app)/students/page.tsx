@@ -123,9 +123,7 @@ export default async function StudentsPage({
                         src={s.photoVersion ? `/api/v1/students/${s.id}/photo?v=${s.photoVersion}` : null}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate font-medium text-slate-900 hover:text-[var(--accent)]">
-                          {s.name}
-                        </span>
+                        <span className="block truncate font-medium text-slate-900 hover:text-deep-2">{s.name}</span>
                         <span className="block truncate font-mono text-xs text-slate-500">{s.username}</span>
                       </span>
                     </Link>

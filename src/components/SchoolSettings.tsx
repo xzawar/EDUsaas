@@ -187,7 +187,7 @@ export function PermissionsMatrix({ initial }: { initial: PermissionMatrix }) {
                       id={id}
                       type="checkbox"
                       role="switch"
-                      className="size-4 accent-[var(--accent)]"
+                      className="size-4 accent-deep"
                       checked={p.granted}
                       disabled={pending === key}
                       onChange={(e) => toggle(r.role, p.permission, e.target.checked)}

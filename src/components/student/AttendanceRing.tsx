@@ -25,7 +25,7 @@ export function AttendanceRing({
           cy="60"
           r={r}
           fill="none"
-          stroke={low ? '#b91c1c' : 'var(--accent)'}
+          stroke={low ? '#b0261b' : '#1c1259'}
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={`${(v / 100) * c} ${c}`}

@@ -43,7 +43,7 @@ export default async function AttendancePage() {
             <Link
               key={s.id}
               href={`/staff/attendance/${s.id}`}
-              className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--accent)]/40"
+              className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-deep/30"
             >
               {s.done ? (
                 <CheckCircle2 className="size-6 text-emerald-600" aria-label="Taken" />
@@ -58,7 +58,7 @@ export default async function AttendancePage() {
                   {s.done ? `${s.present} present · ${s.absent} absent` : `${s.students} students · not taken yet`}
                 </span>
               </span>
-              <ArrowRight className="size-4 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" />
+              <ArrowRight className="size-4 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-deep-2" />
             </Link>
           ))}
         </div>

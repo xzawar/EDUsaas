@@ -34,7 +34,7 @@ export default async function SupportPage() {
         description={
           <>
             Questions for the EDUsaas team. If they need to look inside your school, they ask first in{' '}
-            <Link href="/staff/settings#support" className="font-medium text-[var(--accent)] hover:underline">
+            <Link href="/staff/settings#support" className="font-medium text-link hover:underline">
               Settings
             </Link>
             .
@@ -64,10 +64,7 @@ export default async function SupportPage() {
                 {t.messages.map((m) => (
                   <li
                     key={m.id}
-                    className={cx(
-                      'rounded-2xl px-4 py-3',
-                      m.fromPlatform ? 'mr-8 bg-[var(--accent)]/10' : 'ml-8 bg-slate-50',
-                    )}
+                    className={cx('rounded-2xl px-4 py-3', m.fromPlatform ? 'mr-8 bg-tint' : 'ml-8 bg-slate-50')}
                   >
                     <p className="text-xs text-slate-500">
                       {m.author} · {fmt(m.createdAt)}

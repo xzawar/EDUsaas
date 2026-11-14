@@ -53,7 +53,7 @@ function Step({ n, title, done, children }: { n: number; title: string; done?: b
       <span
         className={cx(
           'grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold',
-          done ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--accent)]/10 text-[var(--accent)]',
+          done ? 'bg-emerald-100 text-emerald-700' : 'bg-tint text-link',
         )}
       >
         {done ? <CheckCircle2 className="size-5" /> : n}
@@ -191,7 +191,7 @@ export function ImportWizard({ schoolName }: { schoolName: string }) {
               key={c.username}
               className="break-inside-avoid rounded-lg border-2 border-dashed border-slate-300 p-4 text-sm"
             >
-              <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">{schoolName}</p>
+              <p className="text-[10px] font-semibold text-slate-500">{schoolName}</p>
               <p className="mt-1 font-semibold">{c.name}</p>
               <p className="text-xs text-slate-600">
                 {c.section} · Roll {c.rollNumber}
@@ -237,7 +237,7 @@ export function ImportWizard({ schoolName }: { schoolName: string }) {
             }}
             className={cx(
               'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition',
-              dragging ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-slate-300 hover:border-slate-400',
+              dragging ? 'border-deep bg-tint' : 'border-slate-300 hover:border-slate-400',
             )}
           >
             <Upload className="size-6 text-slate-400" />
@@ -343,7 +343,7 @@ export function ImportWizard({ schoolName }: { schoolName: string }) {
                     aria-label="Import progress"
                   >
                     <div
-                      className="h-full bg-[var(--accent)] transition-all"
+                      className="h-full bg-accent transition-all"
                       style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }}
                     />
                   </div>

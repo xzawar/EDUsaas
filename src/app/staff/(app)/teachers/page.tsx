@@ -66,7 +66,7 @@ export default async function TeachersPage({
                     <Link href={`/staff/teachers/${t.id}`} className="flex items-center gap-3">
                       <Avatar name={t.name} size="sm" />
                       <span className="min-w-0">
-                        <span className="block truncate font-medium hover:text-[var(--accent)]">
+                        <span className="block truncate font-medium hover:text-deep-2">
                           {t.name} {t.status !== 'ACTIVE' && <Badge tone="red">Disabled</Badge>}
                         </span>
                         <span className="block truncate font-mono text-xs text-slate-500">{t.username}</span>

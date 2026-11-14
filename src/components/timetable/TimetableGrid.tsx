@@ -46,7 +46,7 @@ export function TimetableGrid({
                   key={d.day}
                   className={cx(
                     'rounded-md py-1.5 text-xs font-semibold',
-                    d.day === today ? 'bg-[var(--accent)] text-white' : 'text-slate-500',
+                    d.day === today ? 'bg-accent text-deep' : 'text-slate-500',
                   )}
                 >
                   {d.name.slice(0, 3)}
@@ -89,8 +89,8 @@ export function TimetableGrid({
                           type="button"
                           onClick={() => setCell({ ...c, label: `${d.name}, ${p.startsAt}–${p.endsAt}` })}
                           className={cx(
-                            'h-14 w-full rounded-md px-2 py-1 text-left ring-1 transition hover:ring-[var(--accent)]',
-                            c.entry ? 'bg-[var(--accent)]/10 ring-[var(--accent)]/20' : 'bg-white ring-slate-200',
+                            'h-14 w-full rounded-md px-2 py-1 text-left ring-1 transition hover:ring-deep',
+                            c.entry ? 'bg-tint ring-deep/15' : 'bg-white ring-slate-200',
                           )}
                         >
                           {content}
@@ -99,8 +99,8 @@ export function TimetableGrid({
                         <div
                           className={cx(
                             'h-14 rounded-md px-2 py-1 ring-1',
-                            c.entry ? 'bg-[var(--accent)]/10 ring-[var(--accent)]/20' : 'bg-white ring-slate-100',
-                            d.day === today && 'ring-[var(--accent)]/50',
+                            c.entry ? 'bg-tint ring-deep/15' : 'bg-white ring-slate-100',
+                            d.day === today && 'ring-deep/40',
                           )}
                         >
                           {content}
@@ -274,7 +274,7 @@ export function PeriodsEditor({ days, periods }: { days: number[]; periods: Grid
                   }}
                   className={cx(
                     'rounded-full border px-3 py-1 text-sm',
-                    on ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-slate-300 text-slate-600',
+                    on ? 'border-deep bg-accent text-deep' : 'border-slate-300 text-slate-600',
                   )}
                 >
                   {n}
@@ -319,7 +319,7 @@ export function PeriodsEditor({ days, periods }: { days: number[]; periods: Grid
                       type="checkbox"
                       checked={row.isBreak}
                       onChange={(e) => setP(p.map((x, j) => (j === i ? { ...x, isBreak: e.target.checked } : x)))}
-                      className="size-4 accent-[var(--accent)]"
+                      className="size-4 accent-deep"
                       aria-label={`Period ${i + 1} is a break`}
                     />
                   </td>

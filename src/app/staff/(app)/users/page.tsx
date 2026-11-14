@@ -67,7 +67,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                 {canManage && (
                   <Td className="text-right">
                     {u.role === 'TEACHER' ? (
-                      <Link href="/staff/teachers" className="text-sm font-medium text-[var(--accent)] hover:underline">
+                      <Link href="/staff/teachers" className="text-sm font-medium text-link hover:underline">
                         Manage on Teachers
                       </Link>
                     ) : u.role !== 'SCHOOL_ADMIN' ? (
