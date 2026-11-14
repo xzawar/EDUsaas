@@ -6,7 +6,8 @@ import { AppError, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { audit, friendlyDbError, inTenant, isoDate, schoolClock, sectionLabel, toDate } from '@/server/school/common';
 import { invoiceTotals, yearRule } from '@/server/school/finance/invoices';
-import { METHODS, recordPayment } from '@/server/school/finance/payments';
+import { lockRow } from '@/server/school/finance/locks';
+import { METHODS, recordPaymentTx } from '@/server/school/finance/payments';
 import { notify } from '@/server/school/notifications';
 import { decodePhoto, photoSchema } from '@/server/school/photos';
 
@@ -222,73 +223,74 @@ export const decideSchema = z.object({
 });
 
 export async function decideClaim(ctx: AuthedContext, id: string, input: z.infer<typeof decideSchema>) {
-  const claim = await inTenant(ctx, async (tx) => {
-    const c = await tx.paymentClaim.findUnique({
-      where: { id },
-      include: { student: { select: { userId: true } }, invoice: { select: { number: true } } },
-    });
-    if (!c) throw notFound('Payment proof');
-    if (c.status !== 'PENDING') throw new AppError('CONFLICT', 'This proof was already decided');
-    return c;
-  });
-  if (input.decision === 'REJECT') {
-    const note = input.note;
-    if (!note) throw new AppError('VALIDATION_FAILED', 'Tell the parent why it was rejected');
-    return inTenant(ctx, async (tx) => {
+  if (input.decision === 'REJECT' && !input.note)
+    throw new AppError('VALIDATION_FAILED', 'Tell the parent why it was rejected');
+  try {
+    // One transaction with the claim row locked: two office users deciding the same proof at once are applied one
+    // after the other, and the second gets "already decided" instead of a second receipt.
+    return await inTenant(ctx, async (tx) => {
+      await lockRow(tx, 'claim', id);
+      const claim = await tx.paymentClaim.findUnique({
+        where: { id },
+        include: { student: { select: { userId: true } }, invoice: { select: { number: true } } },
+      });
+      if (!claim) throw notFound('Payment proof');
+      if (claim.status !== 'PENDING') throw new AppError('CONFLICT', 'This proof was already decided');
+
+      if (input.decision === 'REJECT') {
+        const note = input.note!;
+        await tx.paymentClaim.update({
+          where: { id },
+          data: { status: 'REJECTED', decidedBy: ctx.user.id, decidedAt: new Date(), decisionNote: note },
+        });
+        await audit(ctx, tx, { action: 'claim.reject', entity: 'PaymentClaim', entityId: id, after: { note } });
+        await notify(tx, ctx.tenantId!, [claim.student.userId], {
+          kind: 'claim.rejected',
+          title: `Payment proof for ${claim.invoice.number} not accepted`,
+          body: note,
+          link: '/student/fees',
+        });
+        return { ok: true, status: 'REJECTED' as const };
+      }
+
+      // CONFIRM: the payment carries the claim's own details and is always keyed by the claim's id, so one proof
+      // can never turn into two receipts, whoever confirms it and however often.
+      const r = await recordPaymentTx(ctx, tx, {
+        studentId: claim.studentId,
+        invoiceId: claim.invoiceId,
+        amountPaisa: Number(claim.amountPaisa),
+        method: claim.method as (typeof METHODS)[number],
+        reference: claim.reference,
+        receivedOn: isoDate(claim.paidOn)!,
+        note: 'Confirmed from parent payment proof',
+        clientKey: claim.id,
+        allowAdvance: true,
+      });
       await tx.paymentClaim.update({
         where: { id },
-        data: { status: 'REJECTED', decidedBy: ctx.user.id, decidedAt: new Date(), decisionNote: note },
+        data: {
+          status: 'CONFIRMED',
+          decidedBy: ctx.user.id,
+          decidedAt: new Date(),
+          decisionNote: input.note ?? null,
+          paymentId: r.payment.id,
+        },
       });
       await audit(ctx, tx, {
-        action: 'claim.reject',
+        action: 'claim.confirm',
         entity: 'PaymentClaim',
         entityId: id,
-        after: { note },
+        after: { receiptNumber: r.payment.receiptNumber },
       });
       await notify(tx, ctx.tenantId!, [claim.student.userId], {
-        kind: 'claim.rejected',
-        title: `Payment proof for ${claim.invoice.number} not accepted`,
-        body: note,
+        kind: 'claim.confirmed',
+        title: `Payment confirmed: ${r.payment.receiptNumber}`,
+        body: `Your payment for bill ${claim.invoice.number} is confirmed. Receipt ${r.payment.receiptNumber}.`,
         link: '/student/fees',
       });
-      return { ok: true, status: 'REJECTED' as const };
+      return { ok: true, status: 'CONFIRMED' as const, payment: r.payment };
     });
+  } catch (e) {
+    friendlyDbError(e);
   }
-  // CONFIRM: the payment carries the claim's own details; the claim's id keys idempotency.
-  const r = await recordPayment(ctx, {
-    studentId: claim.studentId,
-    invoiceId: claim.invoiceId,
-    amountPaisa: Number(claim.amountPaisa),
-    method: claim.method,
-    reference: claim.reference,
-    receivedOn: isoDate(claim.paidOn)!,
-    note: 'Confirmed from parent payment proof',
-    clientKey: input.clientKey ?? claim.id,
-    allowAdvance: true,
-  });
-  return inTenant(ctx, async (tx) => {
-    await tx.paymentClaim.update({
-      where: { id },
-      data: {
-        status: 'CONFIRMED',
-        decidedBy: ctx.user.id,
-        decidedAt: new Date(),
-        decisionNote: input.note ?? null,
-        paymentId: r.payment.id,
-      },
-    });
-    await audit(ctx, tx, {
-      action: 'claim.confirm',
-      entity: 'PaymentClaim',
-      entityId: id,
-      after: { receiptNumber: r.payment.receiptNumber },
-    });
-    await notify(tx, ctx.tenantId!, [claim.student.userId], {
-      kind: 'claim.confirmed',
-      title: `Payment confirmed: ${r.payment.receiptNumber}`,
-      body: `Your payment for bill ${claim.invoice.number} is confirmed. Receipt ${r.payment.receiptNumber}.`,
-      link: '/student/fees',
-    });
-    return { ok: true, status: 'CONFIRMED' as const, payment: r.payment };
-  });
 }

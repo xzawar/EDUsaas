@@ -1230,8 +1230,10 @@ model Invoice {
   claims       PaymentClaim[]
   allocations  PaymentAllocation[]
 
-  @@unique([studentId, period])
   @@unique([tenantId, number])
+  // One live bill per student per month: a partial unique index (status <> 'VOID', see migration
+  // 20261114094908_reissue_void_invoices) so a cancelled bill can be reissued. Prisma cannot model partial uniques.
+  @@index([studentId, period])
   @@index([tenantId, status, dueOn])
   @@index([tenantId, period])
   @@map("invoices")
