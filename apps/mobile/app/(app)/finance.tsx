@@ -29,12 +29,7 @@ export default function FinanceScreen() {
   const d = q.data;
   const collect = me.permissions.includes('fees.collect');
   return (
-    <Screen
-      title="Finance"
-      subtitle="Money in, money out, what’s still owed."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Finance" subtitle="What came in and what’s owed." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && (

@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { Easing, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
@@ -38,6 +38,9 @@ export default function AppLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Tabs drift a little and fade in, on the emphasized easing; never a full slide.
+        animation: 'shift',
+        transitionSpec: { animation: 'timing', config: { duration: 220, easing: Easing.bezier(0.05, 0.7, 0.1, 1) } },
         tabBarActiveTintColor: colors.ink,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
@@ -76,11 +79,7 @@ export default function AppLayout() {
                     backgroundColor: focused ? colors.card : 'transparent',
                   }}
                 >
-                  <Ionicons
-                    name={t?.icon ?? 'ellipse-outline'}
-                    size={22}
-                    color={focused ? colors.deep : String(color)}
-                  />
+                  <Icon name={t?.icon ?? 'ellipse-outline'} size={22} color={focused ? colors.deep : String(color)} />
                   {name === 'more' && pendingCount > 0 && (
                     <View
                       style={{

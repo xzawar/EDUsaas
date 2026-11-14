@@ -52,7 +52,7 @@ function MyMarks() {
   return (
     <Screen
       title="Marks"
-      subtitle="Published marks for this year."
+      subtitle="This year’s results."
       refreshing={q.isFetching}
       onRefresh={q.refetch}
       right={
@@ -114,12 +114,7 @@ function Tests() {
   const router = useRouter();
   const d = q.data?.items;
   return (
-    <Screen
-      title="Tests & marks"
-      subtitle="Tap a test to enter or check marks."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Tests & marks" subtitle="Tap a test to enter marks." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && d.length === 0 && (

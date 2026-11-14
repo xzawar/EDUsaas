@@ -19,7 +19,7 @@ export default function AdminsScreen() {
   return (
     <Screen
       title="Platform admins"
-      subtitle="Add admins and change grants on the web console."
+      subtitle="Manage admins on the web."
       refreshing={q.isFetching}
       onRefresh={q.refetch}
     >

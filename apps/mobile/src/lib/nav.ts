@@ -1,7 +1,7 @@
-import type { Ionicons } from '@expo/vector-icons';
+import type { IconName } from '@/components/icon';
 import type { Me } from './session';
 
-export type Tab = { name: string; title: string; icon: keyof typeof Ionicons.glyphMap };
+export type Tab = { name: string; title: string; icon: IconName };
 
 /**
  * Tabs per role (spec §3.4). The server still decides what each screen may load; this only picks the doors.
@@ -30,9 +30,10 @@ export function tabsFor(me: Me): Tab[] {
       ];
     case 'ACCOUNTANT':
       return [
-        { name: 'index', title: 'Overview', icon: 'wallet-outline' },
+        // The counter in a pocket: today's money, taking a payment, checking proofs. Bills, payroll and setup are
+        // done on the website.
+        { name: 'index', title: 'Home', icon: 'home-outline' },
         { name: 'collect', title: 'Collect', icon: 'cash-outline' },
-        { name: 'invoices', title: 'Bills', icon: 'receipt-outline' },
         { name: 'claims', title: 'Proofs', icon: 'checkmark-done-outline' },
         more,
       ];
@@ -66,72 +67,66 @@ export function tabsFor(me: Me): Tab[] {
   }
 }
 
-export type MoreItem = { href: string; title: string; icon: keyof typeof Ionicons.glyphMap; subtitle?: string };
+export type MoreItem = { href: string; title: string; icon: IconName; subtitle?: string };
 
-/** The "More" sheet: everything not worth a tab. */
-export function moreFor(me: Me): MoreItem[] {
+/**
+ * The "More" list: only what is not already a tab, and only what this person uses on a phone. It never repeats a
+ * tab, shows "Waiting to send" only when something is waiting, and leaves desk work (payroll, fee setup, bills
+ * lists) to the website.
+ */
+export function moreFor(me: Me, opts: { pending?: number } = {}): MoreItem[] {
   const can = (p: string) => me.permissions.includes(p);
   const role = me.user.role;
+  const tabs = new Set(tabsFor(me).map((t) => `/(app)/${t.name}`));
+  const financeTab = tabs.has('/(app)/finance');
+  const platform = role === 'PLATFORM_OWNER' || role === 'PLATFORM_ADMIN';
   const items: MoreItem[] = [];
   const add = (cond: boolean, item: MoreItem) => cond && items.push(item);
+
   add(role === 'STUDENT' || can('timetable.view'), {
     href: '/(app)/more/timetable',
     title: 'Timetable',
     icon: 'time-outline',
   });
+  add(role === 'STUDENT', { href: '/(app)/more/report-card', title: 'Report card', icon: 'document-text-outline' });
   add(role === 'STUDENT' || can('leave.apply') || can('leave.approve'), {
     href: '/(app)/leave',
     title: 'Leave',
     icon: 'airplane-outline',
   });
-  add(role !== 'PLATFORM_OWNER' && role !== 'PLATFORM_ADMIN', {
-    href: '/(app)/announcements',
-    title: 'Announcements',
-    icon: 'megaphone-outline',
-  });
-  add(role === 'STUDENT', { href: '/(app)/more/report-card', title: 'Report card', icon: 'document-text-outline' });
   add(role === 'TEACHER', { href: '/(app)/students', title: 'My students', icon: 'school-outline' });
-  add(can('marks.manage') || can('reports.read'), {
+  add(role !== 'TEACHER' && (can('marks.manage') || can('reports.read')), {
     href: '/(app)/marks',
     title: 'Tests & marks',
     icon: 'ribbon-outline',
   });
-  add(can('fees.collect'), { href: '/(app)/collect', title: 'Collect fees', icon: 'cash-outline' });
-  add(can('fees.collect'), { href: '/(app)/invoices', title: 'Fee bills', icon: 'receipt-outline' });
-  add(can('fees.collect'), { href: '/(app)/claims', title: 'Payment proofs', icon: 'checkmark-done-outline' });
-  add(can('expenses.manage') || can('finance.read'), {
-    href: '/(app)/more/expenses',
-    title: 'Expenses',
-    icon: 'bag-outline',
-  });
-  add(can('payroll.manage') || can('finance.read'), {
-    href: '/(app)/more/payroll',
-    title: 'Payroll',
-    icon: 'card-outline',
-  });
-  add(can('finance.read'), { href: '/(app)/more/reports', title: 'Money reports', icon: 'stats-chart-outline' });
-  add(
-    role !== 'STUDENT' &&
-      role !== 'PLATFORM_OWNER' &&
-      role !== 'PLATFORM_ADMIN' &&
-      role !== 'ACCOUNTANT' &&
-      role !== 'SCHOOL_ADMIN',
-    { href: '/(app)/more/payslips', title: 'My payslips', icon: 'document-outline' },
-  );
   add(can('teacher_attendance.oversee'), {
     href: '/(app)/more/checkins',
     title: 'Teacher check-ins',
     icon: 'finger-print-outline',
   });
+  // Money, for roles without a Finance tab (the Finance tab links to these itself).
+  add(!financeTab && can('finance.read'), {
+    href: '/(app)/more/reports',
+    title: 'Who owes',
+    icon: 'stats-chart-outline',
+  });
+  add(!financeTab && can('expenses.manage'), { href: '/(app)/more/expenses', title: 'Expenses', icon: 'bag-outline' });
+  add(role === 'TEACHER' || role === 'PRINCIPAL' || role === 'ADMISSIONS_OFFICER', {
+    href: '/(app)/more/payslips',
+    title: 'My payslips',
+    icon: 'document-outline',
+  });
   add(can('platform.plans.manage'), { href: '/(app)/more/plans', title: 'Plans', icon: 'pricetags-outline' });
   add(can('platform.admins.manage'), { href: '/(app)/more/admins', title: 'Platform admins', icon: 'shield-outline' });
-  items.push({ href: '/(app)/more/notifications', title: 'Notifications', icon: 'notifications-outline' });
-  items.push({
+  add(!platform, { href: '/(app)/announcements', title: 'Notices', icon: 'megaphone-outline' });
+  add(!platform, { href: '/(app)/more/notifications', title: 'Notifications', icon: 'notifications-outline' });
+  add(!!opts.pending, {
     href: '/(app)/more/queue',
     title: 'Waiting to send',
     icon: 'cloud-upload-outline',
-    subtitle: 'Things saved offline',
+    subtitle: `${opts.pending} saved on this phone`,
   });
   items.push({ href: '/change-password', title: 'Change password', icon: 'key-outline' });
-  return items;
+  return items.filter((i) => !tabs.has(i.href));
 }

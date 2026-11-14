@@ -82,7 +82,7 @@ export default function CollectScreen() {
   const open = fees?.invoices.filter((i) => i.status === 'DUE' || i.status === 'PARTIAL') ?? [];
 
   return (
-    <Screen title="Collect fees" subtitle="Find the student, take the money, share the receipt.">
+    <Screen title="Collect fees" subtitle="Find a student, take the fee.">
       <Input
         placeholder="Student name, username or roll no."
         value={q}

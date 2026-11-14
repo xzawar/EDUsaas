@@ -18,7 +18,7 @@ export default function PlansScreen() {
   const q = useGet<P>('/platform/plans');
   const d = q.data;
   return (
-    <Screen title="Plans" subtitle="Edit plans on the web console." refreshing={q.isFetching} onRefresh={q.refetch}>
+    <Screen title="Plans" subtitle="Edit plans on the web." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && d.items.length === 0 && (

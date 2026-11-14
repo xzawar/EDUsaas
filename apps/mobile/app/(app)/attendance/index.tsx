@@ -49,12 +49,7 @@ function MyAttendance() {
     EXCUSED: 'slate',
   };
   return (
-    <Screen
-      title="Attendance"
-      subtitle="Present and Late count as attended. Approved leave doesn’t count against you."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Attendance" subtitle="Present and Late both count." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && (

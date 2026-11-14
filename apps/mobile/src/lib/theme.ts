@@ -52,15 +52,18 @@ export const family = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
   display: 'ArchivoBlack_400Regular',
 };
 
 /** Type ramp. Tracking follows Inter's dynamic metrics: -0.0223 + 0.185·e^(-0.1745·px), in px here. */
 export const font = {
   display: { fontFamily: family.display, fontSize: 44, lineHeight: 40, color: colors.ink, letterSpacing: -0.4 },
-  h1: { fontSize: 30, lineHeight: 35, fontWeight: '600' as const, color: colors.ink, letterSpacing: -0.64 },
-  h2: { fontSize: 18, lineHeight: 24, fontWeight: '600' as const, color: colors.ink, letterSpacing: -0.25 },
-  title: { fontSize: 22, lineHeight: 28, fontWeight: '600' as const, color: colors.ink, letterSpacing: -0.4 },
+  // Bold by design: every screen's one title is the heavy display face; section titles and numbers are Inter Bold.
+  h1: { fontFamily: family.display, fontSize: 32, lineHeight: 35, color: colors.ink, letterSpacing: -0.3 },
+  h2: { fontSize: 19, lineHeight: 25, fontWeight: '700' as const, color: colors.ink, letterSpacing: -0.3 },
+  title: { fontSize: 22, lineHeight: 28, fontWeight: '700' as const, color: colors.ink, letterSpacing: -0.4 },
+  number: { fontSize: 24, lineHeight: 30, fontWeight: '700' as const, color: colors.ink, letterSpacing: -0.45 },
   body: { fontSize: 16, lineHeight: 24, color: colors.text, letterSpacing: -0.18 },
   small: { fontSize: 14, lineHeight: 21, color: colors.text, letterSpacing: -0.08 },
   tiny: { fontSize: 13, lineHeight: 18, color: colors.muted },

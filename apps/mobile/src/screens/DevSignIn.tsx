@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,7 +44,7 @@ export function DevSignIn({ visible, onClose }: { visible: boolean; onClose: () 
           <View style={{ alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: colors.line }} />
           <View style={{ paddingHorizontal: space.xl, paddingTop: space.lg, paddingBottom: space.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="construct-outline" size={20} color={colors.deep} />
+              <Icon name="construct-outline" size={20} color={colors.deep} />
               <Text style={font.title}>Developer sign-in</Text>
             </View>
             <Text style={[font.small, { marginTop: space.sm }]}>
@@ -72,7 +72,7 @@ export function DevSignIn({ visible, onClose }: { visible: boolean; onClose: () 
                   <Text style={{ fontSize: 16, fontWeight: '600', color: colors.ink }}>{d.label}</Text>
                   <Text style={font.tiny}>{d.sub}</Text>
                 </View>
-                <Ionicons
+                <Icon
                   name={busy === d.identifier ? 'ellipsis-horizontal' : 'chevron-forward'}
                   size={20}
                   color={colors.muted}

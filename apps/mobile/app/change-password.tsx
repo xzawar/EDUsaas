@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Text } from '@/components/text';
@@ -37,7 +37,7 @@ export default function ChangePasswordScreen() {
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled">
       {forced && (
         <View style={{ flexDirection: 'row', gap: 10, backgroundColor: colors.card, borderRadius: 16, padding: 16 }}>
-          <Ionicons name="key" size={20} color={colors.deep} />
+          <Icon name="key" size={20} color={colors.deep} />
           <Text style={{ flex: 1, color: colors.ink, fontSize: 15, lineHeight: 22 }}>
             Welcome! This is your first sign-in, so choose your own password to continue.
           </Text>

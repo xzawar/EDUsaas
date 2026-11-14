@@ -59,12 +59,7 @@ export default function FeesScreen() {
   const open = d?.invoices.filter((i) => i.status === 'DUE' || i.status === 'PARTIAL') ?? [];
   const pending = d?.claims.filter((c) => c.status === 'PENDING') ?? [];
   return (
-    <Screen
-      title="Fees"
-      subtitle="Pay at the school office, or send proof of a transfer here."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Fees" subtitle="Pay at the office or send a proof." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && (

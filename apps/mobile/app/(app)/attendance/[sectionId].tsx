@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -194,7 +194,7 @@ export default function RegisterScreen() {
             )}
             {d.date === todayIso() && (
               <Text style={[font.tiny, { textAlign: 'center' }]}>
-                Offline? It still saves and sends later. <Ionicons name="cloud-offline-outline" size={12} />
+                Offline? It still saves and sends later. <Icon name="cloud-offline-outline" size={12} />
               </Text>
             )}
           </>

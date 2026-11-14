@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
@@ -85,13 +85,13 @@ export default function LoginScreen() {
               style={{ position: 'absolute', right: 14, top: 14 }}
               accessibilityLabel={show ? 'Hide password' : 'Show password'}
             >
-              <Ionicons name={show ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.muted} />
+              <Icon name={show ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.muted} />
             </Pressable>
           </View>
         </Field>
         {!!error && (
           <View style={{ flexDirection: 'row', gap: 10, backgroundColor: colors.card, borderRadius: 16, padding: 16 }}>
-            <Ionicons name="alert-circle" size={20} color={colors.red} />
+            <Icon name="alert-circle" size={20} color={colors.red} />
             <Text style={{ flex: 1, color: colors.red, fontSize: 15 }}>{error}</Text>
           </View>
         )}

@@ -21,12 +21,7 @@ export default function CheckinsScreen() {
   const q = useGet<B>('/teacher-attendance');
   const d = q.data;
   return (
-    <Screen
-      title="Teacher check-ins"
-      subtitle="Today. Corrections are made on the web."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Teacher check-ins" subtitle="Who checked in today." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && d.list.length === 0 && (

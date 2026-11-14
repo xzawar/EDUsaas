@@ -17,12 +17,7 @@ export default function SchoolsScreen() {
   const q = useGet<T>('/platform/tenants?limit=50');
   const d = q.data;
   return (
-    <Screen
-      title="Schools"
-      subtitle="Metadata only. Never student or teacher records."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Schools" subtitle="School accounts only." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && d.items.length === 0 && (

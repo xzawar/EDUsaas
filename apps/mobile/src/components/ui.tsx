@@ -1,7 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import { type ReactNode } from 'react';
+import { Icon, type IconName } from '@/components/icon';
+import { type ReactNode, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -110,6 +111,15 @@ export function Card({
   );
 }
 
+/** The small "See all" link at the right of a card heading. */
+export function SeeAll({ onPress, label = 'See all' }: { onPress: () => void; label?: string }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={12} accessibilityRole="link">
+      <Text style={{ color: colors.deep, fontWeight: '700', textDecorationLine: 'underline' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /** A number tile: icon in a white disc, a label, then the value large and dark. Tappable when it leads somewhere. */
 export function Stat({
   tone,
@@ -123,7 +133,7 @@ export function Stat({
   title: string;
   value: ReactNode;
   caption?: ReactNode;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   onPress?: () => void;
 }) {
   const t = tones[tone];
@@ -136,24 +146,13 @@ export function Stat({
     >
       {icon && (
         <View style={styles.statIcon}>
-          <Ionicons name={icon} size={20} color={t.fg} />
+          <Icon name={icon} size={20} color={t.fg} />
         </View>
       )}
       <Text style={[font.small, { marginTop: space.md }]} numberOfLines={1}>
         {title}
       </Text>
-      <Text
-        style={{
-          fontSize: 20,
-          lineHeight: 26,
-          fontWeight: '600',
-          color: colors.ink,
-          letterSpacing: -0.3,
-          fontVariant: ['tabular-nums'],
-        }}
-      >
-        {value}
-      </Text>
+      <Text style={[font.number, { fontVariant: ['tabular-nums'] }]}>{value}</Text>
       {caption ? (
         <Text style={[font.tiny, { marginTop: 2 }]} numberOfLines={2}>
           {caption}
@@ -178,7 +177,7 @@ export function Button({
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   loading?: boolean;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 }) {
   const bg =
@@ -210,7 +209,7 @@ export function Button({
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={20} color={fg} /> : null}
+      {loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} size={20} color={fg} /> : null}
       <Text
         style={{
           color: fg,
@@ -314,7 +313,7 @@ export function Row({
         ) : null}
       </View>
       {typeof right === 'string' || typeof right === 'number' ? <Text style={font.small}>{right}</Text> : right}
-      {onPress && !right ? <Ionicons name="chevron-forward" size={20} color={colors.muted} /> : null}
+      {onPress && !right ? <Icon name="chevron-forward" size={20} color={colors.muted} /> : null}
     </Pressable>
   );
 }
@@ -326,7 +325,7 @@ export function Empty({
   body,
   action,
 }: {
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   title: string;
   body?: string;
   action?: ReactNode;
@@ -334,7 +333,7 @@ export function Empty({
   return (
     <View style={{ alignItems: 'center', paddingVertical: space.xxl, paddingHorizontal: space.lg, gap: space.sm }}>
       <View style={styles.emptyIcon}>
-        <Ionicons name={icon} size={30} color={colors.deep} />
+        <Icon name={icon} size={30} color={colors.deep} />
       </View>
       <Text style={[font.h2, { textAlign: 'center', marginTop: space.sm }]}>{title}</Text>
       {body ? <Text style={[font.small, { textAlign: 'center', maxWidth: 300 }]}>{body}</Text> : null}
@@ -347,11 +346,34 @@ export function Money({ paisa, style }: { paisa: number; style?: StyleProp<TextS
   return <Text style={[{ fontVariant: ['tabular-nums'], color: colors.ink }, style]}>{formatPKR(paisa)}</Text>;
 }
 
+/** Loading placeholder: the shape of the content to come (two tiles and a card), gently pulsing. No spinner. */
 export function Loading() {
+  const pulse = useRef(new Animated.Value(0.55)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.55, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  const block = (h: number, extra?: ViewStyle) => (
+    <View style={[{ height: h, borderRadius: radius.lg, backgroundColor: colors.card }, extra]} />
+  );
   return (
-    <View style={{ padding: 48, alignItems: 'center' }}>
-      <ActivityIndicator color={colors.deep} />
-    </View>
+    <Animated.View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+      style={{ gap: space.md, opacity: pulse }}
+    >
+      <View style={{ flexDirection: 'row', gap: space.md }}>
+        {block(112, { flex: 1 })}
+        {block(112, { flex: 1 })}
+      </View>
+      {block(168)}
+    </Animated.View>
   );
 }
 
@@ -360,7 +382,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   return (
     <View style={[styles.card, { gap: space.md }]}>
       <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
-        <Ionicons name="alert-circle" size={22} color={colors.red} />
+        <Icon name="alert-circle" size={22} color={colors.red} />
         <Text style={[font.body, { flex: 1, color: colors.ink }]}>{message}</Text>
       </View>
       {onRetry && (

@@ -107,7 +107,7 @@ describe('role boundaries in the menu', () => {
       expect(h).not.toContain(x);
   });
   it('the accountant collects at the counter', () => {
-    expect(tabsFor(me('ACCOUNTANT')).map((t) => t.name)).toEqual(['index', 'collect', 'invoices', 'claims', 'more']);
+    expect(tabsFor(me('ACCOUNTANT')).map((t) => t.name)).toEqual(['index', 'collect', 'claims', 'more']);
   });
   it('the principal reads finance but cannot collect', () => {
     const h = hrefs('PRINCIPAL');

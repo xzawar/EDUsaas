@@ -11,12 +11,7 @@ export default function PayslipsScreen() {
   const q = useGet<P>('/me/payslips');
   const d = q.data;
   return (
-    <Screen
-      title="My payslips"
-      subtitle="Tap to open or share the PDF."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="My payslips" subtitle="Tap one to open it." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && d.items.length === 0 && (
