@@ -1,4 +1,5 @@
-import { Linking, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button } from '@/components/ui';
 import { API_URL, APP_VERSION } from '@/lib/config';
 import type { Release } from '@/lib/update';

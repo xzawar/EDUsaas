@@ -503,7 +503,7 @@ function FinanceCard({ fin }: { fin: Awaited<ReturnType<typeof financeOverview>>
         </div>
       </dl>
       {fin.claimsPending > 0 && (
-        <Link href="/staff/finance/claims" className="mt-3 block text-sm font-medium text-[var(--accent)]">
+        <Link href="/staff/finance/claims" className="mt-3 block text-sm font-medium text-link">
           {plural(fin.claimsPending, 'payment proof')} to check →
         </Link>
       )}
@@ -561,7 +561,7 @@ function PlanPanel({ sub }: { sub: Awaited<ReturnType<typeof tenantSubscription>
       </div>
       <p className="mt-3 text-xs text-slate-500">
         Need more room?{' '}
-        <Link href="/staff/support" className="font-medium text-[var(--accent)]">
+        <Link href="/staff/support" className="font-medium text-link">
           Ask EDUsaas
         </Link>
         .

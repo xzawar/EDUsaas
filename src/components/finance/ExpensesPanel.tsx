@@ -207,7 +207,7 @@ export function ExpenseTable({ items }: { items: Expense[] }) {
                   href={`/api/v1/expenses/${e.id}/receipt`}
                   target="_blank"
                   rel="noopener"
-                  className="text-sm text-[var(--accent)] hover:underline"
+                  className="text-sm text-link hover:underline"
                 >
                   Bill
                 </a>

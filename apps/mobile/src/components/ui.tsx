@@ -6,8 +6,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   type PressableProps,
   type StyleProp,
@@ -17,9 +15,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatPKR } from '@edusaas/shared';
+import { Text, TextInput } from '@/components/text';
 import { colors, font, radius, space, tones, type Tone } from '@/lib/theme';
 
-/** Scrollable screen with pull-to-refresh and safe-area bottom padding. */
+/**
+ * The app's building blocks, in the same calm system as the website: white screens, tinted flat cards (no shadows),
+ * pill buttons with one loud action per screen, and colour used only for meaning.
+ */
+
+/** Scrollable screen: a large title (with the status-bar inset), pull-to-refresh, and room above the tab bar. */
 export function Screen({
   children,
   refreshing,
@@ -43,22 +47,35 @@ export function Screen({
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{
         padding: padded ? space.lg : 0,
-        paddingTop: (title ? insets.top : 0) + (padded ? space.lg : 0),
+        paddingTop: (title ? insets.top + space.xl : 0) + (padded ? space.lg : 0),
         paddingBottom: insets.bottom + 96,
         gap: space.lg,
       }}
       refreshControl={
         onRefresh ? (
-          <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.deep}
+            colors={[colors.deep]}
+          />
         ) : undefined
       }
       keyboardShouldPersistTaps="handled"
     >
       {title && (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space.md }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: space.md,
+            marginBottom: space.sm,
+          }}
+        >
           <View style={{ flex: 1 }}>
             <Text style={font.h1}>{title}</Text>
-            {subtitle ? <Text style={[font.small, { marginTop: 2 }]}>{subtitle}</Text> : null}
+            {subtitle ? <Text style={[font.body, { marginTop: space.sm }]}>{subtitle}</Text> : null}
           </View>
           {right}
         </View>
@@ -68,6 +85,7 @@ export function Screen({
   );
 }
 
+/** Flat tinted card, radius 16. */
 export function Card({
   children,
   title,
@@ -92,6 +110,7 @@ export function Card({
   );
 }
 
+/** A number tile: icon in a white disc, a label, then the value large and dark. Tappable when it leads somewhere. */
 export function Stat({
   tone,
   title,
@@ -112,28 +131,42 @@ export function Stat({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={({ pressed }) => [styles.stat, { backgroundColor: t.bg, opacity: pressed ? 0.85 : 1 }]}
+      accessibilityRole={onPress ? 'button' : undefined}
+      style={({ pressed }) => [styles.stat, { backgroundColor: pressed ? colors.cardStrong : t.bg }]}
     >
       {icon && (
         <View style={styles.statIcon}>
           <Ionicons name={icon} size={20} color={t.fg} />
         </View>
       )}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        {caption ? (
-          <Text style={[font.tiny, { color: colors.muted }]} numberOfLines={2}>
-            {caption}
-          </Text>
-        ) : null}
-        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>{title}</Text>
-        <Text style={{ fontSize: 15, fontWeight: '500', color: colors.text, fontVariant: ['tabular-nums'] }}>
-          {value}
+      <Text style={[font.small, { marginTop: space.md }]} numberOfLines={1}>
+        {title}
+      </Text>
+      <Text
+        style={{
+          fontSize: 20,
+          lineHeight: 26,
+          fontWeight: '600',
+          color: colors.ink,
+          letterSpacing: -0.3,
+          fontVariant: ['tabular-nums'],
+        }}
+      >
+        {value}
+      </Text>
+      {caption ? (
+        <Text style={[font.tiny, { marginTop: 2 }]} numberOfLines={2}>
+          {caption}
         </Text>
-      </View>
+      ) : null}
     </Pressable>
   );
 }
 
+/**
+ * Pill button. `primary` is the screen's one loud action (brand fill, deep text); `secondary` a quiet tinted fill;
+ * `ghost` a link-coloured text button; `danger` only for destructive actions.
+ */
 export function Button({
   children,
   variant = 'primary',
@@ -150,30 +183,45 @@ export function Button({
 }) {
   const bg =
     variant === 'primary'
-      ? colors.ink
+      ? colors.brand
       : variant === 'danger'
         ? colors.red
         : variant === 'secondary'
-          ? colors.card
+          ? colors.cardStrong
           : 'transparent';
-  const fg = variant === 'primary' || variant === 'danger' ? '#fff' : colors.text;
+  const fg =
+    variant === 'primary'
+      ? colors.deep
+      : variant === 'danger'
+        ? '#fff'
+        : variant === 'ghost'
+          ? colors.deep
+          : colors.ink;
+  const disabled = !!rest.disabled || !!loading;
   return (
     <Pressable
+      accessibilityRole="button"
       {...rest}
-      disabled={rest.disabled || loading}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
-        {
-          backgroundColor: bg,
-          borderWidth: variant === 'secondary' ? 1 : 0,
-          borderColor: colors.line,
-          opacity: rest.disabled ? 0.5 : pressed ? 0.8 : 1,
-        },
+        { backgroundColor: bg, opacity: rest.disabled ? 0.45 : pressed ? 0.85 : 1 },
+        variant === 'ghost' && { minHeight: 44, paddingHorizontal: 12 },
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={18} color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '600', fontSize: 15 }}>{children}</Text>
+      {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={20} color={fg} /> : null}
+      <Text
+        style={{
+          color: fg,
+          fontWeight: '600',
+          fontSize: 16,
+          letterSpacing: -0.18,
+          textDecorationLine: variant === 'ghost' ? 'underline' : 'none',
+        }}
+      >
+        {children}
+      </Text>
     </Pressable>
   );
 }
@@ -190,11 +238,11 @@ export function Field({
   error?: string | null;
 }) {
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>{label}</Text>
+    <View style={{ gap: space.sm }}>
+      <Text style={font.small}>{label}</Text>
       {children}
       {error ? (
-        <Text style={{ fontSize: 12, color: colors.red }}>{error}</Text>
+        <Text style={{ fontSize: 13, color: colors.red }}>{error}</Text>
       ) : hint ? (
         <Text style={font.tiny}>{hint}</Text>
       ) : null}
@@ -206,6 +254,7 @@ export function Input(props: TextInputProps) {
   return <TextInput placeholderTextColor={colors.faint} {...props} style={[styles.input, props.style]} />;
 }
 
+/** Status pill: neutral fill, the tone colours the text (and a yellow dot for "waiting"). */
 export function Badge({
   children,
   tone = 'slate',
@@ -213,28 +262,16 @@ export function Badge({
   children: ReactNode;
   tone?: 'slate' | 'green' | 'amber' | 'red' | 'blue';
 }) {
-  const map = {
-    slate: { bg: '#f1f5f9', fg: '#334155' },
-    green: { bg: colors.greenSoft, fg: '#065f46' },
-    amber: { bg: colors.amberSoft, fg: '#92400e' },
-    red: { bg: colors.redSoft, fg: '#991b1b' },
-    blue: { bg: colors.skySoft, fg: '#075985' },
-  }[tone];
+  const fg = { slate: colors.ink, green: colors.green, amber: colors.text, red: colors.red, blue: colors.deep }[tone];
   return (
-    <View
-      style={{
-        backgroundColor: map.bg,
-        borderRadius: radius.pill,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        alignSelf: 'flex-start',
-      }}
-    >
-      <Text style={{ fontSize: 12, fontWeight: '600', color: map.fg }}>{children}</Text>
+    <View style={styles.badge}>
+      {tone === 'amber' && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.amber }} />}
+      <Text style={{ fontSize: 12, lineHeight: 18, fontWeight: '600', color: fg }}>{children}</Text>
     </View>
   );
 }
 
+/** List row: flush (rows bring their own padding), title SemiBold, subtitle in body colour, optional trailing item. */
 export function Row({
   title,
   subtitle,
@@ -252,12 +289,15 @@ export function Row({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#f8fafc' }]}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.7)' }]}
     >
       {left}
       <View style={{ flex: 1, minWidth: 0 }}>
         {typeof title === 'string' || typeof title === 'number' ? (
-          <Text style={{ fontSize: 15, fontWeight: '500', color: colors.ink }} numberOfLines={1}>
+          <Text
+            style={{ fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.ink, letterSpacing: -0.18 }}
+            numberOfLines={1}
+          >
             {title}
           </Text>
         ) : (
@@ -265,7 +305,7 @@ export function Row({
         )}
         {subtitle ? (
           typeof subtitle === 'string' || typeof subtitle === 'number' ? (
-            <Text style={font.small} numberOfLines={2}>
+            <Text style={[font.small, { marginTop: 2 }]} numberOfLines={2}>
               {subtitle}
             </Text>
           ) : (
@@ -274,11 +314,12 @@ export function Row({
         ) : null}
       </View>
       {typeof right === 'string' || typeof right === 'number' ? <Text style={font.small}>{right}</Text> : right}
-      {onPress && !right ? <Ionicons name="chevron-forward" size={18} color={colors.faint} /> : null}
+      {onPress && !right ? <Ionicons name="chevron-forward" size={20} color={colors.muted} /> : null}
     </Pressable>
   );
 }
 
+/** Empty state: a picture, what will show here, and the one thing to do next. */
 export function Empty({
   icon = 'leaf-outline',
   title,
@@ -291,22 +332,13 @@ export function Empty({
   action?: ReactNode;
 }) {
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 28, gap: 8 }}>
-      <View
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          backgroundColor: '#f1f5f9',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons name={icon} size={22} color={colors.muted} />
+    <View style={{ alignItems: 'center', paddingVertical: space.xxl, paddingHorizontal: space.lg, gap: space.sm }}>
+      <View style={styles.emptyIcon}>
+        <Ionicons name={icon} size={30} color={colors.deep} />
       </View>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.ink }}>{title}</Text>
-      {body ? <Text style={[font.small, { textAlign: 'center', maxWidth: 280 }]}>{body}</Text> : null}
-      {action}
+      <Text style={[font.h2, { textAlign: 'center', marginTop: space.sm }]}>{title}</Text>
+      {body ? <Text style={[font.small, { textAlign: 'center', maxWidth: 300 }]}>{body}</Text> : null}
+      {action ? <View style={{ marginTop: space.lg, alignSelf: 'stretch' }}>{action}</View> : null}
     </View>
   );
 }
@@ -317,18 +349,22 @@ export function Money({ paisa, style }: { paisa: number; style?: StyleProp<TextS
 
 export function Loading() {
   return (
-    <View style={{ padding: 40, alignItems: 'center' }}>
-      <ActivityIndicator color={colors.accent} />
+    <View style={{ padding: 48, alignItems: 'center' }}>
+      <ActivityIndicator color={colors.deep} />
     </View>
   );
 }
 
+/** Errors give the cause and a next step: neutral card, red icon, and "Try again". */
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <View style={{ backgroundColor: colors.amberSoft, borderRadius: radius.lg, padding: space.md, gap: 8 }}>
-      <Text style={{ color: '#92400e' }}>{message}</Text>
+    <View style={[styles.card, { gap: space.md }]}>
+      <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
+        <Ionicons name="alert-circle" size={22} color={colors.red} />
+        <Text style={[font.body, { flex: 1, color: colors.ink }]}>{message}</Text>
+      </View>
       {onRetry && (
-        <Button variant="secondary" onPress={onRetry}>
+        <Button variant="secondary" icon="refresh-outline" onPress={onRetry}>
           Try again
         </Button>
       )}
@@ -336,13 +372,16 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   );
 }
 
+/** Filter chip: the selected one is ink, the rest sit on the tint. */
 export function Chip({ children, active, onPress }: { children: ReactNode; active?: boolean; onPress?: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, active && { backgroundColor: colors.ink, borderColor: colors.ink }]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!active }}
+      style={[styles.chip, active && { backgroundColor: colors.ink }]}
     >
-      <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : colors.text }}>{children}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: active ? '#fff' : colors.ink }}>{children}</Text>
     </Pressable>
   );
 }
@@ -352,23 +391,20 @@ export function Hr() {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderRadius: radius.xl, padding: space.lg, gap: space.sm },
-  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, gap: space.sm },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xs },
   stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: radius.xl,
-    padding: 14,
+    borderRadius: radius.lg,
+    padding: space.lg,
     minWidth: '47%',
     flexGrow: 1,
     flexBasis: '47%',
   },
   statIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -377,29 +413,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minHeight: 46,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.xl,
+    minHeight: 52,
   },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
-    color: colors.ink,
-    minHeight: 48,
+    minHeight: 52,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderRadius: radius.md },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.cardStrong,
     borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: radius.lg,
+  },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chip: {
+    height: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
     backgroundColor: colors.card,
   },
 });

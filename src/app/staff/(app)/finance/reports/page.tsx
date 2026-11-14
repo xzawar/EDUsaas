@@ -98,7 +98,10 @@ async function SummaryTab({ period, today, csv }: { period: string; today: strin
             </option>
           ))}
         </Select>
-        <button type="submit" className="h-9 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white">
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center justify-center rounded-full bg-white px-5 text-[15px] font-semibold text-primary ring-1 ring-line hover:bg-tint-strong"
+        >
           Show
         </button>
         <span className="ml-auto">
@@ -157,7 +160,10 @@ async function DailyTab({ q, csv }: { q: { from?: string; to?: string }; csv: st
             className="h-9 rounded-lg border border-slate-300 px-2 text-sm"
           />
         </label>
-        <button type="submit" className="h-9 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white">
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center justify-center rounded-full bg-white px-5 text-[15px] font-semibold text-primary ring-1 ring-line hover:bg-tint-strong"
+        >
           Show
         </button>
         <span className="ml-auto">

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 import { colors, radius } from '@/lib/theme';
@@ -41,7 +42,7 @@ export function ToastHost() {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 10,
-            backgroundColor: t.tone === 'error' ? colors.redSoft : colors.ink,
+            backgroundColor: colors.ink,
             borderRadius: radius.lg,
             paddingHorizontal: 14,
             paddingVertical: 12,
@@ -50,9 +51,9 @@ export function ToastHost() {
           <Ionicons
             name={t.tone === 'error' ? 'alert-circle' : t.tone === 'info' ? 'information-circle' : 'checkmark-circle'}
             size={20}
-            color={t.tone === 'error' ? colors.red : '#34d399'}
+            color={t.tone === 'error' ? '#ffbfba' : colors.brand}
           />
-          <Text style={{ color: t.tone === 'error' ? '#7f1d1d' : '#fff', flex: 1, fontSize: 14 }}>{t.text}</Text>
+          <Text style={{ color: '#fff', flex: 1, fontSize: 15, lineHeight: 21 }}>{t.text}</Text>
         </View>
       ))}
     </View>

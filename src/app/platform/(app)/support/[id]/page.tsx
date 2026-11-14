@@ -48,10 +48,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
             {t.messages.map((m) => (
               <li
                 key={m.id}
-                className={cx(
-                  'rounded-2xl px-4 py-3',
-                  m.fromPlatform ? 'ml-8 bg-[var(--accent)]/10' : 'mr-8 bg-slate-50',
-                )}
+                className={cx('rounded-2xl px-4 py-3', m.fromPlatform ? 'ml-8 bg-tint' : 'mr-8 bg-slate-50')}
               >
                 <p className="text-xs text-slate-500">
                   {m.author} · {fmt(m.createdAt)}
@@ -73,7 +70,7 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
             </p>
             <Link
               href={`/platform/tenants/${t.school.id}?ticket=${t.id}`}
-              className="mt-3 inline-block text-sm font-medium text-[var(--accent)] hover:underline"
+              className="mt-3 inline-block text-sm font-medium text-link hover:underline"
             >
               Ask for support access →
             </Link>

@@ -68,7 +68,7 @@ export default async function PlatformAuditPage({
           <div className="mt-4 text-center">
             <Link
               href={`/platform/audit?${scope === 'all' ? 'scope=all&' : ''}cursor=${nextCursor}`}
-              className="text-sm font-medium text-[var(--accent)] hover:underline"
+              className="text-sm font-medium text-link hover:underline"
             >
               Show older →
             </Link>

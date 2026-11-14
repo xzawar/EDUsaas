@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import * as Haptics from 'expo-haptics';
 import { Button, Card } from '@/components/ui';
 import { toast } from '@/components/toast';

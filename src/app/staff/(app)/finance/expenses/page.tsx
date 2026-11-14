@@ -74,7 +74,7 @@ export default async function ExpensesPage({
             </label>
             <button
               type="submit"
-              className="h-9 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white hover:brightness-110"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-white px-5 text-[15px] font-semibold text-primary ring-1 ring-line hover:bg-tint-strong"
             >
               Show
             </button>

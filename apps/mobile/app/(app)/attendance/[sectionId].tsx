@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button, Card, Chip, ErrorBox, Loading, Screen } from '@/components/ui';
 import { toast } from '@/components/toast';
 import { errorText, useGet, useInvalidate } from '@/lib/data';
@@ -25,10 +26,11 @@ type Sheet = {
   students: { id: string; name: string; rollNumber: number | null; status: Status | null; onApprovedLeave: boolean }[];
 };
 const OPTIONS: { s: Status; label: string; color: string; bg: string }[] = [
-  { s: 'PRESENT', label: 'P', color: '#065f46', bg: colors.greenSoft },
-  { s: 'ABSENT', label: 'A', color: '#991b1b', bg: colors.redSoft },
-  { s: 'LATE', label: 'L', color: '#92400e', bg: colors.amberSoft },
-  { s: 'LEAVE', label: 'Lv', color: '#075985', bg: colors.skySoft },
+  // The chosen mark is a solid control in its meaning's colour, so a full register reads at a glance.
+  { s: 'PRESENT', label: 'P', color: '#fff', bg: colors.green },
+  { s: 'ABSENT', label: 'A', color: '#fff', bg: colors.red },
+  { s: 'LATE', label: 'L', color: colors.ink, bg: colors.amber },
+  { s: 'LEAVE', label: 'Lv', color: '#fff', bg: colors.deep2 },
 ];
 
 /** The register (spec §6): one tap per student, works offline, resend-safe through the client UUID. */
@@ -170,7 +172,7 @@ export default function RegisterScreen() {
                             borderRadius: radius.md,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: on ? o.bg : '#f8fafc',
+                            backgroundColor: on ? o.bg : '#fff',
                             borderWidth: on ? 0 : 1,
                             borderColor: colors.line,
                           }}

@@ -11,56 +11,45 @@ import type {
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
+/** Button styles, shared with ButtonLink. Pills; the accent fill is reserved for the one main action on a screen. */
+export const buttonClass = (
+  variant: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-ghost' | 'ghost' = 'primary',
+  size: 'sm' | 'md' | 'lg' = 'md',
+) =>
+  cx(
+    'inline-flex items-center justify-center gap-2 rounded-full font-semibold tracking-[-0.011em] whitespace-nowrap transition-colors duration-200 ease-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-deep focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+    size === 'lg' && 'h-12 px-6 text-base',
+    size === 'md' && 'h-10 px-5 text-[15px]',
+    size === 'sm' && 'h-8 px-3.5 text-[13px]',
+    variant === 'primary' && 'bg-accent text-deep hover:bg-[#9b8bff]',
+    variant === 'secondary' && 'bg-tint text-primary hover:bg-tint-strong',
+    variant === 'tertiary' && 'text-link underline underline-offset-4 hover:bg-tint',
+    variant === 'ghost' && 'text-secondary hover:bg-tint hover:text-primary',
+    variant === 'danger' && 'bg-negative text-white hover:bg-red-800',
+    variant === 'danger-ghost' && 'bg-tint text-negative hover:bg-tint-strong',
+  );
+
 export function Button({
   variant = 'primary',
   size = 'md',
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'danger' | 'danger-ghost' | 'ghost';
-  size?: 'sm' | 'md';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-ghost' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
 }) {
-  return (
-    <button
-      {...props}
-      className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
-        size === 'md' ? 'px-4 py-2' : 'px-2.5 py-1.5 text-xs',
-        variant === 'primary' &&
-          'bg-[var(--accent)] text-white hover:brightness-110 focus-visible:ring-[var(--accent)]',
-        variant === 'secondary' &&
-          'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 focus-visible:ring-slate-400',
-        variant === 'danger' && 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
-        variant === 'ghost' && 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-400',
-        variant === 'danger-ghost' && 'text-red-700 hover:bg-red-50 focus-visible:ring-red-400',
-        className,
-      )}
-    />
-  );
+  return <button {...props} className={cx(buttonClass(variant, size), className)} />;
 }
 
+const fieldClass =
+  'block w-full rounded-md border border-line bg-white px-3.5 text-[15px] text-primary placeholder:text-disabled transition-colors focus:border-deep focus:ring-2 focus:ring-deep/15 focus:outline-none disabled:bg-tint disabled:text-tertiary';
+
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={cx(
-        'block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none',
-        className,
-      )}
-    />
-  );
+  return <input {...props} className={cx(fieldClass, 'h-11', className)} />;
 }
 
 export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={cx(
-        'block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none',
-        className,
-      )}
-    />
-  );
+  return <select {...props} className={cx(fieldClass, 'h-11 pr-8', className)} />;
 }
 
 export function Field({
@@ -75,12 +64,12 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700">
+    <div className="space-y-2">
+      <label htmlFor={htmlFor} className="block text-sm text-secondary">
         {label}
       </label>
       {children}
-      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+      {hint && <p className="text-[13px] text-tertiary">{hint}</p>}
     </div>
   );
 }
@@ -99,26 +88,22 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section
-      className={cx(
-        'rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.04]',
-        className,
-      )}
-    >
+    <section className={cx('rounded-2xl bg-tint', className)}>
       {(title || actions) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5 pb-1">
+        <header className="flex flex-wrap items-start justify-between gap-3 px-6 pt-6">
           <div>
-            {title && <h2 className="text-base font-semibold text-slate-900">{title}</h2>}
-            {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+            {title && <h2 className="t-body-title">{title}</h2>}
+            {description && <p className="mt-2 t-body">{description}</p>}
           </div>
           {actions}
         </header>
       )}
-      <div className="px-5 py-4">{children}</div>
+      <div className="px-6 pt-4 pb-6">{children}</div>
     </section>
   );
 }
 
+/** Sentiment lives in the foreground: every alert shares the neutral tint; only the icon and text colour change. */
 export function Alert({
   tone = 'error',
   children,
@@ -130,36 +115,65 @@ export function Alert({
     <div
       role={tone === 'error' ? 'alert' : 'status'}
       className={cx(
-        'rounded-lg border px-3 py-2 text-sm',
-        tone === 'error' && 'border-red-200 bg-red-50 text-red-800',
-        tone === 'success' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'info' && 'border-sky-200 bg-sky-50 text-sky-800',
-        tone === 'warning' && 'border-amber-200 bg-amber-50 text-amber-900',
+        'flex items-start gap-3 rounded-2xl bg-tint px-4 py-3.5 text-sm leading-[21.7px]',
+        tone === 'error' && 'text-negative',
+        tone === 'success' && 'text-positive',
+        tone === 'info' && 'text-primary',
+        tone === 'warning' && 'text-secondary',
       )}
     >
-      {children}
+      <SentimentIcon tone={tone} />
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
 
+function SentimentIcon({ tone }: { tone: 'error' | 'success' | 'info' | 'warning' }) {
+  const fill = { error: '#b0261b', success: '#1e6b3a', info: '#1c1259', warning: '#edc843' }[tone];
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="mt-px size-5 shrink-0">
+      {tone === 'warning' ? (
+        <path d="M12 2.5 22.5 21h-21L12 2.5Z" fill={fill} />
+      ) : (
+        <circle cx="12" cy="12" r="10" fill={fill} />
+      )}
+      {tone === 'success' ? (
+        <path d="m7.5 12.3 3 3 6-6.3" fill="none" stroke="#fff" strokeWidth="2" />
+      ) : tone === 'info' ? (
+        <path d="M12 10.5V17M12 7v.5" fill="none" stroke="#fff" strokeWidth="2" />
+      ) : (
+        <path
+          d={tone === 'warning' ? 'M12 9v5.5M12 16.8v.5' : 'M12 6.5V13M12 16v.5'}
+          fill="none"
+          stroke={tone === 'warning' ? '#0f0e14' : '#fff'}
+          strokeWidth="2"
+        />
+      )}
+    </svg>
+  );
+}
+
+/** Status pill. Neutral fill; the tone colours the text (and a dot for "waiting"). */
 export function Badge({
   tone = 'slate',
   children,
 }: {
-  tone?: 'slate' | 'green' | 'amber' | 'red' | 'blue';
+  tone?: 'slate' | 'green' | 'amber' | 'red' | 'blue' | 'strong';
   children: ReactNode;
 }) {
   return (
     <span
       className={cx(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        tone === 'slate' && 'bg-slate-100 text-slate-700',
-        tone === 'green' && 'bg-emerald-100 text-emerald-800',
-        tone === 'amber' && 'bg-amber-100 text-amber-800',
-        tone === 'red' && 'bg-red-100 text-red-700',
-        tone === 'blue' && 'bg-sky-100 text-sky-800',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs leading-5 font-semibold whitespace-nowrap',
+        tone === 'strong' ? 'bg-negative text-white' : 'bg-tint-strong',
+        tone === 'slate' && 'text-primary',
+        tone === 'green' && 'text-positive',
+        tone === 'amber' && 'text-secondary',
+        tone === 'red' && 'text-negative',
+        tone === 'blue' && 'text-deep',
       )}
     >
+      {tone === 'amber' && <span aria-hidden className="size-1.5 rounded-full bg-warning" />}
       {children}
     </span>
   );
@@ -167,10 +181,10 @@ export function Badge({
 
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="rounded-2xl bg-white px-5 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.04]">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
-      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+    <div className="rounded-2xl bg-tint px-5 py-5">
+      <p className="t-body">{label}</p>
+      <p className="mt-2 text-[26px] leading-8 font-semibold tracking-[-0.02em] text-primary tabular-nums">{value}</p>
+      {hint && <p className="mt-1 text-[13px] text-tertiary">{hint}</p>}
     </div>
   );
 }
@@ -187,41 +201,26 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={cx(
-        'block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none',
-        className,
-      )}
-    />
-  );
+  return <textarea {...props} className={cx(fieldClass, 'py-3 leading-6', className)} />;
 }
 
+/** Link styled as a button (for navigation actions). */
 /** Link styled as a button (for navigation actions). */
 export function ButtonLink({
   href,
   variant = 'primary',
+  size = 'md',
   children,
   className,
 }: {
   href: string;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <Link
-      href={href}
-      className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-        variant === 'primary' &&
-          'bg-[var(--accent)] text-white hover:brightness-110 focus-visible:ring-[var(--accent)]',
-        variant === 'secondary' && 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50',
-        variant === 'ghost' && 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-        className,
-      )}
-    >
+    <Link href={href} className={cx(buttonClass(variant, size), className)}>
       {children}
     </Link>
   );
@@ -231,8 +230,8 @@ export function ButtonLink({
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cx('-mx-5 overflow-x-auto px-5', className)}>
-      <table className="w-full text-left text-sm">{children}</table>
+    <div className={cx('-mx-6 overflow-x-auto px-6', className)}>
+      <table className="w-full text-left text-sm text-secondary">{children}</table>
     </div>
   );
 }
@@ -241,20 +240,18 @@ export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
   return (
     <th
       {...props}
-      className={cx(
-        'border-b border-slate-200 py-2 pr-4 text-xs font-medium tracking-wide text-slate-500 uppercase',
-        className,
-      )}
+      className={cx('border-b border-line py-2.5 pr-4 text-[13px] font-medium text-tertiary', className)}
     />
   );
 }
 
 export function Td({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td {...props} className={cx('border-b border-slate-100 py-2.5 pr-4 align-middle', className)} />;
+  return <td {...props} className={cx('border-b border-line py-3 pr-4 align-middle', className)} />;
 }
 
 // ── Feedback & identity ─────────────────────────────────────────────────────
 
+/** Friendly, specific empty state: a picture, what will show here, and the one thing to do next. */
 export function EmptyState({
   icon,
   title,
@@ -268,24 +265,22 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
-      {icon && (
-        <div className="mb-3 grid size-12 place-items-center rounded-full bg-slate-100 text-slate-500">{icon}</div>
-      )}
-      <p className="font-medium text-slate-900">{title}</p>
-      {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      <div className="mb-4 grid size-16 place-items-center rounded-full bg-white text-deep ring-1 ring-line [&_svg]:size-7">
+        {icon ?? (
+          <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 7h16v12H4zM4 7l2-3h12l2 3M9 11h6" />
+          </svg>
+        )}
+      </div>
+      <p className="t-body-title">{title}</p>
+      {description && <p className="mt-2 max-w-sm t-body">{description}</p>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }
 
-const AVATAR_COLORS = [
-  'bg-sky-100 text-sky-800',
-  'bg-emerald-100 text-emerald-800',
-  'bg-amber-100 text-amber-800',
-  'bg-rose-100 text-rose-800',
-  'bg-violet-100 text-violet-800',
-  'bg-teal-100 text-teal-800',
-];
+// Avatars stay neutral (initials on the tint); colour is saved for meaning.
+const AVATAR_COLORS = ['bg-tint text-primary ring-1 ring-line'];
 
 export function Avatar({ name, size = 'md', src }: { name: string; size?: 'sm' | 'md' | 'lg'; src?: string | null }) {
   if (src)
@@ -327,7 +322,7 @@ export function Avatar({ name, size = 'md', src }: { name: string; size?: 'sm' |
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx('animate-pulse rounded-md bg-slate-200/70', className)} />;
+  return <div className={cx('animate-pulse rounded-md bg-tint', className)} />;
 }
 
 // ── Navigation helpers ──────────────────────────────────────────────────────
@@ -340,22 +335,22 @@ export function TabLinks({
   active: string;
 }) {
   return (
-    <nav className="-mb-px flex gap-1 overflow-x-auto border-b border-slate-200" aria-label="Tabs">
+    <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Tabs">
       {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.href}
           aria-current={t.key === active ? 'page' : undefined}
           className={cx(
-            'border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap',
-            t.key === active
-              ? 'border-[var(--accent)] text-slate-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800',
+            'inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors',
+            t.key === active ? 'bg-ink text-white' : 'bg-tint text-primary hover:bg-tint-strong',
           )}
         >
           {t.label}
           {t.count !== undefined && (
-            <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-600">{t.count}</span>
+            <span className={cx('text-xs tabular-nums', t.key === active ? 'text-white/70' : 'text-tertiary')}>
+              {t.count}
+            </span>
           )}
         </Link>
       ))}
@@ -374,22 +369,16 @@ export function Pager({
   showing: string;
 }) {
   return (
-    <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
+    <div className="mt-4 flex items-center justify-between text-sm text-tertiary">
       <span>{showing}</span>
       <div className="flex gap-2">
         {firstHref && (
-          <Link
-            href={firstHref}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
-          >
+          <Link href={firstHref} className={buttonClass('secondary', 'sm')}>
             First page
           </Link>
         )}
         {nextHref && (
-          <Link
-            href={nextHref}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
-          >
+          <Link href={nextHref} className={buttonClass('secondary', 'sm')}>
             Next →
           </Link>
         )}
@@ -403,8 +392,8 @@ export function KeyValue({ items }: { items: [string, ReactNode][] }) {
     <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
       {items.map(([k, v]) => (
         <div key={k}>
-          <dt className="text-slate-500">{k}</dt>
-          <dd className="mt-0.5 font-medium text-slate-900">{v ?? '—'}</dd>
+          <dt className="text-tertiary">{k}</dt>
+          <dd className="mt-1 font-semibold text-primary">{v ?? '—'}</dd>
         </div>
       ))}
     </dl>

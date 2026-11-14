@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { buttonClass } from '@/components/ui';
 import { MOBILE_RELEASE } from '@/server/mobile/release';
 
 export const metadata: Metadata = { title: 'Get the Android app · EDUsaas' };
@@ -15,7 +16,7 @@ export default function DownloadPage() {
   const r = MOBILE_RELEASE;
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-16">
-      <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">EDUsaas</p>
+      <p className="text-sm font-semibold text-slate-500">EDUsaas</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Get the Android app</h1>
       <p className="mt-3 text-slate-600">
         Registers, marks, fees and receipts in your pocket. It keeps working without internet and sends your work when
@@ -24,10 +25,7 @@ export default function DownloadPage() {
       <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {r.apkUrl ? (
           <>
-            <a
-              href={r.apkUrl}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-800 sm:w-auto"
-            >
+            <a href={r.apkUrl} className={`${buttonClass('primary', 'lg')} w-full sm:w-auto`}>
               Download for Android
             </a>
             <p className="mt-3 text-sm text-slate-500">

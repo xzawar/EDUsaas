@@ -64,7 +64,7 @@ export function AcademicsManager({
                 className={cx(
                   'rounded-lg border px-3 py-1.5 text-sm font-medium',
                   y.id === year?.id
-                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    ? 'border-deep bg-tint text-link'
                     : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                 )}
               >
@@ -188,7 +188,7 @@ export function AcademicsManager({
                   <li key={s.id} className="flex flex-wrap items-center gap-3 py-2.5">
                     <Link
                       href={`/staff/students?sectionId=${s.id}`}
-                      className="w-16 shrink-0 font-semibold hover:text-[var(--accent)]"
+                      className="w-16 shrink-0 font-semibold hover:text-deep-2"
                     >
                       {c.name}-{s.name}
                     </Link>
@@ -432,7 +432,7 @@ function NewYearModal({ open, onClose, isFirst }: { open: boolean; onClose: () =
             type="checkbox"
             checked={v.makeCurrent}
             onChange={(e) => setV({ ...v, makeCurrent: e.target.checked })}
-            className="size-4 accent-[var(--accent)]"
+            className="size-4 accent-deep"
           />
           Make this the current year now
         </label>
@@ -485,7 +485,7 @@ function CopyModal({ open, onClose, year, years }: { open: boolean; onClose: () 
             type="checkbox"
             checked={incharges}
             onChange={(e) => setIncharges(e.target.checked)}
-            className="size-4 accent-[var(--accent)]"
+            className="size-4 accent-deep"
           />
           Keep the same Class Incharges
         </label>
@@ -530,9 +530,7 @@ function SubjectPicker({
             }}
             className={cx(
               'rounded-full border px-3 py-1 text-sm',
-              on
-                ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                : 'border-slate-300 text-slate-700 hover:border-slate-400',
+              on ? 'border-deep bg-accent text-deep' : 'border-slate-300 text-slate-700 hover:border-slate-400',
             )}
           >
             {s.name}
@@ -764,7 +762,7 @@ function RenumberModal({ section, onClose }: { section: SectionRow & { label: st
           </Alert>
           <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500 uppercase">
+              <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="px-3 py-2 text-left">Student</th>
                   <th className="px-3 py-2 text-left">Roll</th>

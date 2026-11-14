@@ -120,7 +120,7 @@ export function SchoolSupportCard({ grants }: { grants: Grant[] }) {
             </Button>
             <Link
               href="/staff/audit?category=support"
-              className="self-center text-sm font-medium text-[var(--accent)] hover:underline"
+              className="self-center text-sm font-medium text-link hover:underline"
             >
               See what they viewed
             </Link>
@@ -168,7 +168,7 @@ export function PlatformSupportPanel({
           <div className="mt-2 flex flex-wrap gap-2">
             <Link
               href={`/platform/tenants/${tenantId}/support`}
-              className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white hover:brightness-110"
+              className="inline-flex h-9 items-center rounded-full bg-white px-4 text-sm font-semibold text-primary ring-1 ring-line hover:bg-tint-strong disabled:opacity-50"
             >
               Open support view
             </Link>

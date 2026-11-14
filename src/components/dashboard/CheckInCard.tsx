@@ -54,34 +54,34 @@ export function CheckInCard({
 
   if (state.status)
     return (
-      <div className="flex h-full items-center gap-4 rounded-2xl bg-[#dcf5ea] px-5 py-5">
+      <div className="flex h-full items-center gap-4 rounded-2xl bg-tint px-5 py-5">
         <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white">
-          <CheckCircle2 className="size-7 text-emerald-600" aria-hidden />
+          <CheckCircle2 className="size-7 text-positive" aria-hidden />
         </span>
         <p className="text-sm">
-          <span className="font-semibold text-emerald-900">
+          <span className="text-base font-semibold text-primary">
             {state.status === 'QUEUED'
               ? 'Checked in (waiting to sync)'
               : state.status === 'LATE'
                 ? 'Checked in · late'
                 : 'Checked in'}
           </span>
-          {state.checkedInAt && <span className="text-emerald-800"> at {time(state.checkedInAt)}</span>}
+          {state.checkedInAt && <span className="text-secondary"> at {time(state.checkedInAt)}</span>}
         </p>
       </div>
     );
   return (
-    <div className="flex h-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#ecebff] px-5 py-5">
+    <div className="flex h-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-tint px-5 py-5">
       <div className="flex items-center gap-4">
         <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white">
-          <Clock className="size-7 text-[var(--accent)]" aria-hidden />
+          <Clock className="size-7 text-link" aria-hidden />
         </span>
         <div>
-          <p className="font-semibold">Good to see you</p>
+          <p className="text-base font-semibold text-primary">Good to see you</p>
           <p className="text-sm text-slate-500">Check in for today.</p>
         </div>
       </div>
-      <Button disabled={busy} onClick={checkIn} className="!bg-slate-900 hover:!bg-slate-800">
+      <Button disabled={busy} onClick={checkIn}>
         {busy ? 'Checking in…' : 'Check in'}
       </Button>
     </div>

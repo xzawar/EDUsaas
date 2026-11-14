@@ -302,7 +302,7 @@ export function AdminRow({
       'Access updated',
     );
   return (
-    <li className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.04]">
+    <li className="rounded-2xl bg-tint p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-semibold">
@@ -412,6 +412,7 @@ export function OwnerDecision({ id }: { id: string }) {
   return (
     <div className="flex gap-2">
       <Button
+        variant="secondary"
         size="sm"
         disabled={busy}
         onClick={() =>

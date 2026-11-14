@@ -39,7 +39,7 @@ export function MonthCalendar({
               className={cx(
                 'flex aspect-square flex-col items-center justify-center rounded-lg text-sm ring-1',
                 s ? s.cls : 'bg-white text-slate-400 ring-slate-100',
-                d === today && 'ring-2 ring-[var(--accent)]',
+                d === today && 'ring-2 ring-deep',
               )}
             >
               <span className="tabular-nums">{Number(d.slice(8))}</span>

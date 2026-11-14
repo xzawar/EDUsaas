@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Linking, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Badge, Button, Card, ErrorBox, Loading, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
 import { fmtDate } from '@/lib/format';

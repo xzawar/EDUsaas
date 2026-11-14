@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image, Modal, Pressable, Text, View } from 'react-native';
+import { Image, Modal, Pressable, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button, Card, Empty, ErrorBox, Field, Input, Loading, Money, Screen } from '@/components/ui';
 import { toast } from '@/components/toast';
 import { api, authHeaders, fileUrl } from '@/lib/api';
@@ -25,7 +26,7 @@ function Proof({ id, size }: { id: string; size: number }) {
   useEffect(() => {
     void authHeaders().then(setH);
   }, []);
-  if (!h) return <View style={{ width: size, height: size, backgroundColor: '#f1f5f9', borderRadius: 10 }} />;
+  if (!h) return <View style={{ width: size, height: size, backgroundColor: colors.cardStrong, borderRadius: 12 }} />;
   return (
     <Image
       source={{ uri: fileUrl(`/fees/claims/${id}/proof`), headers: h }}
@@ -84,7 +85,7 @@ export default function ClaimsScreen() {
               {c.hasProof ? (
                 <Proof id={c.id} size={72} />
               ) : (
-                <View style={{ width: 72, height: 72, borderRadius: 10, backgroundColor: '#f1f5f9' }} />
+                <View style={{ width: 72, height: 72, borderRadius: 12, backgroundColor: colors.cardStrong }} />
               )}
             </Pressable>
             <View style={{ flex: 1 }}>

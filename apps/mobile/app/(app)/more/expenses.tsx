@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image, Modal, ScrollView, Text, View } from 'react-native';
+import { Image, Modal, ScrollView, View } from 'react-native';
+import { Text } from '@/components/text';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, Card, Chip, Empty, ErrorBox, Field, Input, Loading, Money, Row, Screen } from '@/components/ui';

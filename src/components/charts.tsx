@@ -30,7 +30,7 @@ export function BarList({
               tabIndex={0}
               title={tip}
               aria-label={tip}
-              className="group grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 rounded-md px-1 py-1 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
+              className="group grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 rounded-md px-1 py-1 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-deep/30"
             >
               <span className="truncate text-sm text-slate-600">{r.label}</span>
               <span className="relative h-2.5 rounded-r bg-slate-100">
@@ -42,7 +42,7 @@ export function BarList({
                 )}
                 <span
                   className={cx(
-                    'absolute inset-y-0 left-0 rounded-r bg-[var(--accent)] transition-opacity group-hover:opacity-80',
+                    'absolute inset-y-0 left-0 rounded-r bg-accent transition-opacity group-hover:opacity-80',
                   )}
                   style={{ width: `${Math.max(pct, r.value > 0 ? 1.5 : 0)}%` }}
                 />
@@ -68,7 +68,7 @@ export function Meter({ value, max, label }: { value: number; max: number; label
       aria-label={label}
       className="h-2 w-full rounded-full bg-slate-100"
     >
-      <div className="h-2 rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+      <div className="h-2 rounded-full bg-accent" style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -112,8 +112,8 @@ export function TrendColumns({
             >
               <span
                 className={cx(
-                  'w-full rounded-t-[3px] transition-opacity group-hover:opacity-80 group-focus-visible:ring-2 group-focus-visible:ring-[var(--accent)]/40',
-                  p.pct < target ? 'bg-red-600' : 'bg-[var(--accent)]',
+                  'w-full rounded-t-[3px] transition-opacity group-hover:opacity-80 group-focus-visible:ring-2 group-focus-visible:ring-deep/30',
+                  p.pct < target ? 'bg-red-600' : 'bg-accent',
                 )}
                 style={{ height: `${Math.max(p.pct, 1)}%` }}
               />

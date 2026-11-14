@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
+import { Text } from '@/components/text';
 import { Badge, Button, Card, Empty, Row, Screen } from '@/components/ui';
 import { toast } from '@/components/toast';
 import { discard, useQueue } from '@/lib/queue';
 import { relative } from '@/lib/format';
-import { font } from '@/lib/theme';
+import { colors, font } from '@/lib/theme';
 
 /** Everything saved offline, oldest first. Items the server refused stay here with its reason. */
 export default function QueueScreen() {
@@ -44,7 +45,7 @@ export default function QueueScreen() {
                 key={i.id}
                 title={i.label}
                 subtitle={
-                  <Text style={i.error ? { color: '#b91c1c' } : font.small}>
+                  <Text style={i.error ? { color: colors.red, fontSize: 14 } : font.small}>
                     {i.error ? `Refused: ${i.error}` : `Saved ${relative(i.createdAt)}`}
                   </Text>
                 }

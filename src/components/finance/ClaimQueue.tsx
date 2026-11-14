@@ -77,10 +77,11 @@ export function ClaimQueue({ items }: { items: Claim[] }) {
             </div>
             {c.status === 'PENDING' ? (
               <div className="flex gap-2">
-                <Button size="sm" variant="secondary" disabled={busy} onClick={() => setRejecting(c)}>
+                <Button size="sm" variant="ghost" disabled={busy} onClick={() => setRejecting(c)}>
                   <X className="size-4" /> Reject
                 </Button>
                 <Button
+                  variant="secondary"
                   size="sm"
                   disabled={busy}
                   onClick={() =>
@@ -102,7 +103,7 @@ export function ClaimQueue({ items }: { items: Claim[] }) {
                     href={`/api/v1/payments/${c.paymentId}/receipt`}
                     target="_blank"
                     rel="noopener"
-                    className="text-sm text-[var(--accent)] hover:underline"
+                    className="text-sm text-link hover:underline"
                   >
                     Receipt
                   </a>

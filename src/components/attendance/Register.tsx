@@ -255,17 +255,11 @@ export function DatePicker({ sectionId, date, today }: { sectionId: string; date
         aria-label="Date"
       />
       {date !== today && (
-        <Link
-          href={`/staff/attendance/${sectionId}`}
-          className="text-sm font-medium text-[var(--accent)] hover:underline"
-        >
+        <Link href={`/staff/attendance/${sectionId}`} className="text-sm font-medium text-link hover:underline">
           Today
         </Link>
       )}
-      <Link
-        href={`/staff/attendance/${sectionId}/month`}
-        className="text-sm font-medium text-[var(--accent)] hover:underline"
-      >
+      <Link href={`/staff/attendance/${sectionId}/month`} className="text-sm font-medium text-link hover:underline">
         Month view
       </Link>
     </div>

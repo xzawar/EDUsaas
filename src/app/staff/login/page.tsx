@@ -14,14 +14,14 @@ export default function StaffLoginPage() {
         <>
           <p>
             Office staff with an email login can{' '}
-            <Link href="/forgot-password?portal=staff" className="font-medium text-[var(--accent)] hover:underline">
+            <Link href="/forgot-password?portal=staff" className="font-medium text-link hover:underline">
               reset their password
             </Link>
             . Teachers: ask your School Admin.
           </p>
           <p>
             Student?{' '}
-            <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">
+            <Link href="/login" className="font-medium text-link hover:underline">
               Go to the Student Portal
             </Link>
           </p>

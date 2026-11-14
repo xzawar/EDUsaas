@@ -1,17 +1,195 @@
 @import 'tailwindcss';
 
+/*
+ * EDUsaas design system: the "Neptune" structure (calm, flat, one loud action per screen) with EDUsaas's own
+ * brand. Change only the five brand primitives; every role below derives from them.
+ *   accent  #A99BFF  periwinkle: the one primary button per screen, with deep text on it (6.9:1)
+ *   deep    #1C1259  deep indigo: text on accent, links, controls, the "brand moment" canvas
+ *   ink     #0F0E14  near-black tinted toward the brand (never pure #000)
+ * Rules: no shadows (depth = tinted fills + 12% hairlines), sentiment lives in the foreground (alerts share one
+ * neutral fill), body copy is the secondary colour, two weights (400/600), pills for actions, 16 for cards,
+ * 32 for floating sheets.
+ */
 @theme {
-  --font-sans:
-    var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand primitives */
+  --color-accent: #a99bff;
+  --color-deep: #1c1259;
+  --color-deep-2: #4b3bb0;
+  --color-ink: #0f0e14;
+  --color-night: #13111c;
+
+  /* Semantic roles (light) */
+  --color-primary: #0f0e14; /* titles, important */
+  --color-secondary: #4a4752; /* body copy */
+  --color-tertiary: #6c6975; /* captions, meta */
+  --color-disabled: #a6a4ad;
+  --color-link: #1c1259;
+  --color-positive: #1e6b3a;
+  --color-negative: #b0261b;
+  --color-warning: #edc843; /* icons and fills only, never text */
+  --color-tint: #edecf2; /* background.neutral = deep at 8% on white */
+  --color-tint-strong: #e2e0ea;
+  --color-line: #e2e1e5; /* border.neutral = ink at 12% */
+  --color-info: #e9f7fd; /* background.accent = sky at 10% */
+
+  /* Tailwind's slate becomes the brand-tinted neutral ramp, so every existing page stays on palette */
+  --color-slate-50: #f7f6fa;
+  --color-slate-100: #edecf2;
+  --color-slate-200: #e2e1e5;
+  --color-slate-300: #cbc9d1;
+  --color-slate-400: #a6a4ad;
+  --color-slate-500: #6c6975;
+  --color-slate-600: #4a4752;
+  --color-slate-700: #3a3842;
+  --color-slate-800: #24222b;
+  --color-slate-900: #0f0e14;
+  --color-slate-950: #0a0910;
+
+  /* Sentiment in the foreground: tinted fills collapse to the neutral tint, only text/icon colour changes */
+  --color-red-50: #edecf2;
+  --color-red-100: #edecf2;
+  --color-red-200: #e2e1e5;
+  --color-red-300: #e2a9a3;
+  --color-red-400: #d0574c;
+  --color-red-500: #b0261b;
+  --color-red-600: #b0261b;
+  --color-red-700: #b0261b;
+  --color-red-800: #8f1d14;
+  --color-red-900: #6e160f;
+  --color-rose-50: #edecf2;
+  --color-rose-100: #edecf2;
+  --color-rose-200: #e2e1e5;
+  --color-rose-600: #b0261b;
+  --color-rose-700: #b0261b;
+  --color-rose-800: #8f1d14;
+  --color-emerald-50: #edecf2;
+  --color-emerald-100: #edecf2;
+  --color-emerald-200: #e2e1e5;
+  --color-emerald-300: #9ccfab;
+  --color-emerald-400: #4c9a62;
+  --color-emerald-500: #1e6b3a;
+  --color-emerald-600: #1e6b3a;
+  --color-emerald-700: #1e6b3a;
+  --color-emerald-800: #17542d;
+  --color-emerald-900: #113f22;
+  --color-amber-50: #edecf2;
+  --color-amber-100: #edecf2;
+  --color-amber-200: #e2e1e5;
+  --color-amber-300: #f2da84;
+  --color-amber-400: #edc843;
+  --color-amber-500: #edc843;
+  --color-amber-600: #4a4752; /* warning text uses secondary, next to a yellow icon */
+  --color-amber-700: #4a4752;
+  --color-amber-800: #3a3842;
+  --color-amber-900: #24222b;
+  --color-sky-50: #e9f7fd;
+  --color-sky-100: #e9f7fd;
+  --color-sky-200: #e2e1e5;
+  --color-sky-600: #1c1259;
+  --color-sky-700: #1c1259;
+  --color-sky-800: #1c1259;
+  --color-violet-50: #f1eeff;
+  --color-violet-100: #e7e2ff;
+  --color-violet-500: #a99bff;
+  --color-violet-600: #4b3bb0;
+  --color-violet-700: #1c1259;
+  --color-indigo-600: #4b3bb0;
+  --color-indigo-700: #1c1259;
+
+  /* No elevation anywhere */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+
+  /* Radius: 10 inputs, 16 cards, 32 sheets, full for actions */
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+  --radius-3xl: 32px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
 }
 
 :root {
   color-scheme: light;
+  --accent: var(--color-accent);
 }
 
 body {
-  @apply bg-[#f4f4f8] text-slate-900 antialiased;
+  @apply bg-white text-secondary antialiased;
+  font-feature-settings: 'cv05', 'cv08';
+}
+
+/* Type ramp. Tracking follows Inter's dynamic metrics: -0.0223 + 0.185 * e^(-0.1745 * px). */
+@utility t-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 44px;
+  line-height: 0.85;
+  letter-spacing: -0.01em;
+  color: var(--color-primary);
+}
+@utility t-screen-title {
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 34.5px;
+  letter-spacing: -0.021em;
+  color: var(--color-primary);
+}
+@utility t-section-title {
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 27.5px;
+  letter-spacing: -0.018em;
+  color: var(--color-primary);
+}
+@utility t-body-title {
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 24.3px;
+  letter-spacing: -0.014em;
+  color: var(--color-primary);
+}
+@utility t-body {
+  font-size: 14px;
+  line-height: 21.7px;
+  letter-spacing: -0.006em;
+  color: var(--color-secondary);
+}
+@utility t-group-title {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 19.6px;
+  letter-spacing: -0.006em;
+  color: var(--color-tertiary);
+}
+
+/* Titles and emphasis are primary; plain body copy stays secondary. Base layer, so any text-* utility still wins. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  strong,
+  b,
+  :where(.font-semibold, .font-bold) {
+    color: var(--color-primary);
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.018em;
+  }
 }
 
 /* Printing a login slip: only the slip is printed. */

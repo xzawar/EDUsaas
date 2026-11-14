@@ -3,6 +3,7 @@
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { buttonClass } from '@/components/ui';
 
 /**
  * Shown inside the app shell when a page fails to load, instead of the browser's blank "Application error" page.
@@ -21,27 +22,20 @@ export function ErrorScreen({
     console.error(error);
   }, [error]);
   return (
-    <div className="mx-auto mt-16 flex max-w-md flex-col items-center rounded-3xl bg-white px-6 py-10 text-center shadow-sm">
-      <div className="grid size-12 place-items-center rounded-full bg-amber-100 text-amber-700">
-        <AlertTriangle className="size-6" aria-hidden />
+    <div className="mx-auto mt-16 flex max-w-md flex-col items-center px-6 py-10 text-center">
+      <div className="grid size-20 place-items-center rounded-full bg-tint text-primary">
+        <AlertTriangle className="size-9" aria-hidden />
       </div>
-      <h1 className="mt-4 text-lg font-semibold">This page didn’t load</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="mt-6 t-screen-title">This page didn’t load</h1>
+      <p className="mt-2 text-base leading-6 text-secondary">
         Something went wrong on our side. Try again; if it keeps happening, tell your school office or EDUsaas support.
       </p>
-      {error.digest && <p className="mt-3 font-mono text-xs text-slate-400">Reference: {error.digest}</p>}
-      <div className="mt-6 flex gap-3">
-        <button
-          type="button"
-          onClick={reset}
-          className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
+      {error.digest && <p className="mt-3 font-mono text-xs text-tertiary">Reference: {error.digest}</p>}
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <button type="button" onClick={reset} className={buttonClass('primary', 'lg')}>
           <RotateCcw className="size-4" aria-hidden /> Try again
         </button>
-        <Link
-          href={home}
-          className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-        >
+        <Link href={home} className={buttonClass('secondary', 'lg')}>
           Go to dashboard
         </Link>
       </div>

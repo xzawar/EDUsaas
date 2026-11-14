@@ -11,13 +11,13 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f4f4f8"
+      "backgroundColor": "#1c1259"
     },
     "android": {
       "package": "com.edusaas.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#6d5dfc",
+        "backgroundColor": "#a99bff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -80,7 +80,17 @@
           }
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/archivo-black/400Regular/ArchivoBlack_400Regular.ttf"
+          ]
+        }
+      ],
       "expo-asset"
     ],
     "experiments": {

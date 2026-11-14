@@ -1,5 +1,6 @@
 import { Card, Empty, ErrorBox, Loading, Screen } from '@/components/ui';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/text';
 import { errorText, useGet } from '@/lib/data';
 import { fmtDate } from '@/lib/format';
 import { colors, font } from '@/lib/theme';

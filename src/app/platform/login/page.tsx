@@ -12,7 +12,7 @@ export default function PlatformLoginPage() {
       title="Platform console"
       footer={
         <p>
-          <Link href="/forgot-password?portal=platform" className="font-medium text-[var(--accent)] hover:underline">
+          <Link href="/forgot-password?portal=platform" className="font-medium text-link hover:underline">
             Forgot your password?
           </Link>
         </p>

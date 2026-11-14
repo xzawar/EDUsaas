@@ -26,12 +26,12 @@ export function AnnouncementCard({ a, canManage }: { a: AnnouncementItem; canMan
     <article
       className={cx(
         'rounded-xl border bg-white p-4 shadow-sm',
-        a.pinned ? 'border-[var(--accent)]/40' : 'border-slate-200',
+        a.pinned ? 'border-deep/30' : 'border-slate-200',
         a.expired && 'opacity-60',
       )}
     >
       <div className="flex items-start gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-tint text-link">
           {a.pinned ? <Pin className="size-4" aria-label="Pinned" /> : <Megaphone className="size-4" aria-hidden />}
         </span>
         <div className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export function NewAnnouncementButton({ sections }: { sections: { id: string; la
                   className={cx(
                     'cursor-pointer rounded-lg border px-3 py-2 text-center text-sm font-medium transition',
                     audience === o.key
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-slate-900'
+                      ? 'border-deep bg-tint text-slate-900'
                       : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                   )}
                 >

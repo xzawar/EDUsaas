@@ -40,7 +40,7 @@ export function TodayLessons({
             key={l.periodNo}
             className={cx(
               'flex items-center gap-3 rounded-lg px-3 py-2 ring-1',
-              current ? 'bg-[var(--accent)]/10 ring-[var(--accent)]/30' : 'ring-slate-100',
+              current ? 'bg-tint ring-deep/30' : 'ring-slate-100',
             )}
           >
             <span className="w-12 shrink-0 text-xs text-slate-500 tabular-nums">{l.startsAt}</span>
@@ -51,7 +51,7 @@ export function TodayLessons({
                 {l.entry?.room ? ` · ${l.entry.room}` : ''}
               </span>
             </span>
-            {current && <span className="text-xs font-semibold text-[var(--accent)]">Now</span>}
+            {current && <span className="text-xs font-semibold text-link">Now</span>}
           </li>
         );
       })}

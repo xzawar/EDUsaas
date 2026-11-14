@@ -46,7 +46,7 @@ export default async function MyPayslipsPage() {
                       href={`/api/v1/payslips/${p.id}`}
                       target="_blank"
                       rel="noopener"
-                      className="text-sm text-[var(--accent)] hover:underline"
+                      className="text-sm text-link hover:underline"
                     >
                       PDF
                     </a>

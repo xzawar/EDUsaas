@@ -107,7 +107,7 @@ export function TenantsPanel({ initial, canManage }: { initial: Page; canManage:
         </form>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-200 text-xs text-slate-500">
               <tr>
                 <th className="py-2 pr-4 font-medium">School</th>
                 <th className="py-2 pr-4 font-medium">Prefix</th>

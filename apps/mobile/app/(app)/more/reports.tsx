@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { Text } from '@/components/text';
 import { Button, Card, Chip, Empty, ErrorBox, Loading, Money, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
 import { fmtDate, plural } from '@/lib/format';

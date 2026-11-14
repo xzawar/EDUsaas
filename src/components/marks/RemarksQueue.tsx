@@ -29,13 +29,14 @@ export function RemarksQueue({ rows }: { rows: Row[] }) {
           <div className="flex gap-2">
             <Button
               size="sm"
-              variant="secondary"
+              variant="ghost"
               disabled={busy}
               onClick={() => run(`/remarks/${r.id}/moderate`, { body: { decision: 'REJECTED' } }, 'Remark hidden')}
             >
               Hide
             </Button>
             <Button
+              variant="secondary"
               size="sm"
               disabled={busy}
               onClick={() => run(`/remarks/${r.id}/moderate`, { body: { decision: 'APPROVED' } }, 'Remark approved')}

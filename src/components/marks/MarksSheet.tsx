@@ -142,7 +142,7 @@ export function MarksSheet({ sheet, userId }: { sheet: Sheet; userId?: string })
       <Card>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs text-slate-500 uppercase">
+            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
               <th className="py-2 pr-2 font-medium">Roll</th>
               <th className="py-2 pr-2 font-medium">Student</th>
               <th className="py-2 pr-2 font-medium">Marks / {sheet.maxMarks}</th>
@@ -195,7 +195,7 @@ export function MarksSheet({ sheet, userId }: { sheet: Sheet; userId?: string })
                           [s.id]: { score: e.target.checked ? '' : r.score, absent: e.target.checked },
                         })
                       }
-                      className="size-4 accent-[var(--accent)]"
+                      className="size-4 accent-deep"
                     />
                   </td>
                   <td className="py-1.5 text-right font-semibold">

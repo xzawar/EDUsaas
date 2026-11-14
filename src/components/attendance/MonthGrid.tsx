@@ -56,7 +56,7 @@ export function MonthGrid({ grid, threshold }: { grid: Grid; threshold: number }
                         type="button"
                         disabled={!can}
                         onClick={() => setEdit({ studentId: r.id, name: r.name, date: d, status: st })}
-                        className={cx('rounded', can && 'hover:ring-2 hover:ring-[var(--accent)]/40')}
+                        className={cx('rounded', can && 'hover:ring-2 hover:ring-deep/30')}
                         aria-label={`${r.name}, ${d}: ${st ? STATUS_STYLE[st]!.label : 'not recorded'}${can ? ', change' : ''}`}
                       >
                         <StatusPill status={st} compact />
@@ -89,7 +89,7 @@ export function MonthGrid({ grid, threshold }: { grid: Grid; threshold: number }
               key={k}
               variant="secondary"
               disabled={busy}
-              className={cx(edit?.status === k && 'ring-2 ring-[var(--accent)]')}
+              className={cx(edit?.status === k && 'ring-2 ring-deep')}
               onClick={async () => {
                 if (!edit) return;
                 if (

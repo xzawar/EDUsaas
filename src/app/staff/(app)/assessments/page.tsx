@@ -75,7 +75,7 @@ export default async function AssessmentsPage({ searchParams }: { searchParams: 
               {items.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50">
                   <Td>
-                    <Link href={`/staff/assessments/${a.id}`} className="font-medium hover:text-[var(--accent)]">
+                    <Link href={`/staff/assessments/${a.id}`} className="font-medium hover:text-deep-2">
                       {a.name}
                     </Link>
                     <span className="block text-xs text-slate-500">{a.subject}</span>

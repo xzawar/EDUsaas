@@ -144,7 +144,7 @@ export function FeeStructureGrid({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs tracking-wide text-slate-500 uppercase">
+            <tr className="text-left text-xs text-slate-500">
               <th className="py-2 pr-4">Class</th>
               {structure.heads.map((h) => (
                 <th key={h.id} className="py-2 pr-4">

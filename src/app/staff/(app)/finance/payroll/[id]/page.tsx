@@ -77,7 +77,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
                     href={`/api/v1/payslips/${p.id}`}
                     target="_blank"
                     rel="noopener"
-                    className="font-medium text-[var(--accent)] hover:underline"
+                    className="font-medium text-link hover:underline"
                   >
                     {p.number}
                   </a>

@@ -1,6 +1,7 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { stackScreenOptions } from '@/components/header';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -51,7 +52,10 @@ function Gate() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(app)" />
-        <Stack.Screen name="change-password" options={{ headerShown: true, title: 'Change password' }} />
+        <Stack.Screen
+          name="change-password"
+          options={{ ...stackScreenOptions, headerShown: true, title: 'Change password' }}
+        />
       </Stack>
       {cover ? <View style={StyleSheet.absoluteFill}>{cover}</View> : null}
     </>
