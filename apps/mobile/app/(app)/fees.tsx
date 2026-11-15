@@ -6,7 +6,7 @@ import { errorText, useGet } from '@/lib/data';
 import { fmtDate, periodLabel, METHOD_LABELS } from '@/lib/format';
 import { openPdf } from '@/lib/files';
 import { colors, font } from '@/lib/theme';
-import { ClaimSheet } from '@/screens/ClaimSheet';
+import { ClaimSheet, type PayAccount } from '@/screens/ClaimSheet';
 import { useSecureScreen } from '@/lib/secure-screen';
 
 type Fees = {
@@ -32,6 +32,7 @@ type Fees = {
     reversed: boolean;
     isReversal: boolean;
   }[];
+  accounts: PayAccount[];
   claims: {
     id: string;
     amountPaisa: number;
@@ -59,21 +60,17 @@ export default function FeesScreen() {
   const open = d?.invoices.filter((i) => i.status === 'DUE' || i.status === 'PARTIAL') ?? [];
   const pending = d?.claims.filter((c) => c.status === 'PENDING') ?? [];
   return (
-    <Screen title="Fees" subtitle="Pay at the office or send a proof." refreshing={q.isFetching} onRefresh={q.refetch}>
+    <Screen title="Fees" refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && (
         <>
-          <View
-            style={{
-              backgroundColor: d.outstandingPaisa > 0 ? colors.redSoft : colors.greenSoft,
-              borderRadius: 16,
-              padding: 18,
-              gap: 4,
-            }}
-          >
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 18, gap: 4 }}>
             <Text style={font.small}>To pay</Text>
-            <Money paisa={d.outstandingPaisa} style={{ fontSize: 32, fontWeight: '700' }} />
+            <Money
+              paisa={d.outstandingPaisa}
+              style={[font.display, { color: d.outstandingPaisa > 0 ? colors.ink : colors.green }]}
+            />
             <Text style={font.small}>
               {d.outstandingPaisa > 0
                 ? `${open.length} bill${open.length === 1 ? '' : 's'} open`
@@ -96,7 +93,7 @@ export default function FeesScreen() {
                 <Row
                   key={c.id}
                   title={<Money paisa={c.amountPaisa} style={{ fontWeight: '600' }} />}
-                  subtitle={`${METHOD_LABELS[c.method] ?? c.method} · ref ${c.reference}`}
+                  subtitle={METHOD_LABELS[c.method] ?? c.method}
                   right={<Badge tone="amber">Checking</Badge>}
                 />
               ))}
@@ -156,6 +153,7 @@ export default function FeesScreen() {
           {claiming && (
             <ClaimSheet
               bills={open.map((i) => ({ id: i.id, number: i.number, period: i.period, balancePaisa: i.balancePaisa }))}
+              accounts={d.accounts ?? []}
               onClose={() => {
                 setClaiming(false);
                 void q.refetch();

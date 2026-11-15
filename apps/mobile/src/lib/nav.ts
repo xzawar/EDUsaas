@@ -21,10 +21,11 @@ export function tabsFor(me: Me): Tab[] {
         more,
       ];
     case 'TEACHER':
+      // The register is one tap from Today (only the first lecture's class), so it needs no tab of its own.
       return [
         { name: 'index', title: 'Today', icon: 'sunny-outline' },
-        { name: 'attendance', title: 'Attendance', icon: 'checkbox-outline' },
-        { name: 'marks', title: 'Marks', icon: 'ribbon-outline' },
+        { name: 'marks', title: 'Tests', icon: 'ribbon-outline' },
+        { name: 'students', title: 'My students', icon: 'people-outline' },
         { name: 'leave', title: 'Leave', icon: 'airplane-outline' },
         more,
       ];
@@ -34,6 +35,15 @@ export function tabsFor(me: Me): Tab[] {
         // done on the website.
         { name: 'index', title: 'Home', icon: 'home-outline' },
         { name: 'collect', title: 'Collect', icon: 'cash-outline' },
+        { name: 'claims', title: 'Proofs', icon: 'checkmark-done-outline' },
+        more,
+      ];
+    case 'CLERK':
+      // Front office: the counter and the admissions desk in one seat.
+      return [
+        { name: 'index', title: 'Home', icon: 'home-outline' },
+        { name: 'collect', title: 'Collect', icon: 'cash-outline' },
+        { name: 'students', title: 'Students', icon: 'school-outline' },
         { name: 'claims', title: 'Proofs', icon: 'checkmark-done-outline' },
         more,
       ];
@@ -56,12 +66,14 @@ export function tabsFor(me: Me): Tab[] {
           : []),
         more,
       ];
-    default: // SCHOOL_ADMIN, PRINCIPAL
+    default: // SCHOOL_ADMIN, PRINCIPAL (attendance lives in More; the principal has no money)
       return [
-        { name: 'index', title: 'Dashboard', icon: 'grid-outline' },
-        { name: 'attendance', title: 'Attendance', icon: 'checkbox-outline' },
-        ...(can('finance.read') ? [{ name: 'finance', title: 'Finance', icon: 'wallet-outline' } as Tab] : []),
+        { name: 'index', title: 'Dashboard', icon: 'home-outline' },
         { name: 'students', title: 'People', icon: 'people-outline' },
+        ...(can('finance.read') ? [{ name: 'finance', title: 'Finance', icon: 'wallet-outline' } as Tab] : []),
+        ...(!can('finance.read') && can('leave.approve')
+          ? [{ name: 'leave', title: 'Leave', icon: 'airplane-outline' } as Tab]
+          : []),
         more,
       ];
   }
@@ -83,6 +95,12 @@ export function moreFor(me: Me, opts: { pending?: number } = {}): MoreItem[] {
   const items: MoreItem[] = [];
   const add = (cond: boolean, item: MoreItem) => cond && items.push(item);
 
+  // Registers, for everyone who takes or oversees them (no longer a tab).
+  add(role !== 'STUDENT' && (can('attendance.oversee') || role === 'TEACHER'), {
+    href: '/(app)/attendance',
+    title: role === 'TEACHER' ? 'Registers' : 'Attendance',
+    icon: 'checkbox-outline',
+  });
   add(role === 'STUDENT' || can('timetable.view'), {
     href: '/(app)/more/timetable',
     title: 'Timetable',
@@ -94,7 +112,6 @@ export function moreFor(me: Me, opts: { pending?: number } = {}): MoreItem[] {
     title: 'Leave',
     icon: 'airplane-outline',
   });
-  add(role === 'TEACHER', { href: '/(app)/students', title: 'My students', icon: 'school-outline' });
   add(role !== 'TEACHER' && (can('marks.manage') || can('reports.read')), {
     href: '/(app)/marks',
     title: 'Tests & marks',
@@ -112,15 +129,29 @@ export function moreFor(me: Me, opts: { pending?: number } = {}): MoreItem[] {
     icon: 'stats-chart-outline',
   });
   add(!financeTab && can('expenses.manage'), { href: '/(app)/more/expenses', title: 'Expenses', icon: 'bag-outline' });
-  add(role === 'TEACHER' || role === 'PRINCIPAL' || role === 'ADMISSIONS_OFFICER', {
+  add(role === 'TEACHER' || role === 'PRINCIPAL' || role === 'ADMISSIONS_OFFICER' || role === 'CLERK', {
     href: '/(app)/more/payslips',
     title: 'My payslips',
     icon: 'document-outline',
   });
   add(can('platform.plans.manage'), { href: '/(app)/more/plans', title: 'Plans', icon: 'pricetags-outline' });
   add(can('platform.admins.manage'), { href: '/(app)/more/admins', title: 'Platform admins', icon: 'shield-outline' });
+  const counter = role === 'ACCOUNTANT' || role === 'CLERK';
   add(!platform, { href: '/(app)/announcements', title: 'Notices', icon: 'megaphone-outline' });
-  add(!platform, { href: '/(app)/more/notifications', title: 'Notifications', icon: 'notifications-outline' });
+  // The counter works from Home and Proofs; a notifications inbox is just noise there.
+  add(!platform && !counter, {
+    href: '/(app)/more/notifications',
+    title: 'Notifications',
+    icon: 'notifications-outline',
+  });
+  add(role === 'SCHOOL_ADMIN', { href: '/(app)/more/plan', title: 'Our plan', icon: 'pricetags-outline' });
+  // Every staff seat can ask the EDUsaas team for help; students ask their school.
+  add(!platform && role !== 'STUDENT', { href: '/(app)/more/support', title: 'Help', icon: 'help-buoy-outline' });
+  add(platform && can('platform.health.read'), {
+    href: '/(app)/more/stats',
+    title: 'App health',
+    icon: 'pulse-outline',
+  });
   add(!!opts.pending, {
     href: '/(app)/more/queue',
     title: 'Waiting to send',

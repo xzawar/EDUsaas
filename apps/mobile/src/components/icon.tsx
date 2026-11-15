@@ -1,5 +1,7 @@
 import {
   Activity,
+  Database,
+  Gauge,
   Armchair,
   ArrowLeft,
   Award,
@@ -122,6 +124,8 @@ const ICONS = {
   'planet-outline': Globe,
   'pricetags-outline': Tags,
   'pulse-outline': Activity,
+  'speedometer-outline': Gauge,
+  'server-outline': Database,
   'receipt-outline': Receipt,
   'refresh-outline': RefreshCw,
   'ribbon-outline': Award,

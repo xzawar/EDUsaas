@@ -137,19 +137,19 @@ describe('Collect fees', () => {
     await fireEvent.changeText(screen.getByDisplayValue('4500.00'), '5000');
     await fireEvent.press(screen.getByText('Record payment'));
     expect(mockSent.some((r) => r.method === 'POST')).toBe(false);
-    await fireEvent.press(screen.getByText('Keep the extra on account for next bill'));
+    await fireEvent.press(screen.getByText('More than the bill: keep the extra for next month'));
     await fireEvent.press(screen.getByText('Record payment'));
     await screen.findByText('Receipt R-000555');
     expect(mockSent.find((r) => r.method === 'POST')!.body).toMatchObject({ amountPaisa: 500000, allowAdvance: true });
   });
 
-  it('asks for a reference for bank payments', async () => {
+  it('offers a reference box for bank payments', async () => {
     mockParams = { student: 's1' };
     await show(<Collect />);
     await fireEvent.press(await screen.findByText('Take payment'));
-    expect(screen.queryByText('Reference / transaction no.')).toBeNull();
+    expect(screen.queryByText('Reference (optional)')).toBeNull();
     await fireEvent.press(screen.getByText('Bank transfer'));
-    expect(screen.getByText('Reference / transaction no.')).toBeTruthy();
+    expect(screen.getByText('Reference (optional)')).toBeTruthy();
   });
 });
 
@@ -223,7 +223,7 @@ describe('Teacher screens', () => {
     });
     const Marks = require('../app/(app)/marks/index').default;
     await show(<Marks />);
-    await fireEvent.press(await screen.findByText('8-A · Mathematics'));
+    await fireEvent.press(await screen.findByText('Mathematics · 8-A'));
     expect(mockPush).toHaveBeenCalledWith('/(app)/marks/a1');
   });
   it('shows a friendly error with retry when offline and nothing is cached', async () => {
@@ -276,7 +276,7 @@ describe('Home', () => {
       },
     });
     await show(<Home />);
-    await fireEvent.press(await screen.findByText('Take 8-A'));
+    await fireEvent.press(await screen.findByText('Take 8-A register'));
     expect(mockPush).toHaveBeenCalledWith('/(app)/attendance/sec1');
     expect(screen.getByText('Finish marks for 2 tests')).toBeTruthy();
     expect(screen.getByText('Sports day')).toBeTruthy();

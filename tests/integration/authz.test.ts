@@ -113,6 +113,7 @@ import * as mergeClerk from '@/app/api/v1/users/merge-clerk/route';
 import * as assessmentOptions from '@/app/api/v1/assessments/options/route';
 import * as platformStats from '@/app/api/v1/platform/stats/route';
 import * as schoolPlanRoute from '@/app/api/v1/plan/route';
+import * as studentOverviewRoute from '@/app/api/v1/students/[id]/overview/route';
 import * as sTicketReply from '@/app/api/v1/support/tickets/[id]/reply/route';
 import * as sTicketClose from '@/app/api/v1/support/tickets/[id]/close/route';
 import * as leaveTypeById from '@/app/api/v1/leave/types/[id]/route';
@@ -329,6 +330,14 @@ const MATRIX: Row[] = [
     handler: mergeClerk.POST,
     request: () => ({ body: { keepId: MISSING, retireId: '00000000-0000-4000-8000-000000000001' } }),
     expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/overview',
+    handler: studentOverviewRoute.GET,
+    // The fixture teacher is 8-A's incharge; the principal reads reports. Admissions/Accountant can search
+    // students but never see a report.
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404, ACCOUNTANT: 404 }),
   },
   {
     key: 'GET /api/v1/assessments/options',

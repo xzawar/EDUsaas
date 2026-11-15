@@ -1,6 +1,9 @@
 import 'server-only';
 import type { AuthedContext } from '@/server/http/route';
 import { inTenant, schoolClock, sectionLabel, teacherScope, toDate } from '@/server/school/common';
+import { notFound } from '@/server/http/errors';
+import { studentAttendance } from '@/server/school/attendance';
+import { studentResults } from '@/server/school/assessments';
 
 /** School overview for School Admin / Principal / Admissions Officer (fields gated by permission). */
 export async function schoolOverview(ctx: AuthedContext) {
@@ -262,4 +265,30 @@ export async function subjectAverages(ctx: AuthedContext) {
       .filter((r) => r.avg !== null)
       .map((r) => ({ subject: r.subject, avg: Math.round(r.avg! * 10) / 10, tests: Number(r.tests) }));
   });
+}
+
+/**
+ * A student's overview for staff: attendance and this year's results. Only for those who look after the whole child:
+ * the class's own incharge teacher, and office roles that read reports (School Admin, Principal). Subject teachers
+ * see the student's details elsewhere but not their full report.
+ */
+export async function studentProfileOverview(ctx: AuthedContext, studentId: string) {
+  const allowed = await inTenant(ctx, async (tx) => {
+    const s = await tx.student.findUnique({ where: { id: studentId }, select: { sectionId: true } });
+    if (!s) return false;
+    if (ctx.user.role === 'SCHOOL_ADMIN' || ctx.can('reports.read')) return true;
+    if (ctx.user.role !== 'TEACHER' || !s.sectionId) return false;
+    const scope = await teacherScope(tx, ctx.user.id);
+    return scope.inchargeSectionIds.includes(s.sectionId);
+  });
+  if (!allowed) throw notFound('Student');
+  const [attendance, results] = await Promise.all([studentAttendance(ctx, studentId), studentResults(ctx, studentId)]);
+  const days = Object.entries(attendance.byDay)
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .slice(0, 14)
+    .map(([date, status]) => ({ date, status }));
+  return {
+    attendance: { pct: attendance.pct, counts: attendance.counts, threshold: attendance.threshold, recent: days },
+    results: { latest: results.items.slice(0, 5), subjects: results.subjects },
+  };
 }

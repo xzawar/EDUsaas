@@ -191,6 +191,8 @@ export async function getAssessment(ctx: AuthedContext, id: string) {
       canEdit,
       canSubmit: enterer && a.status === 'DRAFT',
       canPublish: canPublish(ctx, clock.marksPublisher, enterer) && a.status === 'SUBMITTED',
+      // Whether this person will be able to publish once it's submitted (so the app can offer one "Publish" step).
+      mayPublish: canPublish(ctx, clock.marksPublisher, enterer),
       editableUntil: a.status !== 'DRAFT' && !ctx.can('marks.manage') ? windowEnds : null,
       lockedReason: canEdit
         ? null

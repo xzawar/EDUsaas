@@ -17,6 +17,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatPKR } from '@edusaas/shared';
 import { Text, TextInput } from '@/components/text';
+import { BrandMark } from '@/screens/BrandMark';
+import { BackChip } from '@/components/header';
+import { attendanceStyle } from '@/lib/attendance';
 import { colors, font, radius, space, tones, type Tone } from '@/lib/theme';
 
 /**
@@ -32,6 +35,7 @@ export function Screen({
   title,
   subtitle,
   right,
+  back,
   padded = true,
 }: {
   children: ReactNode;
@@ -40,6 +44,8 @@ export function Screen({
   title?: string;
   subtitle?: ReactNode;
   right?: ReactNode;
+  /** Detail pages: a round back chip above the bold title. */
+  back?: boolean;
   padded?: boolean;
 }) {
   const insets = useSafeAreaInsets();
@@ -64,6 +70,11 @@ export function Screen({
       }
       keyboardShouldPersistTaps="handled"
     >
+      {back && (
+        <View style={{ flexDirection: 'row' }}>
+          <BackChip />
+        </View>
+      )}
       {title && (
         <View
           style={{
@@ -102,7 +113,13 @@ export function Card({
     <View style={[styles.card, style]}>
       {(title || action) && (
         <View style={styles.cardHead}>
-          {title ? <Text style={font.h2}>{title}</Text> : <View />}
+          {title ? (
+            <Text style={[font.h2, { flexShrink: 1 }]} numberOfLines={1}>
+              {title}
+            </Text>
+          ) : (
+            <View />
+          )}
           {action}
         </View>
       )}
@@ -152,7 +169,15 @@ export function Stat({
       <Text style={[font.small, { marginTop: space.md }]} numberOfLines={1}>
         {title}
       </Text>
-      <Text style={[font.number, { fontVariant: ['tabular-nums'] }]}>{value}</Text>
+      {/* Big amounts shrink to fit the tile instead of spilling out of it. */}
+      <Text
+        style={[font.number, { fontVariant: ['tabular-nums'] }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.55}
+      >
+        {value}
+      </Text>
       {caption ? (
         <Text style={[font.tiny, { marginTop: 2 }]} numberOfLines={2}>
           {caption}
@@ -270,6 +295,16 @@ export function Badge({
   );
 }
 
+/** A filled pill for an attendance status (Present green, Absent red, Late amber, Leave purple). */
+export function StatusPill({ status, label }: { status: string; label?: string }) {
+  const st = attendanceStyle(status);
+  return (
+    <View style={[styles.badge, { backgroundColor: st.bg, paddingHorizontal: 12, paddingVertical: 4 }]}>
+      <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '700', color: st.fg }}>{label ?? st.label}</Text>
+    </View>
+  );
+}
+
 /** List row: flush (rows bring their own padding), title SemiBold, subtitle in body colour, optional trailing item. */
 export function Row({
   title,
@@ -312,7 +347,13 @@ export function Row({
           )
         ) : null}
       </View>
-      {typeof right === 'string' || typeof right === 'number' ? <Text style={font.small}>{right}</Text> : right}
+      {typeof right === 'string' || typeof right === 'number' ? (
+        <Text style={[font.small, { flexShrink: 1, maxWidth: '55%', textAlign: 'right' }]} numberOfLines={2}>
+          {right}
+        </Text>
+      ) : (
+        right
+      )}
       {onPress && !right ? <Icon name="chevron-forward" size={20} color={colors.muted} /> : null}
     </Pressable>
   );
@@ -346,34 +387,34 @@ export function Money({ paisa, style }: { paisa: number; style?: StyleProp<TextS
   return <Text style={[{ fontVariant: ['tabular-nums'], color: colors.ink }, style]}>{formatPKR(paisa)}</Text>;
 }
 
-/** Loading placeholder: the shape of the content to come (two tiles and a card), gently pulsing. No spinner. */
+/** Loading: the E mark gently breathing in the middle of the screen. No spinner, no grey boxes. */
 export function Loading() {
-  const pulse = useRef(new Animated.Value(0.55)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.55, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 650, useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
   }, [pulse]);
-  const block = (h: number, extra?: ViewStyle) => (
-    <View style={[{ height: h, borderRadius: radius.lg, backgroundColor: colors.card }, extra]} />
-  );
   return (
-    <Animated.View
+    <View
       accessibilityRole="progressbar"
       accessibilityLabel="Loading"
-      style={{ gap: space.md, opacity: pulse }}
+      style={{ paddingVertical: 64, alignItems: 'center' }}
     >
-      <View style={{ flexDirection: 'row', gap: space.md }}>
-        {block(112, { flex: 1 })}
-        {block(112, { flex: 1 })}
-      </View>
-      {block(168)}
-    </Animated.View>
+      <Animated.View
+        style={{
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.04] }) }],
+        }}
+      >
+        <BrandMark size={44} />
+      </Animated.View>
+    </View>
   );
 }
 

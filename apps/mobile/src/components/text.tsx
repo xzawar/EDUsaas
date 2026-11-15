@@ -22,6 +22,11 @@ export function Text({ style, ...props }: ComponentProps<typeof RNText>) {
 }
 
 export function TextInput({ style, ...props }: ComponentProps<typeof RNTextInput>) {
-  const flat: TextStyle = StyleSheet.flatten([{ color: colors.ink }, style]) ?? {};
+  // Android pads inputs for accents above the line, which pushes digits up and clips them in short boxes.
+  const flat: TextStyle =
+    (StyleSheet.flatten([
+      { color: colors.ink, includeFontPadding: false, textAlignVertical: props.multiline ? 'top' : 'center' },
+      style,
+    ]) as TextStyle) ?? {};
   return <RNTextInput {...props} style={[flat, faceFor(flat)]} />;
 }

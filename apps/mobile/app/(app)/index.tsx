@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { Text } from '@/components/text';
-import { Button, Card, Empty, ErrorBox, Loading, Money, Row, Screen, SeeAll, Stat } from '@/components/ui';
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Money, Row, Screen, SeeAll, Stat } from '@/components/ui';
 import { useGet, errorText } from '@/lib/data';
 import { fmtDate, METHOD_LABELS, plural } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -91,12 +91,37 @@ function Lessons({ d, go: push, sub }: { d: Home; go: Go; sub: (l: Lesson) => st
   );
 }
 
+type LatestResult = {
+  id: string;
+  subject: string;
+  heldOn: string;
+  score: number | null;
+  maxMarks: number;
+  absent: boolean;
+};
+
+/** Student: class and teacher first, then today's lessons, attendance, latest results and subjects. No money here. */
 function StudentHome({ d, go: push }: { d: Home; go: Go }) {
   const att = d.attendance;
-  const fees = d.fees;
-  const owes = !!fees && fees.outstandingPaisa > 0;
+  const o = d.overview as {
+    section: string | null;
+    rollNumber: number;
+    classTeacher: string | null;
+    subjects: { name: string; teacher: string | null }[];
+  } | null;
+  const results = (d.latestResults ?? []) as LatestResult[];
+  const last = results[0];
   return (
     <>
+      {o?.section && (
+        <Card>
+          <Text style={font.small}>Your class</Text>
+          <Text style={font.title}>
+            {o.section} · Roll {o.rollNumber}
+          </Text>
+          {o.classTeacher ? <Text style={font.small}>Class teacher: {o.classTeacher}</Text> : null}
+        </Card>
+      )}
       <Tiles>
         <Stat
           tone="violet"
@@ -106,23 +131,54 @@ function StudentHome({ d, go: push }: { d: Home; go: Go }) {
           onPress={() => go(push, '/(app)/attendance')}
         />
         <Stat
-          tone={owes ? 'amber' : 'mint'}
-          icon="receipt-outline"
-          title={owes ? 'Fees due' : 'Fees'}
-          value={fees ? owes ? <Money paisa={fees.outstandingPaisa} /> : 'All paid' : '—'}
-          onPress={() => go(push, '/(app)/fees')}
+          tone="mint"
+          icon="ribbon-outline"
+          title={last ? `Latest · ${last.subject}` : 'Latest test'}
+          value={last ? (last.absent ? 'A' : `${last.score ?? '—'}/${last.maxMarks}`) : '—'}
+          onPress={() => go(push, last ? `/(app)/marks/result/${last.id}` : '/(app)/marks')}
         />
       </Tiles>
       <Lessons d={d} go={push} sub={(l) => l.entry?.teacher ?? undefined} />
+      {results.length > 0 && (
+        <Card title="Latest results" action={<SeeAll onPress={() => go(push, '/(app)/marks')} />}>
+          {results.map((r) => (
+            <Row
+              key={r.id}
+              title={r.subject}
+              subtitle={fmtDate(r.heldOn)}
+              right={
+                <Text style={{ fontWeight: '700', color: r.absent ? colors.red : colors.ink }}>
+                  {r.absent ? 'A' : `${r.score ?? '—'}/${r.maxMarks}`}
+                </Text>
+              }
+              onPress={() => go(push, `/(app)/marks/result/${r.id}`)}
+            />
+          ))}
+        </Card>
+      )}
+      {o && o.subjects.length > 0 && (
+        <Card title="Subjects">
+          {o.subjects.slice(0, 6).map((sub) => (
+            <Row key={sub.name} title={sub.name} right={sub.teacher ?? undefined} />
+          ))}
+        </Card>
+      )}
     </>
   );
 }
 
+type TeacherClass = { id: string; label: string; students: number; subjects: string[]; isIncharge: boolean };
+
+/** Teacher: like the website's Today page — check in, what's waiting, today's lessons and my classes. */
 function TeacherHome({ d, go: push }: { d: Home; go: Go }) {
   const todo = (d.todo ?? []) as { id: string; label: string; done: boolean }[];
   const pending = todo.filter((s) => !s.done);
+  const classes = ((d.overview?.sections ?? []) as TeacherClass[]).slice(0, 5);
   const tasks = [
-    ...pending.map((s) => ({ key: s.id, title: `Take ${s.label}`, href: `/(app)/attendance/${s.id}` })),
+    ...pending.map((s) => ({ key: s.id, title: `Take ${s.label} register`, href: `/(app)/attendance/${s.id}` })),
+    ...(d.toPublish > 0
+      ? [{ key: 'publish', title: `Publish ${plural(d.toPublish, 'test')}`, href: '/(app)/marks' }]
+      : []),
     ...(d.drafts > 0
       ? [{ key: 'marks', title: `Finish marks for ${plural(d.drafts, 'test')}`, href: '/(app)/marks' }]
       : []),
@@ -133,14 +189,43 @@ function TeacherHome({ d, go: push }: { d: Home; go: Go }) {
   return (
     <>
       <CheckInCard checkin={d.checkin} />
-      <Card title={tasks.length ? 'To do' : 'All done'}>
-        {tasks.length === 0 ? (
-          <Text style={font.small}>Registers taken and nothing waiting.</Text>
-        ) : (
-          tasks.slice(0, GLANCE).map((t) => <Row key={t.key} title={t.title} onPress={() => go(push, t.href)} />)
-        )}
-      </Card>
+      <Tiles>
+        <Stat
+          tone="violet"
+          icon="checkbox-outline"
+          title="Register"
+          value={todo.length ? (pending.length ? 'To take' : 'Taken') : 'None today'}
+          onPress={() => go(push, pending[0] ? `/(app)/attendance/${pending[0].id}` : '/(app)/attendance')}
+        />
+        <Stat
+          tone="mint"
+          icon="people-outline"
+          title="Students"
+          value={d.overview?.totalStudents ?? '—'}
+          onPress={() => go(push, '/(app)/students')}
+        />
+      </Tiles>
+      {tasks.length > 0 && (
+        <Card title="To do">
+          {tasks.slice(0, GLANCE + 1).map((t) => (
+            <Row key={t.key} title={t.title} onPress={() => go(push, t.href)} />
+          ))}
+        </Card>
+      )}
       <Lessons d={d} go={push} sub={(l) => l.entry?.section ?? undefined} />
+      {classes.length > 0 && (
+        <Card title="My classes" action={<SeeAll label="Students" onPress={() => go(push, '/(app)/students')} />}>
+          {classes.map((c) => (
+            <Row
+              key={c.id}
+              title={c.label}
+              subtitle={`${plural(c.students, 'student')}${c.subjects.length ? ` · ${c.subjects.join(', ')}` : ''}`}
+              right={c.isIncharge ? <Badge tone="blue">Incharge</Badge> : undefined}
+              onPress={() => go(push, `/(app)/students?sectionId=${c.id}`)}
+            />
+          ))}
+        </Card>
+      )}
     </>
   );
 }
@@ -255,6 +340,23 @@ function AccountantHome({ d, go: push }: { d: Home; go: Go }) {
       <Button onPress={() => go(push, '/(app)/collect')} icon="cash-outline">
         Collect a fee
       </Button>
+      <Card>
+        <Row
+          left={<Icon name="bag-outline" size={22} color={colors.deep} />}
+          title="Expenses"
+          subtitle="Spent this month"
+          right={<Money paisa={f.monthExpensesPaisa} style={{ fontWeight: '700', color: colors.ink }} />}
+          onPress={() => go(push, '/(app)/more/expenses')}
+        />
+        {d.clerk && (
+          <Row
+            left={<Icon name="person-add-outline" size={22} color={colors.deep} />}
+            title="Add a student"
+            subtitle={d.admissions ? `${d.admissions.admitted} admitted this month` : undefined}
+            onPress={() => go(push, '/(app)/students/new')}
+          />
+        )}
+      </Card>
       {f.recentPayments.length > 0 && (
         <Card title="Latest payments">
           {f.recentPayments
@@ -293,6 +395,9 @@ function AdmissionsHome({ d, go: push }: { d: Home; go: Go }) {
           caption={a?.full ? plural(a.full, 'section') + ' full' : undefined}
         />
       </Tiles>
+      <Button icon="person-add-outline" onPress={() => go(push, '/(app)/students/new')}>
+        Add a student
+      </Button>
       <Card
         title="New students"
         action={d.recentAdmissions.length > GLANCE ? <SeeAll onPress={() => go(push, '/(app)/students')} /> : undefined}
@@ -331,6 +436,7 @@ function PlatformHome({ d, go: push }: { d: Home; go: Go }) {
           icon="business-outline"
           title="Schools"
           value={d.health.tenants}
+          caption={o ? `${o.schools.active} active · ${o.schools.trial} trial` : undefined}
           onPress={() => go(push, '/(app)/schools')}
         />
         <Stat
@@ -342,6 +448,22 @@ function PlatformHome({ d, go: push }: { d: Home; go: Go }) {
           onPress={() => go(push, '/(app)/tickets')}
         />
       </Tiles>
+      <Card>
+        <Row
+          left={<Icon name="pulse-outline" size={22} color={colors.deep} />}
+          title="App health"
+          subtitle="Who’s online, server load, database"
+          onPress={() => go(push, '/(app)/more/stats')}
+        />
+        {o && (
+          <Row
+            left={<Icon name="pricetags-outline" size={22} color={colors.deep} />}
+            title="Plans"
+            subtitle={`${plural(o.subscriptions.active, 'paying school')} · Rs ${o.monthlyRevenue.toLocaleString('en-PK')}/month`}
+            onPress={() => go(push, '/(app)/more/plans')}
+          />
+        )}
+      </Card>
     </>
   );
 }

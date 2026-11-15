@@ -101,7 +101,7 @@ describe('first sign-in password change', () => {
     replies['POST /auth/change-password'] = () => ({ status: 200, json: { redirectTo: '/student', token: 'tok-new' } });
     replies['GET /auth/me'] = () => ({ status: 200, json: ME(false) });
     await render(<Change />);
-    expect(screen.getByText(/first sign-in/)).toBeTruthy();
+    expect(screen.getByText('Choose your own to continue.')).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText('Temporary password'), 'Temp-pass-1');
     await fireEvent.changeText(screen.getByLabelText('New password'), 'My-own-pass-22');
     await fireEvent.changeText(screen.getByLabelText('Confirm new password'), 'My-own-pass-22');
@@ -117,8 +117,9 @@ describe('first sign-in password change', () => {
     await fireEvent.changeText(screen.getByLabelText('Temporary password'), 'Temp-pass-1');
     await fireEvent.changeText(screen.getByLabelText('New password'), 'My-own-pass-22');
     await fireEvent.changeText(screen.getByLabelText('Confirm new password'), 'My-own-pass-23');
+    // The mismatch shows under the box and Save stays off, so nothing reaches the server.
+    expect(screen.getByText('Doesn’t match yet')).toBeTruthy();
     await fireEvent.press(screen.getByText('Save password'));
-    expect(screen.getByText('The two new passwords don’t match.')).toBeTruthy();
     expect(seen).toHaveLength(0);
   });
 });

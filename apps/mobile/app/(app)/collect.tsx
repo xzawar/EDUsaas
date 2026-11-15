@@ -4,6 +4,9 @@ import { Text } from '@/components/text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Badge, Button, Card, Chip, Empty, Field, Input, Loading, Money, Row, Screen } from '@/components/ui';
+import { Avatar } from '@/components/avatar';
+import { BackChip } from '@/components/header';
+import { Icon } from '@/components/icon';
 import { toast } from '@/components/toast';
 import { api } from '@/lib/api';
 import { useInvalidate } from '@/lib/data';
@@ -82,9 +85,9 @@ export default function CollectScreen() {
   const open = fees?.invoices.filter((i) => i.status === 'DUE' || i.status === 'PARTIAL') ?? [];
 
   return (
-    <Screen title="Collect fees" subtitle="Find a student, take the fee.">
+    <Screen title="Collect" subtitle={fees ? undefined : 'Find a student, take the fee.'}>
       <Input
-        placeholder="Student name, username or roll no."
+        placeholder="Search a student"
         value={q}
         onChangeText={setQ}
         autoCorrect={false}
@@ -97,7 +100,8 @@ export default function CollectScreen() {
             <Row
               key={h.id}
               title={h.name}
-              subtitle={`${h.username ?? ''} · ${h.section ?? ''}${h.rollNumber ? ` · ${h.rollNumber}` : ''}`}
+              left={<Avatar name={h.name} size={36} />}
+              subtitle={`${h.section ?? 'Not placed'}${h.rollNumber ? ` · Roll ${h.rollNumber}` : ''}`}
               onPress={() => {
                 setQ('');
                 setHits([]);
@@ -110,59 +114,48 @@ export default function CollectScreen() {
       {loading && <Loading />}
       {!fees && !loading && (
         <Card>
-          <Empty
-            icon="search-outline"
-            title="Find the student first"
-            body="Type a name or username. You’ll see their bills, take the payment and share the receipt."
-          />
+          <Empty icon="search-outline" title="Find the student first" body="Type a name to see their bills." />
         </Card>
       )}
       {fees && (
         <>
           <Card>
-            <Text style={font.h2}>{fees.student.name}</Text>
-            <Text style={font.small}>
-              {fees.student.username} · {fees.student.section}
-              {fees.student.rollNumber ? ` · Roll ${fees.student.rollNumber}` : ''}
-            </Text>
-            {!!fees.student.guardianName && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Avatar name={fees.student.name} />
+              <View style={{ flex: 1 }}>
+                <Text style={font.h2} numberOfLines={1}>
+                  {fees.student.name}
+                </Text>
+                <Text style={font.small}>
+                  {fees.student.section}
+                  {fees.student.rollNumber ? ` · Roll ${fees.student.rollNumber}` : ''}
+                </Text>
+              </View>
+            </View>
+            <Text style={[font.small, { marginTop: 8 }]}>To pay</Text>
+            <Money
+              paisa={fees.outstandingPaisa}
+              style={[font.display, { color: fees.outstandingPaisa > 0 ? colors.ink : colors.green }]}
+            />
+            {fees.advancePaisa > 0 && (
               <Text style={font.small}>
-                Guardian: {fees.student.guardianName}
-                {fees.student.guardianPhone ? ` · ${fees.student.guardianPhone}` : ''}
+                Paid ahead: <Money paisa={fees.advancePaisa} />
               </Text>
             )}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-              <View>
-                <Text style={font.tiny}>Outstanding</Text>
-                <Money
-                  paisa={fees.outstandingPaisa}
-                  style={{
-                    fontSize: 26,
-                    fontWeight: '700',
-                    color: fees.outstandingPaisa > 0 ? colors.red : colors.green,
-                  }}
-                />
-                {fees.advancePaisa > 0 && (
-                  <Text style={font.tiny}>
-                    On account: <Money paisa={fees.advancePaisa} />
-                  </Text>
-                )}
-              </View>
-              <Button
-                icon="cash-outline"
-                onPress={() => setPaying({ invoiceId: open[0]?.id, balance: open[0]?.balancePaisa })}
-              >
-                Take payment
-              </Button>
-            </View>
           </Card>
+          <Button
+            icon="cash-outline"
+            onPress={() => setPaying({ invoiceId: open[0]?.id, balance: open[0]?.balancePaisa })}
+          >
+            Take payment
+          </Button>
           <Card title="Bills">
             {fees.invoices.length === 0 && <Text style={font.small}>No bills yet.</Text>}
             {fees.invoices.map((i) => (
               <Row
                 key={i.id}
                 title={periodLabel(i.period)}
-                subtitle={`${i.number} · due ${fmtDate(i.dueOn)}`}
+                subtitle={`Due ${fmtDate(i.dueOn, { day: 'numeric', month: 'short' })}`}
                 right={
                   <View style={{ alignItems: 'flex-end', gap: 4 }}>
                     <Money paisa={i.balancePaisa > 0 ? i.balancePaisa : i.totalPaisa} style={{ fontWeight: '600' }} />
@@ -292,12 +285,13 @@ function PaymentSheet({
       >
         {done ? (
           <>
+            <Icon name="checkmark-circle" size={56} color={colors.green} />
             <Text style={font.h1}>{done.queued ? 'Saved on this phone' : `Receipt ${done.receiptNumber}`}</Text>
             <Money paisa={done.amountPaisa} style={{ fontSize: 34, fontWeight: '700' }} />
             <Text style={font.small}>
               {done.queued
-                ? 'No connection right now. The receipt number is issued when it sends; you can see it under More → Waiting to send.'
-                : 'Saved. Share the PDF with the parent.'}
+                ? 'It sends when you’re online; the receipt number comes then.'
+                : 'Share the receipt with the parent.'}
             </Text>
             {!done.queued && (
               <Button
@@ -313,11 +307,14 @@ function PaymentSheet({
           </>
         ) : (
           <>
+            <View style={{ flexDirection: 'row' }}>
+              <BackChip onPress={onClose} />
+            </View>
             <Text style={font.h1}>Take payment</Text>
             <Text style={font.small}>
               {student.name} · {student.section}
             </Text>
-            <Field label="For bill">
+            <Field label="Bill">
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {invoices.map((i) => (
                   <Chip
@@ -332,35 +329,36 @@ function PaymentSheet({
                   </Chip>
                 ))}
                 <Chip active={invoiceId === ''} onPress={() => setInvoiceId('')}>
-                  On account
+                  Pay ahead
                 </Chip>
               </View>
             </Field>
-            <Field label="Amount received (PKR)" error={paisa < 0 ? 'Enter a number like 4500 or 4500.50' : null}>
+            <Field label="Amount (PKR)" error={paisa < 0 ? 'Enter a number like 4500' : null}>
               <Input
                 keyboardType="decimal-pad"
                 value={amount}
                 onChangeText={setAmount}
-                autoFocus
-                style={{ fontSize: 22, fontWeight: '600' }}
+                style={{ fontSize: 28, fontWeight: '700', minHeight: 64, paddingVertical: 0 }}
               />
             </Field>
             {over && (
               <Chip active={advance} onPress={() => setAdvance((a) => !a)}>
-                {advance ? '✓ ' : ''}Keep the extra on account for next bill
+                {advance ? '✓ ' : ''}More than the bill: keep the extra for next month
               </Chip>
             )}
             <Field label="Paid by">
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {Object.entries(METHOD_LABELS).map(([k, l]) => (
-                  <Chip key={k} active={method === k} onPress={() => setMethod(k)}>
-                    {l}
-                  </Chip>
-                ))}
+                {Object.entries(METHOD_LABELS)
+                  .filter(([k]) => k !== 'CHEQUE')
+                  .map(([k, l]) => (
+                    <Chip key={k} active={method === k} onPress={() => setMethod(k)}>
+                      {l}
+                    </Chip>
+                  ))}
               </View>
             </Field>
             {method !== 'CASH' && (
-              <Field label="Reference / transaction no.">
+              <Field label="Reference (optional)">
                 <Input value={reference} onChangeText={setReference} autoCapitalize="characters" />
               </Field>
             )}
@@ -371,9 +369,6 @@ function PaymentSheet({
               icon="checkmark-circle-outline"
             >
               Record payment
-            </Button>
-            <Button variant="ghost" onPress={onClose}>
-              Cancel
             </Button>
           </>
         )}
