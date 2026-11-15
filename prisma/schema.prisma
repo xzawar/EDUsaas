@@ -25,6 +25,8 @@ enum UserRole {
   PRINCIPAL
   ADMISSIONS_OFFICER
   ACCOUNTANT
+  /// Front office: an Accountant and an Admissions Officer in one seat.
+  CLERK
   TEACHER
   STUDENT
 }
@@ -48,6 +50,8 @@ enum AttendanceMode {
 enum MarksPublisher {
   SCHOOL_ADMIN
   PRINCIPAL
+  /// The teacher who owns the test publishes it.
+  TEACHER
 }
 
 enum AcademicYearStatus {
@@ -191,6 +195,7 @@ model Tenant {
   payments           Payment[]
   paymentAllocations PaymentAllocation[]
   paymentClaims      PaymentClaim[]
+  paymentAccounts    PaymentAccount[]
   expenseCategories  ExpenseCategory[]
   expenses           Expense[]
   salaryStructures   SalaryStructure[]
@@ -714,6 +719,10 @@ model Assessment {
   subjectId       String           @map("subject_id") @db.Uuid
   gradingSchemeId String           @map("grading_scheme_id") @db.Uuid
   name            String
+  /// What the test covered, e.g. "Chapter 4: Fractions".
+  chapter         String?
+  /// Anything else students should know (syllabus, instructions).
+  details         String?
   maxMarks        Decimal          @map("max_marks") @db.Decimal(6, 2)
   heldOn          DateTime         @map("held_on") @db.Date
   status          AssessmentStatus @default(DRAFT)
@@ -1340,6 +1349,27 @@ model PaymentClaim {
   @@unique([tenantId, clientKey])
   @@index([tenantId, status, createdAt])
   @@map("payment_claims")
+}
+
+/// Where parents can send money (a bank account, a JazzCash or Easypaisa number). Set by the School Admin; shown on
+/// the student's Fees screen under "Paid by".
+model PaymentAccount {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  method        PaymentMethod
+  /// Bank name, or "JazzCash" / "Easypaisa".
+  label         String
+  accountTitle  String        @map("account_title")
+  accountNumber String        @map("account_number")
+  iban          String?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, method])
+  @@map("payment_accounts")
 }
 
 model ExpenseCategory {

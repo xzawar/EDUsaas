@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { TenantTx } from '@/server/db/client';
 import { AppError, forbidden, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
-import { generateTemporaryPassword, hashPassword } from '@/server/auth/password';
+import { generateTemporaryPassword, hashPassword, newPasswordSchema } from '@/server/auth/password';
 import { normalizeUsername, studentUsername, teacherUsername } from '@/server/auth/username';
 import { revokeUserSessions } from '@/server/auth/session';
 import { photoVersion } from '@/server/school/photos';
@@ -322,7 +322,7 @@ export async function setAssignments(
 // ════════════════════════════════════════════════════════════════════════════
 
 export const createStaffSchema = z.object({
-  role: z.enum(['PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT']),
+  role: z.enum(['PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT', 'CLERK']),
   displayName: z.string().trim().min(2).max(120),
   email: z.string().trim().toLowerCase().email().max(200),
 });
@@ -379,6 +379,105 @@ export async function resetUserPassword(ctx: AuthedContext, userId: string) {
   });
   await revokeUserSessions(userId);
   return result;
+}
+
+/**
+ * The School Admin changes someone's sign-in directly: username (students, teachers), email (office staff) and/or
+ * a new password, without the person's old password. The person is signed out everywhere. Not for the admin's own
+ * account (that is "Change password") or another School Admin.
+ */
+export const updateLoginSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9][a-z0-9-]{2,59}$/, 'Use 3–60 lowercase letters, digits and dashes')
+      .optional(),
+    email: z.string().trim().toLowerCase().email().max(200).optional(),
+    password: newPasswordSchema.optional(),
+  })
+  .refine((v) => v.username || v.email || v.password, 'Change at least one thing');
+
+export async function updateLogin(ctx: AuthedContext, userId: string, input: z.infer<typeof updateLoginSchema>) {
+  if (userId === ctx.user.id) throw new AppError('VALIDATION_FAILED', 'Use "Change password" for your own account');
+  try {
+    const result = await inTenant(ctx, async (tx) => {
+      const target = await tx.user.findFirst({ where: { id: userId, deletedAt: null } });
+      if (!target) throw notFound('User');
+      if (target.role === 'SCHOOL_ADMIN') throw forbidden('The School Admin account can only be changed by EDUsaas');
+      const data: Prisma.UserUpdateInput = {};
+      if (input.username) {
+        if (!target.username) throw new AppError('VALIDATION_FAILED', 'This person signs in with an email');
+        const prefix = await tenantPrefix(tx);
+        // Usernames are unique across every school, so each school keeps to its own prefix.
+        if (!input.username.startsWith(`${prefix}-`))
+          throw new AppError('VALIDATION_FAILED', `Usernames at this school start with "${prefix}-"`);
+        data.username = input.username;
+        data.usernameNormalized = normalizeUsername(input.username);
+      }
+      if (input.email) {
+        if (!target.email) throw new AppError('VALIDATION_FAILED', 'This person signs in with a username');
+        data.email = input.email;
+      }
+      if (input.password) {
+        data.passwordHash = await hashPassword(input.password);
+        data.mustChangePassword = false;
+        data.failedLoginAttempts = 0;
+        data.lockedUntil = null;
+        data.passwordChangedAt = new Date();
+      }
+      const updated = await tx.user.update({ where: { id: userId }, data });
+      await audit(ctx, tx, {
+        action: 'user.update_login',
+        entity: 'User',
+        entityId: userId,
+        before: { username: target.username, email: target.email },
+        after: { username: updated.username, email: updated.email, passwordChanged: !!input.password },
+      });
+      return { username: updated.username, email: updated.email };
+    });
+    await revokeUserSessions(userId);
+    return result;
+  } catch (e) {
+    friendlyDbError(e, { username: 'That username is taken', email: 'That email is already in use' });
+  }
+}
+
+/**
+ * Merge an Accountant and an Admissions Officer into one Clerk seat: `keepId` becomes a Clerk (both jobs), the other
+ * account is switched off and signed out. Nothing is deleted, so their history stays attributed.
+ */
+export const mergeClerkSchema = z.object({ keepId: z.string().uuid(), retireId: z.string().uuid() });
+
+export async function mergeIntoClerk(ctx: AuthedContext, input: z.infer<typeof mergeClerkSchema>) {
+  if (input.keepId === input.retireId) throw new AppError('VALIDATION_FAILED', 'Pick two different people');
+  const r = await inTenant(ctx, async (tx) => {
+    const [keep, retire] = await Promise.all([
+      tx.user.findFirst({ where: { id: input.keepId, deletedAt: null } }),
+      tx.user.findFirst({ where: { id: input.retireId, deletedAt: null } }),
+    ]);
+    if (!keep || !retire) throw notFound('User');
+    const roles = new Set([keep.role, retire.role]);
+    const ok = (r: UserRole) => r === 'ACCOUNTANT' || r === 'ADMISSIONS_OFFICER' || r === 'CLERK';
+    if (!ok(keep.role) || !ok(retire.role))
+      throw new AppError('VALIDATION_FAILED', 'Only an Accountant and an Admissions Officer can be merged');
+    if (roles.size === 1 && keep.role !== 'CLERK')
+      throw new AppError('VALIDATION_FAILED', 'Pick one Accountant and one Admissions Officer');
+    await tx.user.update({ where: { id: keep.id }, data: { role: 'CLERK', status: 'ACTIVE' } });
+    await tx.user.update({ where: { id: retire.id }, data: { status: 'DISABLED' } });
+    await audit(ctx, tx, {
+      action: 'staff.merge_clerk',
+      entity: 'User',
+      entityId: keep.id,
+      before: { keep: keep.role, retire: retire.role },
+      after: { keep: 'CLERK', retired: retire.id },
+    });
+    return { id: keep.id, displayName: keep.displayName };
+  });
+  // The kept person's permissions changed, so they sign in again; the retired one is out for good.
+  await Promise.all([revokeUserSessions(input.keepId), revokeUserSessions(input.retireId)]);
+  return r;
 }
 
 export const setUserStatusSchema = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) });

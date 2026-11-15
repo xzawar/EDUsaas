@@ -9,7 +9,7 @@ type Settings = {
   timezone: string;
   attendanceMode: 'ONCE_DAILY' | 'PER_PERIOD';
   atRiskThreshold: number;
-  marksPublisher: 'SCHOOL_ADMIN' | 'PRINCIPAL';
+  marksPublisher: 'SCHOOL_ADMIN' | 'PRINCIPAL' | 'TEACHER';
   leaveAgeOutHours: number;
   invoiceDay: number;
   feeDueDays: number;
@@ -85,6 +85,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           >
             <option value="SCHOOL_ADMIN">School Admin</option>
             <option value="PRINCIPAL">Principal</option>
+            <option value="TEACHER">The subject teacher</option>
           </Select>
         </Field>
         <Field

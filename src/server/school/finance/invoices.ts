@@ -1,4 +1,5 @@
 import 'server-only';
+import { paymentAccountsIn } from '@/server/school/finance/accounts';
 import type { Invoice, InvoiceStatus, LateFeeRule as LateFeeRuleRow, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { applyDiscount, lateFee, type LateFeeRule } from '@/lib/money';
@@ -538,7 +539,10 @@ export async function studentFees(ctx: AuthedContext, studentId: string) {
 export async function myFees(ctx: AuthedContext) {
   const r = await inTenant(ctx, async (tx) => {
     const me = await tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } });
-    return me ? studentFeesIn(tx, me.id) : null;
+    if (!me) return null;
+    // The student also sees where to send money (only the accounts the school has switched on).
+    const [fees, accounts] = await Promise.all([studentFeesIn(tx, me.id), paymentAccountsIn(tx, true)]);
+    return fees ? { ...fees, accounts } : null;
   });
   if (!r) throw notFound('Student record');
   return r;

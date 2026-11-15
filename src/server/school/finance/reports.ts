@@ -164,8 +164,7 @@ export async function defaulters(ctx: AuthedContext, q: Q) {
         grade: r.student.section?.class.gradeLevel ?? 0,
         rollNumber: r.student.rollNumber,
         guardianName: r.student.guardianName,
-        guardianPhone:
-          ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'ACCOUNTANT' ? r.student.guardianPhone : null,
+        guardianPhone: ['SCHOOL_ADMIN', 'ACCOUNTANT', 'CLERK'].includes(ctx.user.role) ? r.student.guardianPhone : null,
         bills: r.bills,
         balancePaisa: r.balancePaisa,
         oldestDue: r.oldestDue,

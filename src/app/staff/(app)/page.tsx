@@ -61,7 +61,7 @@ export default async function StaffDashboard() {
   if (ctx.user.role === 'TEACHER') return <TeacherToday ctx={ctx} />;
   if (ctx.user.role === 'PRINCIPAL') return <PrincipalDashboard ctx={ctx} />;
   if (ctx.user.role === 'ADMISSIONS_OFFICER') return <AdmissionsDashboard ctx={ctx} />;
-  if (ctx.user.role === 'ACCOUNTANT') return <AccountantDashboard ctx={ctx} />;
+  if (ctx.user.role === 'ACCOUNTANT' || ctx.user.role === 'CLERK') return <AccountantDashboard ctx={ctx} />;
   return <AdminDashboard ctx={ctx} />;
 }
 

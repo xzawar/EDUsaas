@@ -99,7 +99,13 @@ export default async function SupportViewPage({ params }: { params: Promise<{ id
               <dt className="text-slate-500">At-risk below</dt>
               <dd>{v.settings.atRiskThreshold}%</dd>
               <dt className="text-slate-500">Marks published by</dt>
-              <dd>{v.settings.marksPublisher === 'PRINCIPAL' ? 'Principal' : 'School Admin'}</dd>
+              <dd>
+                {v.settings.marksPublisher === 'PRINCIPAL'
+                  ? 'Principal'
+                  : v.settings.marksPublisher === 'TEACHER'
+                    ? 'Subject teacher'
+                    : 'School Admin'}
+              </dd>
               <dt className="text-slate-500">Leave escalates after</dt>
               <dd>{v.settings.leaveAgeOutHours} h</dd>
             </dl>

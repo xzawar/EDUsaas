@@ -75,7 +75,9 @@ describe('home payload', () => {
   it('is shaped by role and never includes other schools', async () => {
     const student = await call(home.GET, { cookie: await cookieFor(f.a.STUDENT) });
     expect(student.json.kind).toBe('student');
-    expect(student.json).toHaveProperty('fees');
+    // Home is the school day; money lives on the Fees tab.
+    expect(student.json).not.toHaveProperty('fees');
+    expect(student.json).toHaveProperty('latestResults');
     const teacher = await call(home.GET, { cookie: await cookieFor(f.a.TEACHER) });
     expect(teacher.json.kind).toBe('teacher');
     expect(teacher.json.overview.sections.map((s: { label: string }) => s.label)).toEqual(['8-A']);

@@ -21,8 +21,9 @@ const n = (v: bigint | number | null | undefined) => (v === null || v === undefi
 export const claimSchema = z.object({
   invoiceId: z.string().uuid(),
   amountPaisa: z.number().int().min(1).max(1_000_000_000_00),
-  method: z.enum(METHODS.filter((m) => m !== 'CASH') as [string, ...string[]]),
-  reference: z.string().trim().min(2).max(80),
+  // Transfers only: a bank, JazzCash or Easypaisa. The screenshot is the proof, so a transaction ID is optional.
+  method: z.enum(['BANK', 'JAZZCASH', 'EASYPAISA']),
+  reference: z.string().trim().max(80).default(''),
   paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   clientKey: z.string().uuid(),
   proof: photoSchema.shape.data,
@@ -85,7 +86,7 @@ export async function submitClaim(ctx: AuthedContext, input: z.infer<typeof clai
         after: { invoice: invoice.number, amountPaisa: input.amountPaisa, method: input.method },
       });
       const office = await tx.user.findMany({
-        where: { role: { in: ['ACCOUNTANT', 'SCHOOL_ADMIN'] }, status: 'ACTIVE', deletedAt: null },
+        where: { role: { in: ['ACCOUNTANT', 'CLERK', 'SCHOOL_ADMIN'] }, status: 'ACTIVE', deletedAt: null },
         select: { id: true },
       });
       await notify(

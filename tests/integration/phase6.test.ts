@@ -429,7 +429,13 @@ describe('support tickets (§2.8)', () => {
     });
     expect((await call(sTickets.GET, { cookie: admin })).json.items[0].status).toBe('OPEN');
     expect((await call(sTickets.GET, { cookie: await cookieFor(f.b.SCHOOL_ADMIN) })).json.items).toHaveLength(0);
-    expect((await call(sTickets.GET, { cookie: teacher })).status).toBe(403);
+    // Any staff seat may ask for help, but sees only its own tickets; the admin's ticket stays private to the office.
+    const teacherList = await call(sTickets.GET, { cookie: teacher });
+    expect(teacherList.status).toBe(200);
+    expect(teacherList.json.items).toHaveLength(0);
+    expect(
+      (await call(sTicketReply.POST, { cookie: teacher, params: { id: t.json.id }, body: { body: 'x' } })).status,
+    ).toBe(404);
   });
 });
 

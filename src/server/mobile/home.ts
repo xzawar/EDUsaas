@@ -3,7 +3,7 @@ import type { AuthedContext } from '@/server/http/route';
 import { platformOverview } from '@/server/platform/overview';
 import { platformHealth } from '@/server/platform/tenants';
 import { ticketQueue } from '@/server/platform/tickets';
-import { teacherMarksTodo, unpublishedCount } from '@/server/school/assessments';
+import { studentResults, teacherMarksTodo, teacherToPublish, unpublishedCount } from '@/server/school/assessments';
 import {
   attendanceOverview,
   myCheckIn,
@@ -13,7 +13,6 @@ import {
 } from '@/server/school/attendance';
 import { inTenant, schoolClock } from '@/server/school/common';
 import { admissionsOverview, schoolOverview, studentOverview, teacherOverview } from '@/server/school/dashboard';
-import { myFees } from '@/server/school/finance/invoices';
 import { financeOverview } from '@/server/school/finance/overview';
 import { pendingApprovals } from '@/server/school/leave';
 import { myNotifications } from '@/server/school/notifications';
@@ -48,11 +47,12 @@ export async function mobileHome(ctx: AuthedContext) {
     const me = await inTenant(ctx, (tx) =>
       tx.student.findUnique({ where: { userId: ctx.user.id }, select: { id: true } }),
     );
-    const [overview, attendance, lessons, fees] = await Promise.all([
+    // Money stays on the Fees tab; home is about the school day: class, lessons, attendance, latest results.
+    const [overview, attendance, lessons, results] = await Promise.all([
       safe(studentOverview(ctx)),
       me ? safe(studentAttendance(ctx, me.id)) : Promise.resolve(null),
       safe(todayLessons(ctx)),
-      safe(myFees(ctx)),
+      safe(studentResults(ctx)),
     ]);
     return {
       kind: 'student' as const,
@@ -60,30 +60,31 @@ export async function mobileHome(ctx: AuthedContext) {
       overview,
       attendance: attendance ? { pct: attendance.pct, counts: attendance.counts } : null,
       lessons,
-      fees: fees
-        ? {
-            outstandingPaisa: fees.outstandingPaisa,
-            advancePaisa: fees.advancePaisa,
-            openBills: fees.invoices.filter((i) => i.status === 'DUE' || i.status === 'PARTIAL').length,
-          }
-        : null,
+      latestResults: results?.items.slice(0, 3) ?? [],
+      subjectAverages: results?.subjects ?? [],
     };
   }
 
   if (role === 'TEACHER') {
-    const [overview, checkin, todo, lessons, approvals, drafts] = await Promise.all([
+    const [overview, checkin, todo, lessons, approvals, drafts, toPublish] = await Promise.all([
       safe(teacherOverview(ctx)),
       safe(myCheckIn(ctx)),
       safe(teacherAttendanceTodo(ctx)),
       safe(todayLessons(ctx)),
       pendingApprovals(ctx),
       safe(teacherMarksTodo(ctx)),
+      safe(teacherToPublish(ctx)),
     ]);
-    return { kind: 'teacher' as const, ...base, overview, checkin, todo, lessons, approvals, drafts };
+    return { kind: 'teacher' as const, ...base, overview, checkin, todo, lessons, approvals, drafts, toPublish };
   }
 
-  if (role === 'ACCOUNTANT') {
-    return { kind: 'accountant' as const, ...base, finance: await financeOverview(ctx) };
+  if (role === 'ACCOUNTANT' || role === 'CLERK') {
+    // A Clerk is the accountant's counter plus the admissions desk.
+    const [finance, admissions] = await Promise.all([
+      financeOverview(ctx),
+      role === 'CLERK' ? safe(admissionsOverview(ctx)) : Promise.resolve(null),
+    ]);
+    return { kind: 'accountant' as const, ...base, clerk: role === 'CLERK', finance, admissions };
   }
 
   if (role === 'ADMISSIONS_OFFICER') {
