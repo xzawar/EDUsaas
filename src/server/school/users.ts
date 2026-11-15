@@ -11,6 +11,8 @@ export const listUsersQuery = z.object({
     .enum(['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT', 'CLERK', 'TEACHER', 'STUDENT'])
     .optional(),
   q: z.string().trim().max(100).optional(),
+  /** Everyone except students (the People → Staff list). */
+  staff: z.enum(['true', 'false']).optional(),
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -32,7 +34,7 @@ export async function listSchoolUsers(ctx: AuthedContext, query: z.infer<typeof 
   const select = { ...baseSelect, email: ctx.user.role === 'SCHOOL_ADMIN' };
   const where: Prisma.UserWhereInput = {
     deletedAt: null,
-    ...(query.role ? { role: query.role } : {}),
+    ...(query.role ? { role: query.role } : query.staff === 'true' ? { role: { not: 'STUDENT' } } : {}),
     ...(query.q
       ? {
           OR: [

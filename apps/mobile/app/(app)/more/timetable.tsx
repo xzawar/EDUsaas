@@ -1,8 +1,10 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '@/components/text';
-import { Card, Chip, Empty, ErrorBox, Loading, Screen } from '@/components/ui';
+import { Button, Card, Chip, Empty, ErrorBox, Loading, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
+import { useSession } from '@/lib/session';
 import { colors, font } from '@/lib/theme';
 
 type Cell = {
@@ -16,20 +18,38 @@ type T = {
   cells: Record<string, Cell>;
 };
 
+/** My week, one day at a time: each period is its time on one line, then the subject and who teaches it. */
 export default function TimetableScreen() {
+  const me = useSession((s) => s.me)!;
+  const student = me.user.role === 'STUDENT';
+  const canEdit = me.permissions.includes('timetable.manage');
+  const router = useRouter();
   const q = useGet<T>('/timetable/me');
   const d = q.data;
   const jsDay = new Date().getDay() || 7; // Mon=1..Sun=7
   const [day, setDay] = useState<number | null>(null);
   const active = day ?? d?.days.find((x) => x.day === jsDay)?.day ?? d?.days[0]?.day ?? 1;
   const anything = d && Object.values(d.cells).some((c) => c.entry);
+  const edit = canEdit ? (
+    <Button
+      variant="secondary"
+      icon="create-outline"
+      onPress={() => router.push('/(app)/more/timetable-edit' as never)}
+    >
+      Edit
+    </Button>
+  ) : undefined;
   return (
-    <Screen title="Timetable" refreshing={q.isFetching} onRefresh={q.refetch}>
+    <Screen back title="Timetable" refreshing={q.isFetching} onRefresh={q.refetch} right={edit}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && !anything && (
         <Card>
-          <Empty icon="time-outline" title="No timetable yet" body="The school hasn’t set periods for you." />
+          <Empty
+            icon="time-outline"
+            title={canEdit ? 'Your own timetable is empty' : 'No timetable yet'}
+            body={canEdit ? 'Tap Edit to set a class’s timetable.' : 'The school hasn’t set periods for you.'}
+          />
         </Card>
       )}
       {d && anything && (
@@ -42,11 +62,11 @@ export default function TimetableScreen() {
             ))}
           </View>
           <Card>
-            {d.periods.map((p) => {
+            {d.periods.map((p, i) => {
               const c = d.cells[`${active}:${p.periodNo}`];
               const brk = p.isBreak || c?.isBreak;
-              const who = c?.entry ? (c.entry.section ?? c.entry.teacher) : null;
-              // One line per period: start–end, then the subject (and who/where), never wrapping.
+              // Students see who teaches; teachers see which class.
+              const who = c?.entry ? (student ? c.entry.teacher : (c.entry.section ?? c.entry.teacher)) : null;
               return (
                 <View
                   key={p.periodNo}
@@ -54,34 +74,44 @@ export default function TimetableScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 12,
-                    paddingVertical: brk ? 6 : 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.line,
+                    paddingVertical: brk ? 8 : 12,
+                    borderTopWidth: i ? 1 : 0,
+                    borderTopColor: colors.line,
                   }}
                 >
                   <Text
                     style={{
-                      width: 104,
+                      width: 96,
+                      fontSize: 14,
                       fontWeight: '700',
                       color: brk ? colors.muted : colors.ink,
                       fontVariant: ['tabular-nums'],
                     }}
                     numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
                   >
-                    {p.startsAt}–{p.endsAt}
+                    {p.startsAt}-{p.endsAt}
                   </Text>
-                  <Text style={{ flex: 1 }} numberOfLines={1}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     {brk ? (
                       <Text style={font.small}>Break</Text>
                     ) : c?.entry ? (
                       <>
-                        <Text style={{ fontWeight: '700', color: colors.ink }}>{c.entry.subject}</Text>
-                        {who ? <Text style={font.small}> · {who}</Text> : null}
+                        <Text style={{ fontWeight: '700', color: colors.ink, fontSize: 16 }} numberOfLines={1}>
+                          {c.entry.subject}
+                        </Text>
+                        {who ? (
+                          <Text style={font.small} numberOfLines={1}>
+                            {who}
+                            {c.entry.room ? ` · Room ${c.entry.room}` : ''}
+                          </Text>
+                        ) : null}
                       </>
                     ) : (
                       <Text style={font.small}>Free</Text>
                     )}
-                  </Text>
+                  </View>
                 </View>
               );
             })}

@@ -107,6 +107,7 @@ import * as pSupportRequestById from '@/app/api/v1/platform/support-requests/[id
 import * as pAudit from '@/app/api/v1/platform/audit/route';
 import * as sTickets from '@/app/api/v1/support/tickets/route';
 import * as payAccounts from '@/app/api/v1/fees/accounts/route';
+import * as feeReminders from '@/app/api/v1/fees/reminders/route';
 import * as payAccountById from '@/app/api/v1/fees/accounts/[id]/route';
 import * as userLogin from '@/app/api/v1/users/[id]/login/route';
 import * as mergeClerk from '@/app/api/v1/users/merge-clerk/route';
@@ -288,6 +289,12 @@ const MATRIX: Row[] = [
     handler: schoolPlanRoute.GET,
     request: () => ({}),
     expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/fees/reminders',
+    handler: feeReminders.POST,
+    request: () => ({ body: { studentIds: [] } }),
+    expect: only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200 }),
   },
   {
     key: 'GET /api/v1/fees/accounts',
@@ -761,13 +768,13 @@ const MATRIX: Row[] = [
     key: 'PUT /api/v1/timetable/periods',
     handler: ttPeriods.PUT,
     request: () => ({ method: 'PUT', body: { days: [], periods: [] } }),
-    expect: only({ SCHOOL_ADMIN: 422 }),
+    expect: only({ SCHOOL_ADMIN: 422, PRINCIPAL: 422 }),
   },
   {
     key: 'PUT /api/v1/timetable/entries',
     handler: ttEntries.PUT,
     request: (f) => ({ method: 'PUT', body: { sectionId: f.s.sectionA8A, slotId: MISSING, subjectId: null } }),
-    expect: only({ SCHOOL_ADMIN: 404 }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
   },
   {
     key: 'GET /api/v1/timetable/me',
@@ -882,7 +889,8 @@ const MATRIX: Row[] = [
     key: 'POST /api/v1/announcements',
     handler: announcements.POST,
     request: () => ({ body: { title: 'x', body: 'Matrix', audience: 'EVERYONE' } }),
-    expect: only({ SCHOOL_ADMIN: 422, PRINCIPAL: 422 }),
+    // Teachers may post too (to their own classes only; the service checks the audience).
+    expect: only({ SCHOOL_ADMIN: 422, PRINCIPAL: 422, TEACHER: 422 }),
   },
   {
     key: 'DELETE /api/v1/announcements/[id]',

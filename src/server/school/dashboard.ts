@@ -183,18 +183,26 @@ export async function studentOverview(ctx: AuthedContext) {
       },
     });
     if (!s) return null;
-    const teacherBySubject = new Map(
-      s.section?.assignments.map((a) => [a.subject.name, a.teacher.user.displayName]) ?? [],
-    );
+    // Students can reach their own teachers: name and the phone the school recorded (if any).
+    const contact = (t: { id: string; phone: string | null; user: { displayName: string } }) => ({
+      id: t.id,
+      name: t.user.displayName,
+      phone: t.phone,
+    });
+    const teacherBySubject = new Map(s.section?.assignments.map((a) => [a.subject.name, contact(a.teacher)]) ?? []);
     return {
       rollNumber: s.rollNumber,
       admissionNo: s.admissionNo,
       section: s.section ? sectionLabel(s.section) : null,
       year: s.section?.class.academicYear.name ?? null,
       classTeacher: s.section?.classTeacher?.user.displayName ?? null,
+      classTeacherContact: s.section?.classTeacher ? contact(s.section.classTeacher) : null,
       classmates: s.section ? s.section._count.students - 1 : 0,
       subjects: (s.section?.class.subjects ?? [])
-        .map((cs) => ({ name: cs.subject.name, teacher: teacherBySubject.get(cs.subject.name) ?? null }))
+        .map((cs) => {
+          const t = teacherBySubject.get(cs.subject.name) ?? null;
+          return { name: cs.subject.name, teacher: t?.name ?? null, contact: t };
+        })
         .sort((a, b) => a.name.localeCompare(b.name)),
     };
   });

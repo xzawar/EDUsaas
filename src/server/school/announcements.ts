@@ -90,6 +90,12 @@ export async function createAnnouncement(ctx: AuthedContext, input: z.infer<type
     const clock = await schoolClock(tx);
     if (input.expiresOn && input.expiresOn < clock.today)
       throw new AppError('VALIDATION_FAILED', 'The end date is in the past');
+    // Teachers (announcements.class) post only to one of their own classes.
+    if (!ctx.can('announcements.manage')) {
+      const mine = await mySections(ctx, tx);
+      if (input.audience !== 'SECTION' || !input.sectionId || !mine.includes(input.sectionId))
+        throw new AppError('FORBIDDEN', 'You can post notices only to your own classes');
+    }
     let label = AUDIENCE_LABEL[input.audience];
     if (input.sectionId) {
       const s = await tx.section.findUnique({ where: { id: input.sectionId }, include: { class: true } });

@@ -125,10 +125,11 @@ export function moreFor(me: Me, opts: { pending?: number } = {}): MoreItem[] {
   // Money, for roles without a Finance tab (the Finance tab links to these itself).
   add(!financeTab && can('finance.read'), {
     href: '/(app)/more/reports',
-    title: 'Who owes',
+    title: 'Who owes · reminders',
     icon: 'stats-chart-outline',
   });
   add(!financeTab && can('expenses.manage'), { href: '/(app)/more/expenses', title: 'Expenses', icon: 'bag-outline' });
+  add(can('fees.manage'), { href: '/(app)/more/fee-setup', title: 'Set fees', icon: 'create-outline' });
   add(role === 'TEACHER' || role === 'PRINCIPAL' || role === 'ADMISSIONS_OFFICER' || role === 'CLERK', {
     href: '/(app)/more/payslips',
     title: 'My payslips',

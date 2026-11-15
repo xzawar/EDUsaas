@@ -10,7 +10,7 @@ export const GET = defineRoute({
 export const POST = defineRoute({
   auth: 'user',
   portals: ['STAFF'],
-  permission: 'announcements.manage',
+  anyPermission: ['announcements.manage', 'announcements.class'],
   input: createAnnouncementSchema,
   handler: async (ctx, { input }) => ({ status: 201, body: await createAnnouncement(ctx, input) }),
 });

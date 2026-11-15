@@ -1,5 +1,8 @@
 import { useRouter } from 'expo-router';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { Icon } from '@/components/icon';
+import { toast } from '@/components/toast';
+import { api } from '@/lib/api';
 import { Text } from '@/components/text';
 import { Card, ErrorBox, Loading, Money, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
@@ -21,10 +24,28 @@ type O = {
   recentPayments: { id: string; receiptNumber: string; student: string; amountPaisa: number; method: string }[];
 };
 
-function Line({ label, value, strong, tone }: { label: string; value: number; strong?: boolean; tone?: string }) {
+/** One line of the month's money: the words on the left (wrapping if needed), the amount on the right, never cut. */
+function Line({
+  label,
+  hint,
+  value,
+  strong,
+  tone,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  strong?: boolean;
+  tone?: string;
+}) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 6 }}>
-      <Text style={[strong ? font.h2 : font.body, tone ? { color: tone } : null]}>{label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[strong ? font.h2 : { fontSize: 16, fontWeight: '600' }, { color: tone ?? colors.ink }]}>
+          {label}
+        </Text>
+        {hint ? <Text style={font.tiny}>{hint}</Text> : null}
+      </View>
       <Money
         paisa={value}
         style={[strong ? font.number : { fontSize: 17, fontWeight: '700' }, { color: tone ?? colors.ink }]}
@@ -43,6 +64,22 @@ export default function FinanceScreen() {
   const router = useRouter();
   const d = q.data;
   const collect = me.permissions.includes('fees.collect');
+  const manage = me.permissions.includes('fees.manage');
+  function remind() {
+    if (!d) return;
+    Alert.alert('Send fee reminders?', `${plural(d.defaulters, 'student')} with late bills get a notification.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Send',
+        onPress: async () => {
+          const r = await api<{ sent: number }>('/fees/reminders', { body: {} }).catch(() => null);
+          if (!r) return toast('error', 'No connection');
+          if (!r.ok) return toast('error', r.error.message);
+          toast('success', `Reminder sent to ${plural(r.data.sent, 'student')}`);
+        },
+      },
+    ]);
+  }
   const go = (href: string) => router.push(href as never);
   const left = d ? d.monthCollectedPaisa - d.monthExpensesPaisa : 0;
   const paidShare = d && d.monthInvoicedPaisa > 0 ? Math.min(1, d.monthCollectedPaisa / d.monthInvoicedPaisa) : 0;
@@ -58,8 +95,8 @@ export default function FinanceScreen() {
       {d && (
         <>
           <Card title="This month">
-            <Line label="Came in (fees)" value={d.monthCollectedPaisa} tone={colors.green} />
-            <Line label="Went out (expenses, salaries)" value={d.monthExpensesPaisa} tone={colors.red} />
+            <Line label="Came in" hint="Fees paid" value={d.monthCollectedPaisa} tone={colors.green} />
+            <Line label="Went out" hint="Expenses and salaries" value={d.monthExpensesPaisa} tone={colors.red} />
             <View style={{ height: 1, backgroundColor: colors.line, marginVertical: 4 }} />
             <Line label={left >= 0 ? 'Left over' : 'Short by'} value={Math.abs(left)} strong />
           </Card>
@@ -98,12 +135,28 @@ export default function FinanceScreen() {
                 onPress={() => go('/(app)/claims')}
               />
             )}
-            <Row
-              title="Expenses"
-              subtitle="Add or see this month’s spending"
-              onPress={() => go('/(app)/more/expenses')}
-            />
+            <Row title="Expenses" subtitle="Add or see spending" onPress={() => go('/(app)/more/expenses')} />
           </Card>
+          {(manage || collect) && (
+            <Card title="Fees">
+              {manage && (
+                <Row
+                  left={<Icon name="create-outline" size={22} color={colors.deep} />}
+                  title="Set fees"
+                  subtitle="What each class pays"
+                  onPress={() => go('/(app)/more/fee-setup')}
+                />
+              )}
+              {collect && d.defaulters > 0 && (
+                <Row
+                  left={<Icon name="notifications-ring" size={22} color={colors.deep} />}
+                  title="Send fee reminders"
+                  subtitle={`To ${plural(d.defaulters, 'student')} who are late`}
+                  onPress={remind}
+                />
+              )}
+            </Card>
+          )}
           {d.recentPayments.length > 0 && (
             <Card title="Latest payments">
               {d.recentPayments.slice(0, 3).map((p) => (

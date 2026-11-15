@@ -35,6 +35,7 @@ export const PERMISSIONS = {
   'reports.read': 'View reports and dashboards',
   'audit.read': 'View audit logs',
   'announcements.manage': 'Publish announcements',
+  'announcements.class': 'Post notices to own classes',
   'settings.manage': 'Manage school settings and role permissions',
   'self.records': 'View own attendance, marks and timetable',
   'fees.manage': 'Set up fee heads, amounts and discounts',
@@ -79,7 +80,8 @@ const SCHOOL_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
     p !== 'self.fees' &&
     p !== 'teacher_attendance.self' &&
     p !== 'attendance.submit' &&
-    p !== 'marks.enter',
+    p !== 'marks.enter' &&
+    p !== 'announcements.class',
 );
 
 const ACCOUNTANT_PERMISSIONS: Permission[] = [
@@ -125,7 +127,7 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
       'teacher_attendance.oversee': true,
       'leave.approve': true,
       'marks.manage': false,
-      'timetable.manage': false,
+      'timetable.manage': true,
       'reports.read': true,
       'audit.read': true,
       'announcements.manage': true,
@@ -147,7 +149,15 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
   },
   CLERK: {
     // The front office in one seat: everything an Accountant does, plus admitting students.
-    fixed: [...ACCOUNTANT_PERMISSIONS, 'students.write', 'students.import', 'students.reset_password'],
+    // The front office also keeps the timetable.
+    fixed: [
+      ...ACCOUNTANT_PERMISSIONS,
+      'students.write',
+      'students.import',
+      'students.reset_password',
+      'timetable.view',
+      'timetable.manage',
+    ],
     configurable: {},
   },
   TEACHER: {
@@ -159,6 +169,7 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
       'marks.enter',
       'remarks.write',
       'timetable.view',
+      'announcements.class',
     ],
     configurable: {},
   },

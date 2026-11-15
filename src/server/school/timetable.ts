@@ -190,8 +190,11 @@ export async function myTimetable(ctx: AuthedContext) {
     let entries;
     if (ctx.user.role === 'STUDENT') {
       const s = await tx.student.findUnique({ where: { userId: ctx.user.id } });
+      // A student's own class is obvious; each lesson shows its teacher instead.
       entries = s?.sectionId
-        ? await tx.timetableEntry.findMany({ where: { sectionId: s.sectionId }, include: entryInclude })
+        ? (await tx.timetableEntry.findMany({ where: { sectionId: s.sectionId }, include: entryInclude })).map(
+            ({ section: _s, ...e }) => e,
+          )
         : [];
     } else {
       const t = await tx.teacher.findUnique({ where: { userId: ctx.user.id } });

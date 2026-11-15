@@ -1,5 +1,7 @@
 import { useRouter } from 'expo-router';
-import { View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, View } from 'react-native';
+import { TeacherCard, type TeacherContact } from '@/screens/TeacherCard';
 import { Text } from '@/components/text';
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Money, Row, Screen, SeeAll, Stat } from '@/components/ui';
 import { useGet, errorText } from '@/lib/data';
@@ -107,8 +109,10 @@ function StudentHome({ d, go: push }: { d: Home; go: Go }) {
     section: string | null;
     rollNumber: number;
     classTeacher: string | null;
-    subjects: { name: string; teacher: string | null }[];
+    classTeacherContact: TeacherContact | null;
+    subjects: { name: string; teacher: string | null; contact: TeacherContact | null }[];
   } | null;
+  const [contact, setContact] = useState<TeacherContact | null>(null);
   const results = (d.latestResults ?? []) as LatestResult[];
   const last = results[0];
   return (
@@ -119,7 +123,15 @@ function StudentHome({ d, go: push }: { d: Home; go: Go }) {
           <Text style={font.title}>
             {o.section} · Roll {o.rollNumber}
           </Text>
-          {o.classTeacher ? <Text style={font.small}>Class teacher: {o.classTeacher}</Text> : null}
+          {o.classTeacherContact ? (
+            <Pressable onPress={() => setContact(o.classTeacherContact!)} accessibilityRole="button">
+              <Text style={[font.small, { color: colors.deep, fontWeight: '600' }]}>
+                Class teacher: {o.classTeacher} ›
+              </Text>
+            </Pressable>
+          ) : o.classTeacher ? (
+            <Text style={font.small}>Class teacher: {o.classTeacher}</Text>
+          ) : null}
         </Card>
       )}
       <Tiles>
@@ -157,11 +169,24 @@ function StudentHome({ d, go: push }: { d: Home; go: Go }) {
         </Card>
       )}
       {o && o.subjects.length > 0 && (
-        <Card title="Subjects">
-          {o.subjects.slice(0, 6).map((sub) => (
-            <Row key={sub.name} title={sub.name} right={sub.teacher ?? undefined} />
+        <Card title="Subjects and teachers">
+          {o.subjects.map((sub) => (
+            <Row
+              key={sub.name}
+              title={sub.name}
+              subtitle={sub.teacher ?? 'No teacher yet'}
+              onPress={sub.contact ? () => setContact(sub.contact!) : undefined}
+            />
           ))}
         </Card>
+      )}
+      {contact && o && (
+        <TeacherCard
+          teacher={contact}
+          subjects={o.subjects.filter((x) => x.contact?.id === contact.id).map((x) => x.name)}
+          classTeacher={o.classTeacherContact?.id === contact.id}
+          onClose={() => setContact(null)}
+        />
       )}
     </>
   );

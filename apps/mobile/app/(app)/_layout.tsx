@@ -1,5 +1,5 @@
 import { Icon } from '@/components/icon';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Easing, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueue } from '@/lib/queue';
@@ -12,6 +12,7 @@ export { ErrorBoundary } from '@/screens/ErrorScreen';
 export default function AppLayout() {
   const me = useSession((s) => s.me);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const pendingCount = useQueue((s) => s.items.length);
   // Every screen below reads the signed-in profile. Until it has loaded (cold start) or after it is cleared
   // (sign-out, expired session) render nothing; the root gate is already routing to the right place.
@@ -65,6 +66,17 @@ export default function AppLayout() {
           <Tabs.Screen
             key={name}
             name={name}
+            // More always opens on its menu, whatever page was last open inside it.
+            listeners={
+              name === 'more'
+                ? {
+                    tabPress: (e) => {
+                      e.preventDefault();
+                      router.navigate('/(app)/more');
+                    },
+                  }
+                : undefined
+            }
             options={{
               // Hide only the button: `href: null` would make Expo Router redirect away from the screen, which
               // breaks every More-menu link to a screen that is not a tab for this role.

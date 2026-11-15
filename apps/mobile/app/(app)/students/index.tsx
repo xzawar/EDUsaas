@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { Icon } from '@/components/icon';
 import { MergeClerkSheet } from '@/screens/MergeClerkSheet';
+import { AddStaffSheet } from '@/screens/AddStaffSheet';
 import { colors } from '@/lib/theme';
 import { Badge, Button, Card, Chip, Empty, ErrorBox, Input, Loading, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
@@ -39,10 +40,11 @@ export default function PeopleScreen() {
   const students = useGet<Students>(
     who === 'students' ? `/students?limit=100${sectionId ? `&sectionId=${sectionId}` : ''}${term}` : null,
   );
-  const staff = useGet<Staff>(who === 'staff' ? `/users?limit=50${term}` : null);
+  const staff = useGet<Staff>(who === 'staff' ? `/users?staff=true&limit=50${term}` : null);
   const list = who === 'students' ? students : staff;
   const staffRows = staff.data?.items.filter((u) => u.role !== 'STUDENT') ?? [];
   const [merging, setMerging] = useState(false);
+  const [adding, setAdding] = useState(false);
   const activeOf = (role: string) => staffRows.filter((u) => u.role === role && u.status === 'ACTIVE');
   const canMerge =
     can('users.manage') && activeOf('ACCOUNTANT').length > 0 && activeOf('ADMISSIONS_OFFICER').length > 0;
@@ -55,6 +57,10 @@ export default function PeopleScreen() {
       right={
         can('students.write') && who === 'students' ? (
           <Button variant="secondary" icon="add" onPress={() => router.push('/(app)/students/new' as never)}>
+            Add
+          </Button>
+        ) : can('users.manage') && who === 'staff' ? (
+          <Button variant="secondary" icon="add" onPress={() => setAdding(true)}>
             Add
           </Button>
         ) : undefined
@@ -117,6 +123,14 @@ export default function PeopleScreen() {
             onPress={() => setMerging(true)}
           />
         </Card>
+      )}
+      {adding && (
+        <AddStaffSheet
+          onClose={(added) => {
+            setAdding(false);
+            if (added) void staff.refetch();
+          }}
+        />
       )}
       {merging && (
         <MergeClerkSheet

@@ -1,6 +1,9 @@
+import { api } from '@/lib/api';
+import { toast } from '@/components/toast';
+import { useSession } from '@/lib/session';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { Text } from '@/components/text';
 import { Button, Card, Chip, Empty, ErrorBox, Loading, Money, Row, Screen } from '@/components/ui';
 import { errorText, useGet } from '@/lib/data';
@@ -49,9 +52,38 @@ export default function ReportsScreen() {
   const [tab, setTab] = useState<'summary' | 'defaulters'>(initial === 'summary' ? 'summary' : 'defaulters');
   const s = useGet<Summary>(tab === 'summary' ? '/finance/reports/summary' : null);
   const d = useGet<Def>(tab === 'defaulters' ? '/finance/reports/defaulters' : null);
+  const canRemind = useSession((x) => !!x.me?.permissions.includes('fees.collect'));
+  // One tap: every student with a late bill gets a notification with what they owe.
+  function remind() {
+    const n = d.data?.students ?? 0;
+    Alert.alert('Send fee reminders?', `${n} student${n === 1 ? '' : 's'} with late bills get a notification.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Send',
+        onPress: async () => {
+          const r = await api<{ sent: number }>('/fees/reminders', { body: {} }).catch(() => null);
+          if (!r) return toast('error', 'No connection');
+          if (!r.ok) return toast('error', r.error.message);
+          toast('success', `Reminder sent to ${r.data.sent} student${r.data.sent === 1 ? '' : 's'}`);
+        },
+      },
+    ]);
+  }
   const q = tab === 'summary' ? s : d;
   return (
-    <Screen title="Money reports" subtitle="Who still has to pay." refreshing={q.isFetching} onRefresh={q.refetch}>
+    <Screen
+      back
+      title="Who owes"
+      refreshing={q.isFetching}
+      onRefresh={q.refetch}
+      right={
+        canRemind && tab === 'defaulters' && (d.data?.students ?? 0) > 0 ? (
+          <Button variant="secondary" icon="notifications-ring" onPress={remind}>
+            Remind
+          </Button>
+        ) : undefined
+      }
+    >
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Chip active={tab === 'summary'} onPress={() => setTab('summary')}>
           This month
