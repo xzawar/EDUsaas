@@ -29,3 +29,10 @@ export const relative = (d: string | Date) => {
 
 /** Idempotency keys and client ids: a random v4 UUID from the platform's secure generator. */
 export const uuid = () => Crypto.randomUUID();
+
+/** YYYY-MM-DD shifted by whole days (calendar arithmetic in UTC, so no timezone drift). */
+export function addDaysIso(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}

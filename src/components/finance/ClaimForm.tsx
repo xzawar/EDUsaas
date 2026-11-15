@@ -82,7 +82,7 @@ export function ClaimButton({ bills, today }: { bills: Bill[]; today: string }) 
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={busy || !proof || amount === null || reference.trim().length < 2} onClick={submit}>
+            <Button disabled={busy || !proof || amount === null} onClick={submit}>
               {busy ? 'Sending…' : 'Send proof'}
             </Button>
           </>
@@ -122,13 +122,19 @@ export function ClaimButton({ bills, today }: { bills: Bill[]; today: string }) 
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Paid by" htmlFor="cl-method">
-              <MethodSelect id="cl-method" value={method} onChange={setMethod} cashAllowed={false} />
+              <MethodSelect
+                id="cl-method"
+                value={method}
+                onChange={setMethod}
+                cashAllowed={false}
+                chequeAllowed={false}
+              />
             </Field>
             <Field label="Date" htmlFor="cl-date">
               <Input id="cl-date" type="date" max={today} value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
             </Field>
           </div>
-          <Field label="Transaction ID" htmlFor="cl-ref">
+          <Field label="Transaction ID (optional)" htmlFor="cl-ref">
             <Input
               id="cl-ref"
               value={reference}

@@ -1,7 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import { type ReactNode } from 'react';
+import { Icon, type IconName } from '@/components/icon';
+import { type ReactNode, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,6 +17,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatPKR } from '@edusaas/shared';
 import { Text, TextInput } from '@/components/text';
+import { BrandMark } from '@/screens/BrandMark';
+import { BackChip } from '@/components/header';
+import { attendanceStyle } from '@/lib/attendance';
 import { colors, font, radius, space, tones, type Tone } from '@/lib/theme';
 
 /**
@@ -31,6 +35,7 @@ export function Screen({
   title,
   subtitle,
   right,
+  back,
   padded = true,
 }: {
   children: ReactNode;
@@ -39,6 +44,8 @@ export function Screen({
   title?: string;
   subtitle?: ReactNode;
   right?: ReactNode;
+  /** Detail pages: a round back chip above the bold title. */
+  back?: boolean;
   padded?: boolean;
 }) {
   const insets = useSafeAreaInsets();
@@ -63,6 +70,11 @@ export function Screen({
       }
       keyboardShouldPersistTaps="handled"
     >
+      {back && (
+        <View style={{ flexDirection: 'row' }}>
+          <BackChip />
+        </View>
+      )}
       {title && (
         <View
           style={{
@@ -101,12 +113,27 @@ export function Card({
     <View style={[styles.card, style]}>
       {(title || action) && (
         <View style={styles.cardHead}>
-          {title ? <Text style={font.h2}>{title}</Text> : <View />}
+          {title ? (
+            <Text style={[font.h2, { flexShrink: 1 }]} numberOfLines={1}>
+              {title}
+            </Text>
+          ) : (
+            <View />
+          )}
           {action}
         </View>
       )}
       {children}
     </View>
+  );
+}
+
+/** The small "See all" link at the right of a card heading. */
+export function SeeAll({ onPress, label = 'See all' }: { onPress: () => void; label?: string }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={12} accessibilityRole="link">
+      <Text style={{ color: colors.deep, fontWeight: '700', textDecorationLine: 'underline' }}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -123,7 +150,7 @@ export function Stat({
   title: string;
   value: ReactNode;
   caption?: ReactNode;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   onPress?: () => void;
 }) {
   const t = tones[tone];
@@ -136,21 +163,18 @@ export function Stat({
     >
       {icon && (
         <View style={styles.statIcon}>
-          <Ionicons name={icon} size={20} color={t.fg} />
+          <Icon name={icon} size={20} color={t.fg} />
         </View>
       )}
       <Text style={[font.small, { marginTop: space.md }]} numberOfLines={1}>
         {title}
       </Text>
+      {/* Big amounts shrink to fit the tile instead of spilling out of it. */}
       <Text
-        style={{
-          fontSize: 20,
-          lineHeight: 26,
-          fontWeight: '600',
-          color: colors.ink,
-          letterSpacing: -0.3,
-          fontVariant: ['tabular-nums'],
-        }}
+        style={[font.number, { fontVariant: ['tabular-nums'] }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.55}
       >
         {value}
       </Text>
@@ -178,7 +202,7 @@ export function Button({
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   loading?: boolean;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 }) {
   const bg =
@@ -210,7 +234,7 @@ export function Button({
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color={fg} /> : icon ? <Ionicons name={icon} size={20} color={fg} /> : null}
+      {loading ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} size={20} color={fg} /> : null}
       <Text
         style={{
           color: fg,
@@ -271,6 +295,16 @@ export function Badge({
   );
 }
 
+/** A filled pill for an attendance status (Present green, Absent red, Late amber, Leave purple). */
+export function StatusPill({ status, label }: { status: string; label?: string }) {
+  const st = attendanceStyle(status);
+  return (
+    <View style={[styles.badge, { backgroundColor: st.bg, paddingHorizontal: 12, paddingVertical: 4 }]}>
+      <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '700', color: st.fg }}>{label ?? st.label}</Text>
+    </View>
+  );
+}
+
 /** List row: flush (rows bring their own padding), title SemiBold, subtitle in body colour, optional trailing item. */
 export function Row({
   title,
@@ -313,8 +347,14 @@ export function Row({
           )
         ) : null}
       </View>
-      {typeof right === 'string' || typeof right === 'number' ? <Text style={font.small}>{right}</Text> : right}
-      {onPress && !right ? <Ionicons name="chevron-forward" size={20} color={colors.muted} /> : null}
+      {typeof right === 'string' || typeof right === 'number' ? (
+        <Text style={[font.small, { flexShrink: 1, maxWidth: '55%', textAlign: 'right' }]} numberOfLines={2}>
+          {right}
+        </Text>
+      ) : (
+        right
+      )}
+      {onPress && !right ? <Icon name="chevron-forward" size={20} color={colors.muted} /> : null}
     </Pressable>
   );
 }
@@ -326,7 +366,7 @@ export function Empty({
   body,
   action,
 }: {
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IconName;
   title: string;
   body?: string;
   action?: ReactNode;
@@ -334,7 +374,7 @@ export function Empty({
   return (
     <View style={{ alignItems: 'center', paddingVertical: space.xxl, paddingHorizontal: space.lg, gap: space.sm }}>
       <View style={styles.emptyIcon}>
-        <Ionicons name={icon} size={30} color={colors.deep} />
+        <Icon name={icon} size={30} color={colors.deep} />
       </View>
       <Text style={[font.h2, { textAlign: 'center', marginTop: space.sm }]}>{title}</Text>
       {body ? <Text style={[font.small, { textAlign: 'center', maxWidth: 300 }]}>{body}</Text> : null}
@@ -347,10 +387,33 @@ export function Money({ paisa, style }: { paisa: number; style?: StyleProp<TextS
   return <Text style={[{ fontVariant: ['tabular-nums'], color: colors.ink }, style]}>{formatPKR(paisa)}</Text>;
 }
 
+/** Loading: the E mark gently breathing in the middle of the screen. No spinner, no grey boxes. */
 export function Loading() {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 650, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
   return (
-    <View style={{ padding: 48, alignItems: 'center' }}>
-      <ActivityIndicator color={colors.deep} />
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+      style={{ paddingVertical: 64, alignItems: 'center' }}
+    >
+      <Animated.View
+        style={{
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.04] }) }],
+        }}
+      >
+        <BrandMark size={44} />
+      </Animated.View>
     </View>
   );
 }
@@ -360,7 +423,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   return (
     <View style={[styles.card, { gap: space.md }]}>
       <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
-        <Ionicons name="alert-circle" size={22} color={colors.red} />
+        <Icon name="alert-circle" size={22} color={colors.red} />
         <Text style={[font.body, { flex: 1, color: colors.ink }]}>{message}</Text>
       </View>
       {onRetry && (

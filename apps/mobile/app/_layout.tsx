@@ -1,9 +1,8 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { stackScreenOptions } from '@/components/header';
-import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryProvider } from '@/lib/query';
@@ -15,6 +14,7 @@ import { useUpdateCheck } from '@/lib/update';
 import { UpdateRequired } from '@/screens/UpdateRequired';
 import { loadLock, useLock, useRelockOnResume } from '@/lib/lock';
 import { LockScreen } from '@/screens/LockScreen';
+import { LaunchCurtain } from '@/screens/LaunchCurtain';
 export { ErrorBoundary } from '@/screens/ErrorScreen';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -30,6 +30,21 @@ function Gate() {
   }, [boot]);
   useRelockOnResume();
   const locked = useLock((l) => l.locked);
+  // The opening animation plays on every open: after the native splash on a cold start, and again whenever the
+  // app comes back from the background.
+  const [launching, setLaunching] = useState(true);
+  const launched = useCallback(() => setLaunching(false), []);
+  useEffect(() => {
+    let wasAway = false;
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'background') wasAway = true;
+      else if (s === 'active' && wasAway) {
+        wasAway = false;
+        setLaunching(true);
+      }
+    });
+    return () => sub.remove();
+  }, []);
   useEffect(() => {
     if (status === 'loading') return;
     void SplashScreen.hideAsync().catch(() => undefined);
@@ -49,15 +64,13 @@ function Gate() {
   ) : null;
   return (
     <>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(app)" />
-        <Stack.Screen
-          name="change-password"
-          options={{ ...stackScreenOptions, headerShown: true, title: 'Change password' }}
-        />
+        <Stack.Screen name="change-password" />
       </Stack>
       {cover ? <View style={StyleSheet.absoluteFill}>{cover}</View> : null}
+      {launching && status !== 'loading' ? <LaunchCurtain onDone={launched} /> : null}
     </>
   );
 }

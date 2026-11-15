@@ -12,7 +12,11 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
       items: [
         {
           href: '/staff',
-          label: isTeacher ? 'Today' : ctx.user.role === 'ACCOUNTANT' ? 'Overview' : 'Dashboard',
+          label: isTeacher
+            ? 'Today'
+            : ctx.user.role === 'ACCOUNTANT' || ctx.user.role === 'CLERK'
+              ? 'Overview'
+              : 'Dashboard',
           icon: 'dashboard',
           exact: true,
         },
@@ -50,7 +54,7 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   if (academics.length) groups.push({ label: 'Academics', items: academics });
 
   const finance: NavItem[] = [];
-  const isAccountant = ctx.user.role === 'ACCOUNTANT';
+  const isAccountant = ctx.user.role === 'ACCOUNTANT' || ctx.user.role === 'CLERK';
   if (!isAccountant && (ctx.can('fees.collect') || ctx.can('finance.read')))
     finance.push({ href: '/staff/finance', label: 'Finance', icon: 'finance', exact: true });
   if (ctx.can('fees.collect')) {
@@ -71,8 +75,8 @@ export function staffNav(ctx: AuthedContext): { groups: NavGroup[]; mobileTabs?:
   if (ctx.can('reports.read')) school.push({ href: '/staff/reports', label: 'Reports', icon: 'reports' });
   if (ctx.can('audit.read')) school.push({ href: '/staff/audit', label: 'Audit log', icon: 'audit' });
   if (ctx.can('settings.manage')) school.push({ href: '/staff/settings', label: 'Settings', icon: 'settings' });
-  if (ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL')
-    school.push({ href: '/staff/support', label: 'Help & support', icon: 'support' });
+  // Every staff seat can ask the EDUsaas team for help; students ask their school.
+  school.push({ href: '/staff/support', label: 'Help & support', icon: 'support' });
   if (!isAccountant && ctx.user.role !== 'SCHOOL_ADMIN')
     school.push({ href: '/staff/payslips', label: 'My payslips', icon: 'payslip' });
   if (school.length) groups.push({ label: 'School', items: school });

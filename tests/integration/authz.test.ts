@@ -106,6 +106,14 @@ import * as pSupportRequests from '@/app/api/v1/platform/support-requests/route'
 import * as pSupportRequestById from '@/app/api/v1/platform/support-requests/[id]/route';
 import * as pAudit from '@/app/api/v1/platform/audit/route';
 import * as sTickets from '@/app/api/v1/support/tickets/route';
+import * as payAccounts from '@/app/api/v1/fees/accounts/route';
+import * as payAccountById from '@/app/api/v1/fees/accounts/[id]/route';
+import * as userLogin from '@/app/api/v1/users/[id]/login/route';
+import * as mergeClerk from '@/app/api/v1/users/merge-clerk/route';
+import * as assessmentOptions from '@/app/api/v1/assessments/options/route';
+import * as platformStats from '@/app/api/v1/platform/stats/route';
+import * as schoolPlanRoute from '@/app/api/v1/plan/route';
+import * as studentOverviewRoute from '@/app/api/v1/students/[id]/overview/route';
 import * as sTicketReply from '@/app/api/v1/support/tickets/[id]/reply/route';
 import * as sTicketClose from '@/app/api/v1/support/tickets/[id]/close/route';
 import * as leaveTypeById from '@/app/api/v1/leave/types/[id]/route';
@@ -181,11 +189,11 @@ const only = (allowed: Partial<Record<UserRole, Expect>>, otherwise: number = 40
   Object.fromEntries(ROLES.map((r) => [r, allowed[r] ?? otherwise])) as Record<UserRole, Expect>;
 const everyone = (v: Expect) => only({}, v as number) as Record<UserRole, Expect>;
 
-/** Finance reads: Accountant, School Admin and the Principal (finance.read toggle, default on). */
-const FINANCE_READ = only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200, PRINCIPAL: 200 });
+/** Finance reads: Accountant and School Admin. The Principal has no money access. */
+const FINANCE_READ = only({ ACCOUNTANT: 200, SCHOOL_ADMIN: 200 });
 const FEES_MANAGE = (ok: number) => only({ ACCOUNTANT: ok, SCHOOL_ADMIN: ok });
 const FEES_COLLECT = FEES_MANAGE;
-const FINANCE_READ_404 = only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404 });
+const FINANCE_READ_404 = only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404 });
 const STAFF_ANY = only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, ADMISSIONS_OFFICER: 200, ACCOUNTANT: 200, TEACHER: 200 });
 let prefixCounter = 0;
 let n = 0;
@@ -261,6 +269,81 @@ const MATRIX: Row[] = [
     handler: tenantById.PATCH,
     request: (f) => ({ method: 'PATCH', params: { id: f.tenantB.id }, body: { status: 'ACTIVE' } }),
     expect: only({ PLATFORM_OWNER: 200 }),
+  },
+  {
+    key: 'DELETE /api/v1/platform/tenants/[id]',
+    handler: tenantById.DELETE,
+    // School B is active, so even the owner is refused (409) — suspend first. Nobody else gets near it.
+    request: (f) => ({ method: 'DELETE', params: { id: f.tenantB.id }, body: { confirmPrefix: 'nope' } }),
+    expect: only({ PLATFORM_OWNER: 409 }),
+  },
+  {
+    key: 'GET /api/v1/platform/stats',
+    handler: platformStats.GET,
+    request: () => ({}),
+    expect: only({ PLATFORM_OWNER: 200, PLATFORM_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/plan',
+    handler: schoolPlanRoute.GET,
+    request: () => ({}),
+    expect: only({ SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'GET /api/v1/fees/accounts',
+    handler: payAccounts.GET,
+    request: () => ({}),
+    expect: only({ STUDENT: 200, ACCOUNTANT: 200, SCHOOL_ADMIN: 200 }),
+  },
+  {
+    key: 'POST /api/v1/fees/accounts',
+    handler: payAccounts.POST,
+    request: () => ({
+      body: { method: 'JAZZCASH', label: 'JazzCash', accountTitle: 'Matrix School', accountNumber: '0300-0000000' },
+    }),
+    expect: only({ ACCOUNTANT: 201, SCHOOL_ADMIN: 201 }),
+  },
+  {
+    key: 'PATCH /api/v1/fees/accounts/[id]',
+    handler: payAccountById.PATCH,
+    request: () => ({
+      method: 'PATCH',
+      params: { id: MISSING },
+      body: { method: 'BANK', label: 'Bank', accountTitle: 'Matrix School', accountNumber: '12345678' },
+    }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'DELETE /api/v1/fees/accounts/[id]',
+    handler: payAccountById.DELETE,
+    request: () => ({ method: 'DELETE', params: { id: MISSING } }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'PATCH /api/v1/users/[id]/login',
+    handler: userLogin.PATCH,
+    request: () => ({ method: 'PATCH', params: { id: MISSING }, body: { password: 'matrix1234' } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'POST /api/v1/users/merge-clerk',
+    handler: mergeClerk.POST,
+    request: () => ({ body: { keepId: MISSING, retireId: '00000000-0000-4000-8000-000000000001' } }),
+    expect: only({ SCHOOL_ADMIN: 404 }),
+  },
+  {
+    key: 'GET /api/v1/students/[id]/overview',
+    handler: studentOverviewRoute.GET,
+    // The fixture teacher is 8-A's incharge; the principal reads reports. Admissions/Accountant can search
+    // students but never see a report.
+    request: (f) => ({ params: { id: f.s.studentA } }),
+    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200, TEACHER: 200, ADMISSIONS_OFFICER: 404, ACCOUNTANT: 404 }),
+  },
+  {
+    key: 'GET /api/v1/assessments/options',
+    handler: assessmentOptions.GET,
+    request: () => ({}),
+    expect: only({ TEACHER: 200, SCHOOL_ADMIN: 200 }),
   },
   {
     key: 'GET /api/v1/platform/health',
@@ -1073,25 +1156,26 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/support/tickets',
     handler: sTickets.GET,
     request: () => ({}),
-    expect: only({ SCHOOL_ADMIN: 200, PRINCIPAL: 200 }),
+    // Every staff seat can ask EDUsaas for help; students cannot.
+    expect: STAFF_ANY,
   },
   {
     key: 'POST /api/v1/support/tickets',
     handler: sTickets.POST,
     request: () => ({ body: { subject: 'Matrix question', body: 'Testing access' } }),
-    expect: only({ SCHOOL_ADMIN: 201, PRINCIPAL: 201 }),
+    expect: only({ SCHOOL_ADMIN: 201, PRINCIPAL: 201, ADMISSIONS_OFFICER: 201, ACCOUNTANT: 201, TEACHER: 201 }),
   },
   {
     key: 'POST /api/v1/support/tickets/[id]/reply',
     handler: sTicketReply.POST,
     request: () => ({ params: { id: MISSING }, body: { body: 'More detail' } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, ACCOUNTANT: 404, TEACHER: 404 }),
   },
   {
     key: 'POST /api/v1/support/tickets/[id]/close',
     handler: sTicketClose.POST,
     request: () => ({ method: 'POST', params: { id: MISSING } }),
-    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404 }),
+    expect: only({ SCHOOL_ADMIN: 404, PRINCIPAL: 404, ADMISSIONS_OFFICER: 404, ACCOUNTANT: 404, TEACHER: 404 }),
   },
   {
     key: 'PATCH /api/v1/leave/types/[id]',
@@ -1188,7 +1272,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/invoices/[id]',
     handler: invById.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, STUDENT: 404 }),
   },
   {
     key: 'POST /api/v1/invoices/[id]/void',
@@ -1227,7 +1311,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/payments/[id]/receipt',
     handler: receiptRoute.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, STUDENT: 404 }),
   },
   {
     key: 'POST /api/v1/payments/[id]/reverse',
@@ -1270,7 +1354,7 @@ const MATRIX: Row[] = [
     key: 'GET /api/v1/fees/claims/[id]/proof',
     handler: claimProofRoute.GET,
     request: () => ({ params: { id: MISSING } }),
-    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, PRINCIPAL: 404, STUDENT: 404 }),
+    expect: only({ ACCOUNTANT: 404, SCHOOL_ADMIN: 404, STUDENT: 404 }),
   },
   { key: 'GET /api/v1/expenses/categories', handler: expCategories.GET, request: () => ({}), expect: FINANCE_READ },
   {

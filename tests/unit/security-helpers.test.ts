@@ -30,7 +30,8 @@ describe('portals (decision D1)', () => {
   it('every role belongs to exactly one portal', () => {
     const roles = Object.values(PORTAL_ROLES).flat();
     expect(new Set(roles).size).toBe(roles.length);
-    expect(roles).toHaveLength(8);
+    expect(roles).toHaveLength(9);
+    expect(portalForRole('CLERK')).toBe('STAFF');
   });
   it('students and staff are on different portals', () => {
     expect(portalForRole('STUDENT')).toBe('STUDENT');

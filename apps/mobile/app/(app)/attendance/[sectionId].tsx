@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -11,6 +11,7 @@ import { fmtDate, todayIso, uuid } from '@/lib/format';
 import { sendOrQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
 import { colors, font, radius } from '@/lib/theme';
+import { ATTENDANCE } from '@/lib/attendance';
 
 type Status = 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE' | 'EXCUSED';
 type Sheet = {
@@ -25,13 +26,13 @@ type Sheet = {
   periods: { period: number; label: string }[];
   students: { id: string; name: string; rollNumber: number | null; status: Status | null; onApprovedLeave: boolean }[];
 };
-const OPTIONS: { s: Status; label: string; color: string; bg: string }[] = [
-  // The chosen mark is a solid control in its meaning's colour, so a full register reads at a glance.
-  { s: 'PRESENT', label: 'P', color: '#fff', bg: colors.green },
-  { s: 'ABSENT', label: 'A', color: '#fff', bg: colors.red },
-  { s: 'LATE', label: 'L', color: colors.ink, bg: colors.amber },
-  { s: 'LEAVE', label: 'Lv', color: '#fff', bg: colors.deep2 },
-];
+// The chosen mark is a solid pill in its meaning's colour (shared with every other attendance view).
+const OPTIONS = (['PRESENT', 'ABSENT', 'LATE', 'LEAVE'] as const).map((st) => ({
+  s: st as Status,
+  word: ATTENDANCE[st].label,
+  color: ATTENDANCE[st].fg,
+  bg: ATTENDANCE[st].bg,
+}));
 
 /** The register (spec §6): one tap per student, works offline, resend-safe through the client UUID. */
 export default function RegisterScreen() {
@@ -136,40 +137,34 @@ export default function RegisterScreen() {
             {!!d.lockedReason && <ErrorBox message={d.lockedReason} />}
             <Card style={{ gap: 0, paddingVertical: 4 }}>
               {d.students.map((s, i) => (
+                // Name and roll number on top; the four marks below in one row, full words, filled when chosen.
                 <View
                   key={s.id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                    paddingVertical: 8,
-                    borderTopWidth: i ? 1 : 0,
-                    borderTopColor: colors.line,
-                  }}
+                  style={{ paddingVertical: 12, gap: 8, borderTopWidth: i ? 1 : 0, borderTopColor: colors.line }}
                 >
-                  <Text style={[font.tiny, { width: 26, textAlign: 'right' }]}>{s.rollNumber ?? ''}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, color: colors.ink }} numberOfLines={1}>
-                      {s.name}
-                    </Text>
-                    {s.onApprovedLeave && <Text style={font.tiny}>On approved leave</Text>}
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                    <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: colors.ink }}>{s.name}</Text>
+                    {s.rollNumber ? <Text style={font.small}>Roll {s.rollNumber}</Text> : null}
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                  {s.onApprovedLeave && <Text style={font.tiny}>On approved leave</Text>}
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
                     {OPTIONS.map((o) => {
                       const on = marks[s.id] === o.s;
                       return (
                         <Pressable
                           key={o.s}
                           disabled={!d.canEdit}
-                          accessibilityLabel={`${s.name}: ${o.s.toLowerCase()}`}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                          accessibilityLabel={`${s.name}: ${o.word}`}
                           onPress={() => {
                             void Haptics.selectionAsync().catch(() => undefined);
                             setMarks((m) => ({ ...m, [s.id]: o.s }));
                           }}
                           style={{
-                            width: 40,
-                            height: 36,
-                            borderRadius: radius.md,
+                            flex: 1,
+                            height: 40,
+                            borderRadius: radius.pill,
                             alignItems: 'center',
                             justifyContent: 'center',
                             backgroundColor: on ? o.bg : '#fff',
@@ -177,8 +172,8 @@ export default function RegisterScreen() {
                             borderColor: colors.line,
                           }}
                         >
-                          <Text style={{ fontWeight: '700', color: on ? o.color : colors.faint, fontSize: 13 }}>
-                            {o.label}
+                          <Text style={{ fontWeight: '700', color: on ? o.color : colors.muted, fontSize: 13 }}>
+                            {o.word}
                           </Text>
                         </Pressable>
                       );
@@ -194,7 +189,7 @@ export default function RegisterScreen() {
             )}
             {d.date === todayIso() && (
               <Text style={[font.tiny, { textAlign: 'center' }]}>
-                Offline? It still saves and sends later. <Ionicons name="cloud-offline-outline" size={12} />
+                Offline? It still saves and sends later. <Icon name="cloud-offline-outline" size={12} />
               </Text>
             )}
           </>

@@ -281,6 +281,35 @@ const TEACHERS: { name: string; subjects: string[]; qualification: string }[] = 
 
 async function seedBrightStar() {
   const tenant = await ensureTenant('Bright Star School', 'bss', 'Lahore');
+  // Demo school: subject teachers publish their own tests, and parents see where to send fees.
+  await db.tenantSettings.update({ where: { tenantId: tenant.id }, data: { marksPublisher: 'TEACHER' } });
+  if (!(await db.paymentAccount.count({ where: { tenantId: tenant.id } })))
+    await db.paymentAccount.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          method: 'BANK',
+          label: 'Meezan Bank',
+          accountTitle: 'Bright Star School',
+          accountNumber: '0101-0105-5501',
+          iban: 'PK36MEZN0001010105550100',
+        },
+        {
+          tenantId: tenant.id,
+          method: 'JAZZCASH',
+          label: 'JazzCash',
+          accountTitle: 'Bright Star School',
+          accountNumber: '0300-1234567',
+        },
+        {
+          tenantId: tenant.id,
+          method: 'EASYPAISA',
+          label: 'Easypaisa',
+          accountTitle: 'Bright Star School',
+          accountNumber: '0345-7654321',
+        },
+      ],
+    });
   const t = tenant.id;
   for (const u of [
     { role: 'SCHOOL_ADMIN', displayName: 'Sara Ahmed', email: 'admin@bss.test' },

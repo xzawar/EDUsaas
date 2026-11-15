@@ -9,6 +9,7 @@ import { generateTemporaryPassword, hashPassword } from '@/server/auth/password'
 import { PREFIX_PATTERN } from '@/server/auth/username';
 import { revokeTenantSessions } from '@/server/auth/session';
 import { startTrial } from '@/server/platform/plans';
+import { storage } from '@/server/files/storage';
 
 /**
  * Platform console. Uses the privileged client because it is cross-tenant by nature, but it only ever
@@ -162,6 +163,71 @@ export async function setTenantStatus(ctx: AuthedContext, tenantId: string, stat
     userAgent: ctx.userAgent,
   });
   return tenant;
+}
+
+/**
+ * Permanently delete a school: every account, record, bill and file. Only for a school that is already suspended,
+ * and only when the caller types the school's prefix back. The platform audit log keeps the deletion record.
+ */
+export const deleteTenantSchema = z.object({ confirmPrefix: z.string().trim().toLowerCase() });
+
+export async function deleteTenant(ctx: AuthedContext, tenantId: string, input: z.infer<typeof deleteTenantSchema>) {
+  const db = systemDb();
+  const t = await db.tenant.findUnique({ where: { id: tenantId } });
+  if (!t) throw notFound('School');
+  if (t.status !== 'SUSPENDED') throw new AppError('CONFLICT', 'Suspend the school before deleting it');
+  if (input.confirmPrefix !== t.prefix)
+    throw new AppError('VALIDATION_FAILED', `Type "${t.prefix}" to confirm`, { field: 'confirmPrefix' });
+  // Files live outside the database; collect their keys before the rows go.
+  const where = { tenantId };
+  const [teachers, students, archives, audits, payments, claims, expenses, counts] = await Promise.all([
+    db.teacher.findMany({ where: { ...where, photoKey: { not: null } }, select: { photoKey: true } }),
+    db.student.findMany({ where: { ...where, photoKey: { not: null } }, select: { photoKey: true } }),
+    db.studentArchive.findMany({ where, select: { storageKey: true } }),
+    db.auditArchive.findMany({ where, select: { storageKey: true } }),
+    db.payment.findMany({ where: { ...where, proofKey: { not: null } }, select: { proofKey: true } }),
+    db.paymentClaim.findMany({ where: { ...where, proofKey: { not: null } }, select: { proofKey: true } }),
+    db.expense.findMany({ where: { ...where, receiptKey: { not: null } }, select: { receiptKey: true } }),
+    Promise.all([db.user.count({ where }), db.student.count({ where })]),
+  ]);
+  const keys = [
+    ...teachers.map((r) => r.photoKey),
+    ...students.map((r) => r.photoKey),
+    ...archives.map((r) => r.storageKey),
+    ...audits.map((r) => r.storageKey),
+    ...payments.map((r) => r.proofKey),
+    ...claims.map((r) => r.proofKey),
+    ...expenses.map((r) => r.receiptKey),
+  ].filter((k): k is string => !!k);
+  await revokeTenantSessions(tenantId);
+  await db.$executeRaw`SELECT purge_tenant(${tenantId}::uuid)`;
+  const store = storage();
+  let filesRemoved = 0;
+  if (store)
+    for (const k of keys) {
+      // Best effort: a missing file must not undo a finished deletion.
+      if (
+        await store.delete(k).then(
+          () => true,
+          () => false,
+        )
+      )
+        filesRemoved++;
+    }
+  await recordAudit({
+    tenantId: null,
+    actorId: ctx.user.id,
+    actorRole: ctx.user.role,
+    action: 'tenant.delete',
+    entity: 'Tenant',
+    entityId: tenantId,
+    before: { name: t.name, prefix: t.prefix, users: counts[0], students: counts[1] },
+    metadata: { filesRemoved, files: keys.length },
+    requestId: ctx.requestId,
+    ipHash: ctx.ipHash,
+    userAgent: ctx.userAgent,
+  });
+  return { ok: true, name: t.name };
 }
 
 export async function platformHealth() {

@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { Text } from '@/components/text';
@@ -43,17 +44,14 @@ function Line({ label, paisa, strong }: { label: string; paisa: number; strong?:
 }
 
 export default function ReportsScreen() {
-  const [tab, setTab] = useState<'summary' | 'defaulters'>('summary');
+  // "Who owes" is what the office opens this for most, so it is the default.
+  const { tab: initial } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<'summary' | 'defaulters'>(initial === 'summary' ? 'summary' : 'defaulters');
   const s = useGet<Summary>(tab === 'summary' ? '/finance/reports/summary' : null);
   const d = useGet<Def>(tab === 'defaulters' ? '/finance/reports/defaulters' : null);
   const q = tab === 'summary' ? s : d;
   return (
-    <Screen
-      title="Money reports"
-      subtitle="Full reports and Excel downloads are on the web."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Money reports" subtitle="Who still has to pay." refreshing={q.isFetching} onRefresh={q.refetch}>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Chip active={tab === 'summary'} onPress={() => setTab('summary')}>
           This month

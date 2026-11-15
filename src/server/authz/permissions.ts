@@ -82,6 +82,16 @@ const SCHOOL_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
     p !== 'marks.enter',
 );
 
+const ACCOUNTANT_PERMISSIONS: Permission[] = [
+  'fees.manage',
+  'fees.collect',
+  'expenses.manage',
+  'payroll.manage',
+  'finance.read',
+  'students.read',
+  'students.search',
+];
+
 export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
   PLATFORM_OWNER: {
     // No tenant-data permissions at all (spec §2.7, §9.6): tenant access only via break-glass support grants.
@@ -119,7 +129,7 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
       'reports.read': true,
       'audit.read': true,
       'announcements.manage': true,
-      'finance.read': true,
+      // No money: the principal runs teaching and people. Finance belongs to the admin and the accountant.
     },
   },
   ADMISSIONS_OFFICER: {
@@ -132,15 +142,12 @@ export const ROLE_POLICIES: Record<UserRole, RolePolicy> = {
   },
   ACCOUNTANT: {
     // Money only, plus finding a student at the counter. No attendance, marks, settings or accounts.
-    fixed: [
-      'fees.manage',
-      'fees.collect',
-      'expenses.manage',
-      'payroll.manage',
-      'finance.read',
-      'students.read',
-      'students.search',
-    ],
+    fixed: ACCOUNTANT_PERMISSIONS,
+    configurable: {},
+  },
+  CLERK: {
+    // The front office in one seat: everything an Accountant does, plus admitting students.
+    fixed: [...ACCOUNTANT_PERMISSIONS, 'students.write', 'students.import', 'students.reset_password'],
     configurable: {},
   },
   TEACHER: {

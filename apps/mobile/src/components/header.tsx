@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { router } from 'expo-router';
 import { Pressable } from 'react-native';
 import { colors, family } from '@/lib/theme';
@@ -21,7 +21,7 @@ export function BackChip({ onPress }: { onPress?: () => void }) {
         marginRight: 8,
       })}
     >
-      <Ionicons name="arrow-back" size={22} color={colors.ink} />
+      <Icon name="arrow-back" size={22} color={colors.ink} />
     </Pressable>
   );
 }
@@ -35,4 +35,7 @@ export const stackScreenOptions = {
   headerBackVisible: false,
   headerLeft: ({ canGoBack }: { canGoBack?: boolean }) => (canGoBack ? <BackChip /> : null),
   contentStyle: { backgroundColor: colors.bg },
+  // Pushed screens crossfade quickly instead of sliding across.
+  animation: 'fade',
+  animationDuration: 200,
 } as const;

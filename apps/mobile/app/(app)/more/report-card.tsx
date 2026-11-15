@@ -11,12 +11,7 @@ export default function ReportCardScreen() {
   const q = useGet<R>('/results/me');
   const d = q.data;
   return (
-    <Screen
-      title="Report card"
-      subtitle="Your average in each subject from published tests."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Report card" subtitle="Your average per subject." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && d.subjects.length === 0 && (

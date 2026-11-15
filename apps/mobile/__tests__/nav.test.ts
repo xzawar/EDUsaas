@@ -35,7 +35,7 @@ const PERMS: Record<string, string[]> = {
     'leave.approve',
     'leave.apply',
     'reports.read',
-    'finance.read',
+    'users.read',
     'teacher_attendance.oversee',
     'attendance.oversee',
   ],
@@ -49,7 +49,18 @@ const PERMS: Record<string, string[]> = {
     'students.read',
     'students.search',
   ],
+  CLERK: [
+    'fees.manage',
+    'fees.collect',
+    'expenses.manage',
+    'payroll.manage',
+    'finance.read',
+    'students.read',
+    'students.search',
+    'students.write',
+  ],
   PLATFORM_OWNER: [
+    'platform.health.read',
     'platform.tenants.read',
     'platform.support.queue',
     'platform.plans.manage',
@@ -107,12 +118,30 @@ describe('role boundaries in the menu', () => {
       expect(h).not.toContain(x);
   });
   it('the accountant collects at the counter', () => {
-    expect(tabsFor(me('ACCOUNTANT')).map((t) => t.name)).toEqual(['index', 'collect', 'invoices', 'claims', 'more']);
+    expect(tabsFor(me('ACCOUNTANT')).map((t) => t.name)).toEqual(['index', 'collect', 'claims', 'more']);
   });
-  it('the principal reads finance but cannot collect', () => {
+  it('the principal sees no money at all', () => {
     const h = hrefs('PRINCIPAL');
-    expect(h).toContain('/(app)/finance');
-    expect(h).not.toContain('/(app)/collect');
+    for (const x of ['/(app)/finance', '/(app)/collect', '/(app)/more/reports', '/(app)/more/expenses'])
+      expect(h).not.toContain(x);
+    expect(h).toContain('/(app)/attendance');
+  });
+  it('attendance is not a tab for teachers or the office', () => {
+    for (const role of ['TEACHER', 'SCHOOL_ADMIN', 'PRINCIPAL'])
+      expect(tabsFor(me(role)).map((t) => t.name)).not.toContain('attendance');
+    expect(moreFor(me('TEACHER')).map((i) => i.title)).toContain('Registers');
+  });
+  it('the clerk has the counter and the admissions desk', () => {
+    expect(tabsFor(me('CLERK')).map((t) => t.name)).toEqual(['index', 'collect', 'students', 'claims', 'more']);
+  });
+  it('the counter has no notifications inbox; every staff seat has Help, students do not', () => {
+    for (const role of ['ACCOUNTANT', 'CLERK']) expect(hrefs(role)).not.toContain('/(app)/more/notifications');
+    for (const role of ['TEACHER', 'ACCOUNTANT', 'PRINCIPAL', 'SCHOOL_ADMIN'])
+      expect(hrefs(role)).toContain('/(app)/more/support');
+    expect(hrefs('STUDENT')).not.toContain('/(app)/more/support');
+  });
+  it('the platform owner can open app health', () => {
+    expect(hrefs('PLATFORM_OWNER')).toContain('/(app)/more/stats');
   });
   it('platform admin without plan rights gets no Plans entry', () => {
     expect(hrefs('PLATFORM_ADMIN')).not.toContain('/(app)/more/plans');

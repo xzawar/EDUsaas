@@ -45,37 +45,43 @@ export default function TimetableScreen() {
             {d.periods.map((p) => {
               const c = d.cells[`${active}:${p.periodNo}`];
               const brk = p.isBreak || c?.isBreak;
+              const who = c?.entry ? (c.entry.section ?? c.entry.teacher) : null;
+              // One line per period: start–end, then the subject (and who/where), never wrapping.
               return (
                 <View
                   key={p.periodNo}
                   style={{
                     flexDirection: 'row',
+                    alignItems: 'center',
                     gap: 12,
-                    paddingVertical: 10,
+                    paddingVertical: brk ? 6 : 12,
                     borderBottomWidth: 1,
                     borderBottomColor: colors.line,
                   }}
                 >
-                  <View style={{ width: 64 }}>
-                    <Text style={{ fontWeight: '600', color: colors.ink }}>{brk ? 'Break' : `P${p.periodNo}`}</Text>
-                    <Text style={font.tiny}>
-                      {p.startsAt}–{p.endsAt}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      width: 104,
+                      fontWeight: '700',
+                      color: brk ? colors.muted : colors.ink,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                    numberOfLines={1}
+                  >
+                    {p.startsAt}–{p.endsAt}
+                  </Text>
+                  <Text style={{ flex: 1 }} numberOfLines={1}>
                     {brk ? (
-                      <Text style={font.small}>—</Text>
+                      <Text style={font.small}>Break</Text>
                     ) : c?.entry ? (
                       <>
-                        <Text style={{ fontWeight: '600', color: colors.ink }}>{c.entry.subject}</Text>
-                        <Text style={font.small}>
-                          {[c.entry.section, c.entry.teacher, c.entry.room].filter(Boolean).join(' · ')}
-                        </Text>
+                        <Text style={{ fontWeight: '700', color: colors.ink }}>{c.entry.subject}</Text>
+                        {who ? <Text style={font.small}> · {who}</Text> : null}
                       </>
                     ) : (
                       <Text style={font.small}>Free</Text>
                     )}
-                  </View>
+                  </Text>
                 </View>
               );
             })}

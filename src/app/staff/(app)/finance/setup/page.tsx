@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { PageHeader } from '@/components/AppShell';
 import { FeeHeadsEditor, FeeStructureGrid, LateFeeEditor } from '@/components/finance/FeeSetup';
+import { PaymentAccountsEditor } from '@/components/finance/PaymentAccounts';
+import { listPaymentAccounts } from '@/server/school/finance/accounts';
 import { Card, EmptyState, ButtonLink, Select } from '@/components/ui';
 import { requirePortal } from '@/server/auth/page';
 import { feeStructure, lateFeeRule, listFeeHeads } from '@/server/school/finance/setup';
@@ -12,7 +14,12 @@ export const metadata: Metadata = { title: 'Fee setup' };
 export default async function FeeSetupPage({ searchParams }: { searchParams: Promise<{ yearId?: string }> }) {
   const ctx = await requirePortal('STAFF', 'fees.manage');
   const { yearId } = await searchParams;
-  const [years, current, heads] = await Promise.all([listYears(ctx), currentYear(ctx), listFeeHeads(ctx, true)]);
+  const [years, current, heads, accounts] = await Promise.all([
+    listYears(ctx),
+    currentYear(ctx),
+    listFeeHeads(ctx, true),
+    listPaymentAccounts(ctx),
+  ]);
   const year = years.find((y) => y.id === yearId) ?? (current ? years.find((y) => y.id === current.id) : years[0]);
   const [structure, rule] = year
     ? await Promise.all([feeStructure(ctx, year.id), lateFeeRule(ctx, year.id)])
@@ -26,6 +33,9 @@ export default async function FeeSetupPage({ searchParams }: { searchParams: Pro
       <div className="space-y-6">
         <Card title="Fee heads" description="The lines on a bill. Archive one to stop charging it from next month.">
           <FeeHeadsEditor heads={JSON.parse(JSON.stringify(heads))} />
+        </Card>
+        <Card title="Where parents pay" description="Bank and wallet details shown when a parent pays by transfer.">
+          <PaymentAccountsEditor accounts={accounts} />
         </Card>
         {!year ? (
           <Card>

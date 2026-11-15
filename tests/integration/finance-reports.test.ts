@@ -126,8 +126,8 @@ describe('reports', () => {
     const d = await report('defaulters');
     expect(d.json.students).toBe(1);
     expect(d.json.rows[0]).toMatchObject({ section: '8-A', balancePaisa: 250000, guardianPhone: '03001111111' });
-    const principal = await report('defaulters', '', await cookieFor(f.a.PRINCIPAL));
-    expect(principal.json.rows[0].guardianPhone).toBeNull();
+    // The Principal has no finance access at all.
+    expect((await report('defaulters', '', await cookieFor(f.a.PRINCIPAL))).status).toBe(403);
     const csv = await report('defaulters', '?format=csv');
     expect(csv.status).toBe(200);
     expect(csv.headers.get('content-type')).toContain('text/csv');

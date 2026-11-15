@@ -6,7 +6,7 @@ import type { Portal, UserRole } from '@prisma/client';
  */
 export const PORTAL_ROLES: Record<Portal, readonly UserRole[]> = {
   STUDENT: ['STUDENT'],
-  STAFF: ['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT', 'TEACHER'],
+  STAFF: ['SCHOOL_ADMIN', 'PRINCIPAL', 'ADMISSIONS_OFFICER', 'ACCOUNTANT', 'CLERK', 'TEACHER'],
   PLATFORM: ['PLATFORM_OWNER', 'PLATFORM_ADMIN'],
 };
 
@@ -41,6 +41,7 @@ export const EMAIL_ROLES: readonly UserRole[] = [
   'PRINCIPAL',
   'ADMISSIONS_OFFICER',
   'ACCOUNTANT',
+  'CLERK',
   'PLATFORM_OWNER',
   'PLATFORM_ADMIN',
 ];

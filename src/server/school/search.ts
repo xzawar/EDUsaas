@@ -29,8 +29,7 @@ export async function search(ctx: AuthedContext, query: z.infer<typeof searchQue
   // A query of only symbols normalises to '' — that must not turn into "match every username".
   const userLike = userNorm ? `%${likeEscape(userNorm)}%` : null;
   const digits = q.replace(/\D/g, '');
-  const phoneLookup =
-    digits.length >= 4 && (ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'ADMISSIONS_OFFICER');
+  const phoneLookup = digits.length >= 4 && ['SCHOOL_ADMIN', 'ADMISSIONS_OFFICER', 'CLERK'].includes(ctx.user.role);
   const offset = (query.page - 1) * PAGE;
 
   return inTenant(ctx, async (tx) => {

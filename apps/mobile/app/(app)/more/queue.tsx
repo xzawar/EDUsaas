@@ -22,7 +22,7 @@ export default function QueueScreen() {
   return (
     <Screen
       title="Waiting to send"
-      subtitle="Saved on this phone while offline. Sends automatically when you’re back online."
+      subtitle="Sends by itself when you’re online."
       refreshing={flushing}
       onRefresh={retry}
     >

@@ -119,17 +119,11 @@ test('payroll: set a salary, run the month, finalise, pay; the teacher sees the 
   expect(res.headers()['content-type']).toBe('application/pdf');
 });
 
-test('principal reads money reports and downloads CSV; teacher has no finance at all', async ({ browser }) => {
+test('neither the principal nor a teacher has any finance', async ({ browser }) => {
   const principal = await (await browser.newContext()).newPage();
   await signIn(principal, '/staff/login', 'principal@bss.test');
-  await nav(principal).getByRole('link', { name: 'Money reports' }).click();
-  await expect(principal.getByText('Still owed (all months)')).toBeVisible();
-  await principal.getByRole('link', { name: 'Defaulters' }).click();
-  await expect(principal.getByText(/owe .* on bills past due/)).toBeVisible();
-  const csv = await principal.request.get('/api/v1/finance/reports/defaulters?format=csv');
-  expect(csv.status()).toBe(200);
-  expect(csv.headers()['content-type']).toContain('text/csv');
-  // Principal cannot collect.
+  await expect(nav(principal).getByRole('link', { name: 'Money reports' })).toHaveCount(0);
+  expect((await principal.request.get('/api/v1/finance/reports/defaulters?format=csv')).status()).toBe(403);
   await principal.goto('/staff/finance/collect');
   await expect(principal).toHaveURL(/\/staff$/);
 

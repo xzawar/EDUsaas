@@ -44,6 +44,29 @@ async function access(ctx: AuthedContext, tx: TenantTx, sectionId: string) {
   };
 }
 
+/**
+ * Once-daily schools: a teacher takes the register only for the class of their FIRST lecture that day (by the
+ * timetable). With no lectures timetabled for them that day, the old rule stands (their incharge and assigned
+ * sections), so schools without a timetable keep working.
+ */
+export async function registerSectionIds(tx: TenantTx, userId: string, day: string): Promise<string[] | null> {
+  const teacher = await tx.teacher.findUnique({ where: { userId }, select: { id: true } });
+  if (!teacher) return null;
+  const first = await tx.timetableEntry.findFirst({
+    where: { teacherId: teacher.id, slot: { dayOfWeek: weekday(day), isBreak: false } },
+    orderBy: { slot: { periodNo: 'asc' } },
+    select: { sectionId: true },
+  });
+  return first ? [first.sectionId] : null;
+}
+
+async function registerAccess(ctx: AuthedContext, tx: TenantTx, sectionId: string, day: string, mode: string) {
+  const acc = await access(ctx, tx, sectionId);
+  if (acc.overseer || !acc.inScope || mode === 'PER_PERIOD') return acc;
+  const only = await registerSectionIds(tx, ctx.user.id, day);
+  return only ? { ...acc, inScope: only.includes(sectionId) } : acc;
+}
+
 function windowFor(date: string, today: string) {
   const lastEditable = addDays(date, ATTENDANCE_CORRECTION_DAYS);
   return { lastEditable, open: date <= today && today <= lastEditable };
@@ -99,7 +122,7 @@ export async function attendanceSheet(ctx: AuthedContext, sectionId: string, dat
     const day = date ?? clock.today;
     const periods = await periodOptions(tx, sectionId, day, clock.attendanceMode);
     const p = resolvePeriod(periods, period);
-    const acc = await access(ctx, tx, sectionId);
+    const acc = await registerAccess(ctx, tx, sectionId, day, clock.attendanceMode);
     if (!acc.inScope) throw notFound('Section');
     const section = await tx.section.findUnique({ where: { id: sectionId }, include: { class: true } });
     if (!section) throw notFound('Section');
@@ -185,8 +208,8 @@ export async function submitAttendance(ctx: AuthedContext, input: z.infer<typeof
     if (dupe) return { batchId: dupe.id, duplicate: true, corrected: false, syncedLate: dupe.syncedLate };
 
     const clock = await schoolClock(tx);
-    const acc = await access(ctx, tx, input.sectionId);
-    if (!acc.inScope) throw forbidden('You are not assigned to this section');
+    const acc = await registerAccess(ctx, tx, input.sectionId, input.date, clock.attendanceMode);
+    if (!acc.inScope) throw forbidden('You take the register only for your first lecture’s class');
     if (input.date > clock.today)
       throw new AppError('VALIDATION_FAILED', 'You can’t take attendance for a future date');
     const win = windowFor(input.date, clock.today);
@@ -480,7 +503,8 @@ export async function teacherAttendanceTodo(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
     const scope = await teacherScope(tx, ctx.user.id);
-    const ids = scope.inchargeSectionIds.length ? scope.inchargeSectionIds : scope.sectionIds;
+    const first = clock.attendanceMode === 'PER_PERIOD' ? null : await registerSectionIds(tx, ctx.user.id, clock.today);
+    const ids = first ?? (scope.inchargeSectionIds.length ? scope.inchargeSectionIds : scope.sectionIds);
     const sections = await tx.section.findMany({
       where: { id: { in: ids }, class: { academicYear: { status: 'CURRENT' } } },
       include: { class: true },
@@ -629,8 +653,12 @@ export async function attendanceSections(ctx: AuthedContext) {
     const clock = await schoolClock(tx);
     const overseer = ctx.can('attendance.oversee');
     const scope = overseer ? null : await teacherScope(tx, ctx.user.id);
+    // A teacher sees only today's register class (their first lecture), when the timetable says which one.
+    const first =
+      scope && clock.attendanceMode !== 'PER_PERIOD' ? await registerSectionIds(tx, ctx.user.id, clock.today) : null;
+    const ids = first ?? scope?.sectionIds;
     const sections = await tx.section.findMany({
-      where: { class: { academicYear: { status: 'CURRENT' } }, ...(scope ? { id: { in: scope.sectionIds } } : {}) },
+      where: { class: { academicYear: { status: 'CURRENT' } }, ...(ids ? { id: { in: ids } } : {}) },
       include: { class: true, _count: { select: { students: { where: { status: 'ACTIVE' } } } } },
     });
     const batches = await tx.attendanceBatch.findMany({

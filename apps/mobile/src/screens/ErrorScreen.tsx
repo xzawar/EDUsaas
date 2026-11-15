@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { Text } from '@/components/text';
@@ -16,7 +16,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 28, gap: 14 }}
     >
       <View style={{ alignItems: 'center', gap: 10 }}>
-        <Ionicons name="alert-circle-outline" size={44} color={colors.red} />
+        <Icon name="alert-circle-outline" size={44} color={colors.red} />
         <Text style={[font.h1, { textAlign: 'center' }]}>Something went wrong</Text>
         <Text style={[font.body, { textAlign: 'center' }]}>
           This screen hit a problem. Anything you saved on this phone is safe. Try again, or go back and open it again.

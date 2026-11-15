@@ -4,13 +4,26 @@ import { AppError, forbidden, notFound } from '@/server/http/errors';
 import type { AuthedContext } from '@/server/http/route';
 import { audit, inTenant } from '@/server/school/common';
 
-/** School side of support tickets (spec §2.8, §9.6 step 1): the School Admin or Principal asks EDUsaas for help. */
+/**
+ * School side of support tickets (spec §2.8, §9.6 step 1). Every staff seat can ask EDUsaas for help; students ask
+ * their school instead. The School Admin and Principal see every ticket from their school, everyone else only their
+ * own.
+ */
 
 export function canUseSupport(ctx: AuthedContext) {
-  return ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL';
+  return !!ctx.tenantId && ctx.user.role !== 'STUDENT';
 }
 function guard(ctx: AuthedContext) {
-  if (!canUseSupport(ctx)) throw forbidden('Only the School Admin or Principal can contact EDUsaas support');
+  if (!canUseSupport(ctx)) throw forbidden('Ask your school office for help');
+}
+function seesAll(ctx: AuthedContext) {
+  return ctx.user.role === 'SCHOOL_ADMIN' || ctx.user.role === 'PRINCIPAL';
+}
+/** A ticket this person may read or answer. */
+async function ownTicket(ctx: AuthedContext, tx: Parameters<Parameters<typeof inTenant>[1]>[0], id: string) {
+  const t = await tx.supportTicket.findUnique({ where: { id } });
+  if (!t || (!seesAll(ctx) && t.createdBy !== ctx.user.id)) throw notFound('Ticket');
+  return t;
 }
 
 export const newTicketSchema = z.object({
@@ -23,6 +36,7 @@ export async function myTickets(ctx: AuthedContext) {
   guard(ctx);
   return inTenant(ctx, async (tx) => {
     const rows = await tx.supportTicket.findMany({
+      where: seesAll(ctx) ? {} : { createdBy: ctx.user.id },
       orderBy: { updatedAt: 'desc' },
       take: 50,
       include: { messages: { orderBy: { createdAt: 'asc' } }, author: { select: { displayName: true } } },
@@ -73,8 +87,7 @@ export async function openTicket(ctx: AuthedContext, input: z.infer<typeof newTi
 export async function replyToTicket(ctx: AuthedContext, id: string, input: z.infer<typeof replySchema>) {
   guard(ctx);
   return inTenant(ctx, async (tx) => {
-    const t = await tx.supportTicket.findUnique({ where: { id } });
-    if (!t) throw notFound('Ticket');
+    const t = await ownTicket(ctx, tx, id);
     if (t.status === 'CLOSED') throw new AppError('CONFLICT', 'This ticket is closed. Open a new one.');
     await tx.ticketMessage.create({
       data: {
@@ -93,8 +106,7 @@ export async function replyToTicket(ctx: AuthedContext, id: string, input: z.inf
 export async function closeMyTicket(ctx: AuthedContext, id: string) {
   guard(ctx);
   return inTenant(ctx, async (tx) => {
-    const t = await tx.supportTicket.findUnique({ where: { id } });
-    if (!t) throw notFound('Ticket');
+    await ownTicket(ctx, tx, id);
     await tx.supportTicket.update({ where: { id }, data: { status: 'CLOSED' } });
     await audit(ctx, tx, { action: 'ticket.close', entity: 'SupportTicket', entityId: id });
     return { ok: true };

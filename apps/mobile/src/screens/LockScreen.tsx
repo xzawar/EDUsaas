@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Text } from '@/components/text';
@@ -25,7 +25,7 @@ export function LockScreen() {
         gap: 14,
       }}
     >
-      <Ionicons name="lock-closed-outline" size={44} color={colors.accent} />
+      <Icon name="lock-closed-outline" size={44} color={colors.accent} />
       <Text style={font.h1}>EDUsaas is locked</Text>
       {name ? <Text style={font.small}>Signed in as {name}</Text> : null}
       <Button icon="finger-print-outline" onPress={() => void unlock()}>

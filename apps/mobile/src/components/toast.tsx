@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Text } from '@/components/text';
@@ -48,7 +48,7 @@ export function ToastHost() {
             paddingVertical: 12,
           }}
         >
-          <Ionicons
+          <Icon
             name={t.tone === 'error' ? 'alert-circle' : t.tone === 'info' ? 'information-circle' : 'checkmark-circle'}
             size={20}
             color={t.tone === 'error' ? '#ffbfba' : colors.brand}

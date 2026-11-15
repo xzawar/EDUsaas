@@ -45,8 +45,13 @@ export function canViewMarks(ctx: AuthedContext) {
   );
 }
 
-function canPublish(ctx: AuthedContext, publisher: string) {
-  return ctx.user.role === 'SCHOOL_ADMIN' || (ctx.user.role === 'PRINCIPAL' && publisher === 'PRINCIPAL');
+/** Publishing follows the school's setting; with TEACHER, the teacher who owns the test publishes it. */
+function canPublish(ctx: AuthedContext, publisher: string, enterer = false) {
+  return (
+    ctx.user.role === 'SCHOOL_ADMIN' ||
+    (ctx.user.role === 'PRINCIPAL' && publisher === 'PRINCIPAL') ||
+    (ctx.user.role === 'TEACHER' && publisher === 'TEACHER' && enterer)
+  );
 }
 
 export const listAssessmentsQuery = z.object({
@@ -88,6 +93,7 @@ export async function listAssessments(ctx: AuthedContext, query: z.infer<typeof 
       subject: a.subject.name,
       maxMarks: Number(a.maxMarks),
       heldOn: isoDate(a.heldOn)!,
+      chapter: a.chapter,
       status: a.status,
       marksEntered: a._count.marks,
     }));
@@ -100,6 +106,8 @@ export const createAssessmentSchema = z.object({
   name: z.string().trim().min(2).max(80),
   maxMarks: z.number().positive().max(1000),
   heldOn: dateStr,
+  chapter: z.string().trim().max(120).optional(),
+  details: z.string().trim().max(1000).optional(),
 });
 
 export async function createAssessment(ctx: AuthedContext, input: z.infer<typeof createAssessmentSchema>) {
@@ -128,6 +136,8 @@ export async function createAssessment(ctx: AuthedContext, input: z.infer<typeof
         name: input.name,
         maxMarks: input.maxMarks,
         heldOn: toDate(input.heldOn),
+        chapter: input.chapter || null,
+        details: input.details || null,
         createdBy: ctx.user.id,
       },
     });
@@ -172,13 +182,17 @@ export async function getAssessment(ctx: AuthedContext, id: string) {
       subject: a.subject.name,
       maxMarks: Number(a.maxMarks),
       heldOn: isoDate(a.heldOn)!,
+      chapter: a.chapter,
+      details: a.details,
       status: a.status,
       submittedAt: a.submittedAt,
       publishedAt: a.publishedAt,
       bands,
       canEdit,
       canSubmit: enterer && a.status === 'DRAFT',
-      canPublish: canPublish(ctx, clock.marksPublisher) && a.status === 'SUBMITTED',
+      canPublish: canPublish(ctx, clock.marksPublisher, enterer) && a.status === 'SUBMITTED',
+      // Whether this person will be able to publish once it's submitted (so the app can offer one "Publish" step).
+      mayPublish: canPublish(ctx, clock.marksPublisher, enterer),
       editableUntil: a.status !== 'DRAFT' && !ctx.can('marks.manage') ? windowEnds : null,
       lockedReason: canEdit
         ? null
@@ -288,10 +302,14 @@ export async function saveMarks(ctx: AuthedContext, id: string, input: z.infer<t
         entityId: id,
         metadata: { count: input.marks.length },
       });
-      const publishers = await tx.user.findMany({
-        where: { role: clock.marksPublisher === 'PRINCIPAL' ? 'PRINCIPAL' : 'SCHOOL_ADMIN', status: 'ACTIVE' },
-        select: { id: true },
-      });
+      // With teacher publishing nobody else has to act, so nobody is pinged.
+      const publishers =
+        clock.marksPublisher === 'TEACHER'
+          ? []
+          : await tx.user.findMany({
+              where: { role: clock.marksPublisher === 'PRINCIPAL' ? 'PRINCIPAL' : 'SCHOOL_ADMIN', status: 'ACTIVE' },
+              select: { id: true },
+            });
       await notify(
         tx,
         ctx.tenantId!,
@@ -319,9 +337,12 @@ async function getAssessmentRow(tx: TenantTx, id: string) {
 export async function publishAssessment(ctx: AuthedContext, id: string) {
   return inTenant(ctx, async (tx) => {
     const clock = await schoolClock(tx);
-    if (!canPublish(ctx, clock.marksPublisher))
-      throw forbidden('Only the School Admin (or Principal, if your school allows it) can publish marks');
+    // Refuse by role before looking anything up, then check a publishing teacher owns this test.
+    if (!canPublish(ctx, clock.marksPublisher, true))
+      throw forbidden('Only the School Admin (or whoever your school chose) can publish marks');
     const a = await getAssessmentRow(tx, id);
+    const enterer = ctx.user.role === 'TEACHER' && (await canEnter(ctx, tx, a.sectionId, a.subjectId));
+    if (!canPublish(ctx, clock.marksPublisher, enterer)) throw notFound('Assessment');
     if (a.status !== 'SUBMITTED')
       throw new AppError(
         'CONFLICT',
@@ -381,6 +402,8 @@ export async function studentResults(ctx: AuthedContext, studentId?: string) {
         name: m.assessment.name,
         subject: m.assessment.subject.name,
         heldOn: isoDate(m.assessment.heldOn)!,
+        chapter: m.assessment.chapter,
+        details: m.assessment.details,
         score: m.score === null ? null : Number(m.score),
         maxMarks: Number(m.assessment.maxMarks),
         absent: m.absent,
@@ -578,6 +601,15 @@ export async function studentRemarks(ctx: AuthedContext, studentId: string, appr
 /** Assessments a teacher still has to finish (drafts) — for the Today page. */
 export async function teacherMarksTodo(ctx: AuthedContext) {
   return inTenant(ctx, async (tx) => tx.assessment.count({ where: { createdBy: ctx.user.id, status: 'DRAFT' } }));
+}
+
+/** Submitted tests the teacher can publish themselves (only when the school lets teachers publish). */
+export async function teacherToPublish(ctx: AuthedContext) {
+  return inTenant(ctx, async (tx) => {
+    const clock = await schoolClock(tx);
+    if (clock.marksPublisher !== 'TEACHER') return 0;
+    return tx.assessment.count({ where: { createdBy: ctx.user.id, status: 'SUBMITTED' } });
+  });
 }
 
 export async function unpublishedCount(ctx: AuthedContext) {

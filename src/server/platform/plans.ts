@@ -155,3 +155,36 @@ export async function assertWithinPlan(tenantId: string, kind: 'students' | 'sta
     );
   }
 }
+
+/**
+ * The school's own view of its package: the current plan and how much of it is used, plus every plan on offer so the
+ * School Admin can ask EDUsaas to move up. Prices and limits only.
+ */
+export async function schoolPlan(tenantId: string) {
+  const db = systemDb();
+  const [{ subscription, usage }, plans] = await Promise.all([
+    tenantSubscription(tenantId),
+    db.plan.findMany({ where: { active: true }, orderBy: { priceMonthly: 'asc' } }),
+  ]);
+  return {
+    current: subscription
+      ? {
+          plan: subscription.plan.name,
+          planId: subscription.planId,
+          status: subscription.status,
+          renewsOn: subscription.renewsOn ? subscription.renewsOn.toISOString().slice(0, 10) : null,
+          maxStudents: subscription.plan.maxStudents,
+          maxStaff: subscription.plan.maxStaff,
+          priceMonthly: subscription.plan.priceMonthly,
+        }
+      : null,
+    usage,
+    plans: plans.map((p) => ({
+      id: p.id,
+      name: p.name,
+      priceMonthly: p.priceMonthly,
+      maxStudents: p.maxStudents,
+      maxStaff: p.maxStaff,
+    })),
+  };
+}

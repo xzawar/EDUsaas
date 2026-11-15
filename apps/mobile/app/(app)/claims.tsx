@@ -63,7 +63,7 @@ export default function ClaimsScreen() {
   return (
     <Screen
       title="Payment proofs"
-      subtitle="Check each one against your bank, then confirm or reject."
+      subtitle="Match each one to your bank."
       refreshing={q.isFetching}
       onRefresh={q.refetch}
     >

@@ -196,6 +196,7 @@ export const ROLE_LABELS: Record<string, string> = {
   PRINCIPAL: 'Principal',
   ADMISSIONS_OFFICER: 'Admissions Officer',
   ACCOUNTANT: 'Accountant',
+  CLERK: 'Clerk',
   TEACHER: 'Teacher',
   STUDENT: 'Student',
 };

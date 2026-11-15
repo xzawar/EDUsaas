@@ -44,9 +44,12 @@ describe('role policies (spec §2)', () => {
     ]);
   });
 
-  it('Principal finance.read is a toggle, default on; Student has self.fees; Teacher has no finance', () => {
-    expect(effectivePermissions('PRINCIPAL').has('finance.read')).toBe(true);
-    expect(effectivePermissions('PRINCIPAL', { 'finance.read': false }).has('finance.read')).toBe(false);
+  it('the Principal has no finance (not even by toggle); the Clerk has fees and admissions; Student has self.fees', () => {
+    expect(effectivePermissions('PRINCIPAL').has('finance.read')).toBe(false);
+    expect(effectivePermissions('PRINCIPAL', { 'finance.read': true }).has('finance.read')).toBe(false);
+    for (const p of ['fees.collect', 'finance.read', 'students.write', 'students.import'] as const)
+      expect(effectivePermissions('CLERK').has(p)).toBe(true);
+    expect(effectivePermissions('CLERK').has('settings.manage')).toBe(false);
     expect(effectivePermissions('STUDENT').has('self.fees')).toBe(true);
     expect(effectivePermissions('SCHOOL_ADMIN').has('self.fees')).toBe(false);
     expect(effectivePermissions('TEACHER').has('finance.read')).toBe(false);

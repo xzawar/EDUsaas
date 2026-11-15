@@ -54,6 +54,7 @@ export function NewStaffButton({ schoolName }: { schoolName: string }) {
               <option value="PRINCIPAL">Principal</option>
               <option value="ADMISSIONS_OFFICER">Admissions Officer</option>
               <option value="ACCOUNTANT">Accountant</option>
+              <option value="CLERK">Clerk (accounts + admissions)</option>
             </Select>
           </Field>
           <Field label="Full name" htmlFor="st-name">

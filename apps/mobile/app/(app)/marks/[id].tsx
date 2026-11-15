@@ -22,6 +22,9 @@ type Sheet = {
     canEdit: boolean;
     canSubmit: boolean;
     canPublish: boolean;
+    mayPublish: boolean;
+    chapter: string | null;
+    heldOn: string;
     lockedReason: string | null;
     students: { id: string; name: string; rollNumber: number | null; score: number | null; absent: boolean }[];
   };
@@ -86,8 +89,24 @@ export default function MarkSheetScreen() {
     invalidate('/assessments');
     if (submit) router.back();
   }
-  async function publish() {
+  async function publish(submitFirst = false) {
     if (!a) return;
+    if (submitFirst) {
+      // A teacher who publishes their own tests: save + submit, then publish, in one tap.
+      setBusy(true);
+      const marks = a.students.map((s) => ({
+        studentId: s.id,
+        score: v[s.id]?.absent || v[s.id]?.score === '' ? null : Number(v[s.id]?.score),
+        absent: !!v[s.id]?.absent,
+      }));
+      const saved = await api(`/assessments/${a.id}/marks`, { method: 'PUT', body: { marks, submit: true } }).catch(
+        () => null,
+      );
+      if (!saved || !saved.ok) {
+        setBusy(false);
+        return toast('error', saved && !saved.ok ? saved.error.message : 'Publishing needs a connection');
+      }
+    }
     setBusy(true);
     const r = await api(`/assessments/${a.id}/publish`, { method: 'POST' }).catch(() => null);
     setBusy(false);
@@ -100,19 +119,16 @@ export default function MarkSheetScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: a ? `${a.section} · ${a.subject}` : 'Marks' }} />
-      <Screen>
+      <Stack.Screen options={{ headerShown: false }} />
+      <Screen back title={a ? a.subject : 'Marks'} subtitle={a ? `${a.section} · ${a.name}` : undefined}>
         {q.isError && !a && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
         {!a && q.isLoading && <Loading />}
         {a && (
           <>
             <Text style={font.small}>
-              {a.name} · out of {a.maxMarks} ·{' '}
-              {a.status === 'PUBLISHED'
-                ? 'published'
-                : a.status === 'SUBMITTED'
-                  ? 'submitted, waiting to publish'
-                  : 'draft'}
+              Out of {a.maxMarks}
+              {a.chapter ? ` · ${a.chapter}` : ''} ·{' '}
+              {a.status === 'PUBLISHED' ? 'Published' : a.status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
             </Text>
             {!!a.lockedReason && !a.canEdit && <ErrorBox message={a.lockedReason} />}
             <Card style={{ gap: 0, paddingVertical: 4 }}>
@@ -129,29 +145,36 @@ export default function MarkSheetScreen() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 8,
-                      paddingVertical: 6,
+                      paddingVertical: 8,
                       borderTopWidth: i ? 1 : 0,
                       borderTopColor: colors.line,
                     }}
                   >
-                    <Text style={[font.tiny, { width: 26, textAlign: 'right' }]}>{s.rollNumber ?? ''}</Text>
-                    <Text style={{ flex: 1, fontSize: 15, color: colors.ink }} numberOfLines={1}>
-                      {s.name}
-                    </Text>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.ink }} numberOfLines={1}>
+                        {s.name}
+                      </Text>
+                      {s.rollNumber ? <Text style={font.tiny}>Roll {s.rollNumber}</Text> : null}
+                    </View>
                     <Pressable
                       disabled={!a.canEdit}
                       onPress={() => setV((m) => ({ ...m, [s.id]: { score: '', absent: !x.absent } }))}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${s.name} absent`}
+                      accessibilityState={{ selected: x.absent }}
                       style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: radius.pill,
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         backgroundColor: x.absent ? colors.red : '#fff',
                         borderWidth: 1,
-                        borderColor: x.absent ? colors.redSoft : colors.line,
+                        borderColor: x.absent ? colors.red : colors.line,
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: x.absent ? '#fff' : colors.muted }}>
-                        Abs
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: x.absent ? '#fff' : colors.muted }}>
+                        A
                       </Text>
                     </Pressable>
                     <TextInput
@@ -165,13 +188,16 @@ export default function MarkSheetScreen() {
                       }
                       accessibilityLabel={`Marks for ${s.name}`}
                       style={{
-                        width: 64,
-                        height: 40,
+                        width: 72,
+                        height: 48,
+                        paddingVertical: 0,
+                        paddingHorizontal: 4,
                         borderRadius: radius.md,
                         borderWidth: 1,
                         borderColor: bad ? colors.red : colors.line,
                         textAlign: 'center',
-                        fontSize: 16,
+                        fontSize: 18,
+                        fontWeight: '700',
                         color: colors.ink,
                         backgroundColor: x.absent ? colors.cardStrong : '#fff',
                       }}
@@ -191,7 +217,7 @@ export default function MarkSheetScreen() {
                 >
                   Save
                 </Button>
-                {a.canSubmit && (
+                {a.canSubmit && !a.mayPublish && (
                   <Button
                     style={{ flex: 1 }}
                     onPress={() => save(true)}
@@ -202,10 +228,21 @@ export default function MarkSheetScreen() {
                     Submit
                   </Button>
                 )}
+                {a.canSubmit && a.mayPublish && (
+                  <Button
+                    style={{ flex: 1 }}
+                    onPress={() => publish(true)}
+                    loading={busy}
+                    disabled={invalid}
+                    icon="megaphone-outline"
+                  >
+                    Publish
+                  </Button>
+                )}
               </View>
             )}
             {a.canPublish && (
-              <Button onPress={publish} loading={busy} icon="megaphone-outline">
+              <Button onPress={() => publish()} loading={busy} icon="megaphone-outline">
                 Publish to students
               </Button>
             )}

@@ -26,7 +26,9 @@ export default async function AssessmentsPage({ searchParams }: { searchParams: 
     inTenant(ctx, (tx) => schoolClock(tx)),
   ]);
   const canPublish =
-    ctx.user.role === 'SCHOOL_ADMIN' || (ctx.user.role === 'PRINCIPAL' && clock.marksPublisher === 'PRINCIPAL');
+    ctx.user.role === 'SCHOOL_ADMIN' ||
+    (ctx.user.role === 'PRINCIPAL' && clock.marksPublisher === 'PRINCIPAL') ||
+    (ctx.user.role === 'TEACHER' && clock.marksPublisher === 'TEACHER');
   return (
     <>
       <PageHeader

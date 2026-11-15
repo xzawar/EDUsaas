@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/icon';
 import { useRouter } from 'expo-router';
 import { Alert, View } from 'react-native';
 import { Text } from '@/components/text';
@@ -37,7 +37,7 @@ export default function MoreScreen() {
     if (href.endsWith('/queue') && queue.items.length)
       return <Badge tone={queue.items.some((i) => i.error) ? 'red' : 'amber'}>{queue.items.length}</Badge>;
     if (href.endsWith('/notifications') && notes.data?.unread) return <Badge tone="blue">{notes.data.unread}</Badge>;
-    return <Ionicons name="chevron-forward" size={18} color={colors.muted} />;
+    return <Icon name="chevron-forward" size={18} color={colors.muted} />;
   };
   return (
     <Screen title="More">
@@ -51,7 +51,7 @@ export default function MoreScreen() {
       {update.available && (
         <Card>
           <Row
-            left={<Ionicons name="sparkles-outline" size={22} color={colors.accent} />}
+            left={<Icon name="sparkles-outline" size={22} color={colors.accent} />}
             title={`Version ${update.available.version} is ready`}
             subtitle={update.available.notes ?? 'Tap to download and install it over this one.'}
             onPress={() => Linking.openURL(update.available!.apkUrl!)}
@@ -59,22 +59,20 @@ export default function MoreScreen() {
         </Card>
       )}
       <Card style={{ paddingVertical: 4 }}>
-        {moreFor(me)
-          .filter((i) => !(isPlatform && i.href.endsWith('/notifications')))
-          .map((i) => (
-            <Row
-              key={i.href}
-              left={<Ionicons name={i.icon} size={22} color={colors.accent} />}
-              title={i.title}
-              subtitle={i.subtitle}
-              right={badge(i.href)}
-              onPress={() => router.push(i.href as never)}
-            />
-          ))}
+        {moreFor(me, { pending: queue.items.length }).map((i) => (
+          <Row
+            key={i.href}
+            left={<Icon name={i.icon} size={22} color={colors.accent} />}
+            title={i.title}
+            subtitle={i.subtitle}
+            right={badge(i.href)}
+            onPress={() => router.push(i.href as never)}
+          />
+        ))}
       </Card>
       <Card style={{ paddingVertical: 4 }}>
         <Row
-          left={<Ionicons name="finger-print-outline" size={22} color={colors.accent} />}
+          left={<Icon name="finger-print-outline" size={22} color={colors.accent} />}
           title="App lock"
           subtitle="Ask for your fingerprint or screen lock when opening the app"
           right={<Badge tone={lockOn ? 'green' : 'slate'}>{lockOn ? 'On' : 'Off'}</Badge>}

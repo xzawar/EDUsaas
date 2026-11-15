@@ -70,16 +70,19 @@ export function MethodSelect({
   value,
   onChange,
   cashAllowed = true,
+  chequeAllowed = true,
 }: {
   id: string;
   value: string;
   onChange: (v: string) => void;
   cashAllowed?: boolean;
+  /** Parents' transfer proofs are bank or wallet only; a cheque is handed in at the office. */
+  chequeAllowed?: boolean;
 }) {
   return (
     <Select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
       {Object.entries(METHOD_LABELS)
-        .filter(([k]) => cashAllowed || k !== 'CASH')
+        .filter(([k]) => (cashAllowed || k !== 'CASH') && (chequeAllowed || k !== 'CHEQUE'))
         .map(([k, label]) => (
           <option key={k} value={k}>
             {label}

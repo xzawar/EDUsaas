@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { Text } from '@/components/text';
-import { Badge, Card, Empty, ErrorBox, Loading, Row, Screen } from '@/components/ui';
+import { Badge, Card, Empty, ErrorBox, Loading, Row, Screen, StatusPill } from '@/components/ui';
+import { attendanceStyle } from '@/lib/attendance';
 import { errorText, useGet } from '@/lib/data';
 import { fmtDate, plural } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -41,41 +42,27 @@ function MyAttendance() {
         .sort((a, b) => b[0].localeCompare(a[0]))
         .slice(0, 30)
     : [];
-  const tone: Record<string, 'green' | 'red' | 'amber' | 'blue' | 'slate'> = {
-    PRESENT: 'green',
-    ABSENT: 'red',
-    LATE: 'amber',
-    LEAVE: 'blue',
-    EXCUSED: 'slate',
-  };
+  const low = !!d && d.pct !== null && d.pct < d.threshold;
   return (
-    <Screen
-      title="Attendance"
-      subtitle="Present and Late count as attended. Approved leave doesn’t count against you."
-      refreshing={q.isFetching}
-      onRefresh={q.refetch}
-    >
+    <Screen title="Attendance" subtitle="Present and Late both count." refreshing={q.isFetching} onRefresh={q.refetch}>
       {q.isError && !d && <ErrorBox message={errorText(q.error)} onRetry={q.refetch} />}
       {!d && q.isLoading && <Loading />}
       {d && (
         <>
           <Card>
-            <Text
-              style={{
-                fontSize: 40,
-                fontWeight: '700',
-                color: d.pct !== null && d.pct < d.threshold ? colors.red : colors.ink,
-              }}
-            >
+            <Text style={[font.display, { color: low ? colors.red : colors.ink }]}>
               {d.pct === null ? '—' : `${d.pct}%`}
             </Text>
-            <Text style={font.small}>
-              {d.counts.PRESENT ?? 0} present · {d.counts.ABSENT ?? 0} absent · {d.counts.LATE ?? 0} late ·{' '}
-              {d.counts.LEAVE ?? 0} leave
-            </Text>
-            {d.pct !== null && d.pct < d.threshold && (
-              <Text style={{ color: colors.red, fontSize: 13 }}>Below the school target of {d.threshold}%.</Text>
-            )}
+            {low && <Text style={[font.small, { color: colors.red }]}>Below the school target of {d.threshold}%.</Text>}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {(['PRESENT', 'ABSENT', 'LATE', 'LEAVE'] as const).map((k) => (
+                <StatusPill
+                  key={k}
+                  status={k}
+                  label={`${d.counts[k] ?? 0} ${attendanceStyle(k).label.toLowerCase()}`}
+                />
+              ))}
+            </View>
           </Card>
           <Card title="Last 30 days">
             {days.length === 0 ? (
@@ -85,7 +72,7 @@ function MyAttendance() {
                 <Row
                   key={day}
                   title={fmtDate(day, { weekday: 'short', day: 'numeric', month: 'short' })}
-                  right={<Badge tone={tone[st] ?? 'slate'}>{st.charAt(0) + st.slice(1).toLowerCase()}</Badge>}
+                  right={<StatusPill status={st} />}
                 />
               ))
             )}
