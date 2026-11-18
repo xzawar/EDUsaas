@@ -65,7 +65,7 @@ jobs:
           EDUSAAS_KEYSTORE_PASSWORD: ${{ secrets.EDUSAAS_KEYSTORE_PASSWORD }}
           EDUSAAS_KEY_ALIAS: ${{ secrets.EDUSAAS_KEY_ALIAS }}
         run: bash scripts/build-apk.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: edusaas-apk
           path: apps/mobile/dist/*.apk
