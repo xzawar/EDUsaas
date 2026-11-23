@@ -6,7 +6,12 @@ import type { PortalSlug } from '@edusaas/shared';
  * still checks the password. It is a convenience for testing a demo build, not an auth bypass: on a real school's
  * server these accounts do not exist, so the buttons simply fail. Never put a real account or secret here.
  */
-export const DEMO_PASSWORD = 'Demo-pass-2026';
+/**
+ * Only demo builds carry the demo password (`EXPO_PUBLIC_DEMO_PASSWORD=… bash scripts/build-apk.sh`). A store build
+ * leaves it unset, so the quick-sign-in does not exist there at all and no password is inside the app.
+ */
+export const DEMO_PASSWORD: string | null = process.env.EXPO_PUBLIC_DEMO_PASSWORD || null;
+export const DEV_LOGIN_ENABLED = !!DEMO_PASSWORD;
 
 export type DemoLogin = { label: string; sub: string; portal: PortalSlug; identifier: string };
 

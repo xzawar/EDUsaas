@@ -10,6 +10,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
 export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://edusaas-tau.vercel.app}"
+# Demo/testing APKs keep the hidden quick-sign-in (the public demo password from the README). Store builds use
+# scripts/build-store.sh, which never sets it. Pass EXPO_PUBLIC_DEMO_PASSWORD= (empty) to leave it out here too.
+export EXPO_PUBLIC_DEMO_PASSWORD="${EXPO_PUBLIC_DEMO_PASSWORD-Demo-pass-2026}"
 [ -x "$ANDROID_HOME/build-tools/36.0.0/apksigner" ] || bash scripts/android-sdk.sh
 
 if [ -z "${EDUSAAS_KEYSTORE:-}" ]; then

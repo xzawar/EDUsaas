@@ -1,0 +1,17 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "production": {
+      "android": { "buildType": "app-bundle" },
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://edusaas-tau.vercel.app" }
+    },
+    "demo": {
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_API_URL": "https://edusaas-tau.vercel.app", "EXPO_PUBLIC_DEMO_PASSWORD": "Demo-pass-2026" }
+    }
+  },
+  "submit": {
+    "production": { "android": { "track": "internal", "releaseStatus": "draft" } }
+  }
+}

@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
+import { API_URL } from '@/lib/config';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui';
 import { Text } from '@/components/text';
 import { BrandMark } from '@/screens/BrandMark';
 import { DevSignIn } from '@/screens/DevSignIn';
+import { DEV_LOGIN_ENABLED } from '@/lib/dev-logins';
 import { colors, family, space } from '@/lib/theme';
 
 /**
@@ -17,12 +19,12 @@ export default function PortalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const go = (portal: string) => router.push({ pathname: '/(auth)/login', params: { portal } });
-  // Hidden developer quick-sign-in: tap the EDUsaas wordmark seven times to open it.
+  // Hidden developer quick-sign-in (demo builds only): tap the EDUsaas wordmark seven times to open it.
   const [dev, setDev] = useState(false);
   const taps = useRef(0);
   const tapBrand = () => {
     taps.current += 1;
-    if (taps.current >= 7) {
+    if (DEV_LOGIN_ENABLED && taps.current >= 7) {
       taps.current = 0;
       setDev(true);
     }
@@ -67,8 +69,16 @@ export default function PortalScreen() {
             EDUsaas team sign in
           </Text>
         </Pressable>
+        <Pressable
+          onPress={() => Linking.openURL(`${API_URL}/privacy`)}
+          hitSlop={8}
+          style={{ alignSelf: 'center' }}
+          accessibilityRole="link"
+        >
+          <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>Privacy policy</Text>
+        </Pressable>
       </View>
-      <DevSignIn visible={dev} onClose={() => setDev(false)} />
+      {DEV_LOGIN_ENABLED && <DevSignIn visible={dev} onClose={() => setDev(false)} />}
     </View>
   );
 }

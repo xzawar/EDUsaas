@@ -16,17 +16,13 @@
     "android": {
       "package": "com.edusaas.app",
       "versionCode": 1,
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#a99bff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
-        "CAMERA",
-        "POST_NOTIFICATIONS",
-        "VIBRATE",
-        "USE_BIOMETRIC"
-      ],
+      "permissions": ["CAMERA", "POST_NOTIFICATIONS", "VIBRATE", "USE_BIOMETRIC"],
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
         {
@@ -36,10 +32,7 @@
               "scheme": "edusaas"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "blockedPermissions": [

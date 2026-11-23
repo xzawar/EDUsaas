@@ -160,5 +160,6 @@ export function moreFor(me: Me, opts: { pending?: number } = {}): MoreItem[] {
     subtitle: `${opts.pending} saved on this phone`,
   });
   items.push({ href: '/change-password', title: 'Change password', icon: 'key-outline' });
+  items.push({ href: '/(app)/more/about', title: 'About, privacy and terms', icon: 'information-circle-outline' });
   return items.filter((i) => !tabs.has(i.href));
 }

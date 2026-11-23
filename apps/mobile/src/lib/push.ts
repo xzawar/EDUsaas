@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
@@ -33,7 +34,10 @@ export function usePushRegistration(enabled: boolean) {
         const perm = await Notifications.getPermissionsAsync();
         const status = perm.granted ? 'granted' : (await Notifications.requestPermissionsAsync()).status;
         if (status !== 'granted' || cancelled) return;
-        const token = (await Notifications.getExpoPushTokenAsync()).data;
+        // The Expo project this build belongs to; a build without one (no `eas init` yet) simply has no push.
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+        if (!projectId || /^0{8}-/.test(projectId)) return;
+        const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         await api('/me/push-token', { body: { token, platform: Platform.OS, appVersion: APP_VERSION } });
       } catch {
         /* push is optional */

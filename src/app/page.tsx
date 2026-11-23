@@ -37,6 +37,17 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <footer className="flex flex-wrap justify-center gap-4 px-6 py-4 text-sm text-slate-500">
+        <Link href="/privacy" className="hover:underline">
+          Privacy
+        </Link>
+        <Link href="/terms" className="hover:underline">
+          Terms
+        </Link>
+        <Link href="/delete-account" className="hover:underline">
+          Delete an account
+        </Link>
+      </footer>
     </main>
   );
 }

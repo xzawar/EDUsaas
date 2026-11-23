@@ -20,6 +20,7 @@ export function DevSignIn({ visible, onClose }: { visible: boolean; onClose: () 
 
   async function go(d: DemoLogin) {
     setBusy(d.identifier);
+    if (!DEMO_PASSWORD) return;
     const r = await signIn(d.portal, d.identifier, DEMO_PASSWORD);
     setBusy(null);
     if (!r.ok) return toast('error', r.message);

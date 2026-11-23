@@ -108,6 +108,7 @@ const ICONS = {
   // "More": the three-line menu everyone recognises.
   'ellipsis-horizontal-circle-outline': Menu,
   menu: Menu,
+  'information-circle-outline': Info,
   'chatbubble-outline': MessageCircle,
   'create-outline': Pencil,
   'paper-plane-outline': Send,

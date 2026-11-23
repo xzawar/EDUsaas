@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { DEMO_LOGINS, DEMO_PASSWORD } from '@/lib/dev-logins';
-import { DevSignIn } from '@/screens/DevSignIn';
+// Demo builds get the demo password at build time; this file plays a demo build.
+process.env.EXPO_PUBLIC_DEMO_PASSWORD = 'Demo-pass-2026';
+const { DEMO_LOGINS, DEMO_PASSWORD } = require('@/lib/dev-logins') as typeof import('@/lib/dev-logins');
+const { DevSignIn } = require('@/screens/DevSignIn') as typeof import('@/screens/DevSignIn');
 import { useSession } from '@/lib/session';
 
 const calls: { portal: string; id: string; pw: string }[] = [];
@@ -30,4 +32,15 @@ it('signs in through the normal flow with the demo password, then closes', async
   expect(calls).toEqual([{ portal: 'staff', id: 'accounts@bss.test', pw: DEMO_PASSWORD }]);
   // The session store (not the component) decides whether the password is accepted.
   expect(useSession.getState().signIn).toHaveBeenCalledWith('staff', 'accounts@bss.test', DEMO_PASSWORD);
+});
+
+it('a store build (no demo password set) has no quick sign-in at all', () => {
+  jest.isolateModules(() => {
+    const saved = process.env.EXPO_PUBLIC_DEMO_PASSWORD;
+    delete process.env.EXPO_PUBLIC_DEMO_PASSWORD;
+    const m = require('@/lib/dev-logins') as typeof import('@/lib/dev-logins');
+    expect(m.DEV_LOGIN_ENABLED).toBe(false);
+    expect(m.DEMO_PASSWORD).toBeNull();
+    process.env.EXPO_PUBLIC_DEMO_PASSWORD = saved;
+  });
 });
